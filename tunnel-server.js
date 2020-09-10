@@ -1,4 +1,6 @@
 import http from 'http';
+import querystring from 'querystring';
+import url from 'url';
 import WebSocket from 'ws';
 import Router from 'koa-router';
 import Koa from 'koa';
@@ -28,6 +30,7 @@ class TunnelServer {
             });
             const info = {
                 id: tunnel.id,
+                auth_token: tunnel.authToken,
                 ingress: tunnel.ingress,
                 tunnels,
             }
@@ -128,19 +131,31 @@ class TunnelServer {
             }
         });
 
+        const unauthorized = (sock) => {
+            sock.end(`HTTP/1.1 401 Unauthorized\r\n\r\n`);
+        };
+
+        const authenticate = (req, tunnel) => {
+            const requestUrl = url.parse(req.url);
+            const queryParams = querystring.decode(requestUrl.query);
+            const token = queryParams['token'];
+            return tunnel != undefined && tunnel.authenticate(token) === true;
+        };
+
         server.on('upgrade', async (req, sock, head) => {
-            const tunnel = await getTunnel(req);
-            if (tunnel) {
-                req.headers['x-forwarded-for'] = clientIp(req);
-                const wsTunnel = tunnel.tunnels['websocket'];
-                if (wsTunnel) {
-                    wsTunnel.httpRequest(wss, req, sock, head);
-                } else {
-                    res.statusCode = 401;
-                }
-            } else {
-                sock.end(`HTTP/1.1 401 Unauthorized\r\n\r\n`);
+            const tunnelConfig = await getTunnel(req);
+            if (tunnelConfig == undefined) {
+                return unauthorized(sock);
             }
+
+            const tunnel = tunnelConfig.tunnels['websocket'];
+            if (authenticate(req, tunnel) !== true) {
+                return unauthorized(sock);
+            }
+
+            req.headers['x-forwarded-for'] = clientIp(req);
+            req.headers['x-real-ip'] = req.headers['x-forwarded-for'];
+            tunnel.httpRequest(wss, req, sock, head);
         });
     }
 

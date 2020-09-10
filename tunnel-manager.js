@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import hri from 'human-readable-ids';
 import WebSocketTunnel from './tunnel/ws-tunnel.js';
 
@@ -29,7 +30,7 @@ class TunnelManager {
             return this.activeTunnels[tunnel.id];
         }
         const activeTunnels = this.activeTunnels[tunnel.id] = {};
-        activeTunnels['websocket'] = new WebSocketTunnel(tunnel.id, this.opts.subdomainUrl);
+        activeTunnels['websocket'] = new WebSocketTunnel(tunnel, this.opts.subdomainUrl);
         return activeTunnels;
     }
 
@@ -45,8 +46,10 @@ class TunnelManager {
         const url = new URL(this.opts.subdomainUrl.href);
         url.hostname = `${tunnelId}.${url.hostname}`;
         const ingress = url.href;
+        const authToken = crypto.randomBytes(64).toString('base64');
         return {
             id: tunnelId,
+            authToken,
             ingress,
         };
     }

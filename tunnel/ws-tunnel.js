@@ -1,14 +1,16 @@
 import http from 'http';
+import querystring from 'querystring';
 import TunnelInterface from './tunnel-interface.js';
 import WebSocketMultiplex from './ws-multiplex.js';
 import WebSocketAgent from './ws-agent.js';
 
 class WebSocketTunnel extends TunnelInterface {
-    constructor(tunnelId, baseUrl) {
+    constructor(tunnel, baseUrl) {
         const url = new URL(baseUrl.href);
         url.protocol = baseUrl.protocol == 'https:' ? 'wss' : 'ws';
-        url.hostname = `${tunnelId}.${url.hostname}`;
-        super(url.href);
+        url.hostname = `${tunnel.id}.${url.hostname}`;
+        url.search = '?' + querystring.encode({token: tunnel.authToken});
+        super(tunnel, url.href);
         this.connected = false;
     }
 
