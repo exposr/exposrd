@@ -160,7 +160,14 @@ class TunnelServer {
     }
 
     listen(cb) {
-        this.server.listen({port: this.opts.port}, cb);
+        const listenError = (err) => {
+            console.log(`Failed to start server: ${err.message}`);
+        };
+        this.server.once('error', listenError);
+        this.server.listen({port: this.opts.port}, () => {
+            this.server.removeListener('error', listenError);
+            cb();
+        });
     }
 
     shutdown(cb) {
