@@ -159,8 +159,8 @@ class TunnelServer {
         });
     }
 
-    listen(port) {
-        this.server.listen(port);
+    listen(cb) {
+        this.server.listen({port: this.opts.port}, cb);
     }
 
     shutdown(cb) {

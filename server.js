@@ -1,6 +1,7 @@
 import yargs from 'yargs';
 import { URL } from 'url';
 import TunnelServer from './tunnel-server.js';
+import AdminServer from './admin-server.js';
 
 const argv = yargs.command('$0 <subdomain-url>', '', (yargs) => {
     yargs
@@ -12,7 +13,11 @@ const argv = yargs.command('$0 <subdomain-url>', '', (yargs) => {
     alias: 'p',
     type: 'number',
     default: 8080,
-    description: 'Port to listen on'
+    description: 'Server port to listen on'
+  })
+  .option('admin-port', {
+    type: 'number',
+    description: 'Admin port to listen on'
   })
   .argv
 
@@ -25,11 +30,16 @@ const argv = yargs.command('$0 <subdomain-url>', '', (yargs) => {
     }
 };
 
+const adminServer = new AdminServer(argv['admin-port']);
 const tunnelServer = new TunnelServer({
     subdomainUrl: parseUrl(argv['subdomain-url']),
     port: argv['port'],
 });
-tunnelServer.listen(argv['port']);
+tunnelServer.listen((err) => {
+  if (err === undefined) {
+    adminServer.setReady();
+  }
+});
 
 const sigHandler = (signal) => {
   tunnelServer.shutdown((err) => {
