@@ -162,6 +162,10 @@ class TunnelServer {
     listen(port) {
         this.server.listen(port);
     }
+
+    shutdown(cb) {
+        this.server.close(cb);
+    }
 }
 
 export default TunnelServer;

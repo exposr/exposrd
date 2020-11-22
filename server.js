@@ -30,3 +30,12 @@ const tunnelServer = new TunnelServer({
     port: argv['port'],
 });
 tunnelServer.listen(argv['port']);
+
+const sigHandler = (signal) => {
+  tunnelServer.shutdown((err) => {
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', sigHandler);
+process.on('SIGINT', sigHandler);
