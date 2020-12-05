@@ -9,9 +9,7 @@ class AdminServer {
         this._initializeRoutes();
         app.use(router.routes());
         app.use(router.allowedMethods());
-        if (port != undefined) {
-            app.listen(port);
-        }
+        app.listen(port);
     }
 
     _initializeRoutes() {
