@@ -21,13 +21,13 @@ const argv = yargs.command('$0 <subdomain-url>', '', (yargs) => {
   })
   .argv
 
-  const parseUrl = (url) => {
-    try {
-        return new URL(url);
-    } catch (err) {
-        console.log(err.message);
-        process.exit(-1);
-    }
+const parseUrl = (url) => {
+  try {
+    return new URL(url);
+  } catch (err) {
+    console.log(err.message);
+    process.exit(-1);
+  }
 };
 
 const adminServer = new AdminServer(argv['admin-port']);
