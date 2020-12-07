@@ -31,6 +31,11 @@ const args = yargs
         default: 8081,
         description: "Admin port to listen on"
     })
+    .option('log-level', {
+        type: 'string',
+        default: 'info',
+        choices: ['all', 'trace', 'debug', 'info', 'warn', 'error', 'fatal', 'off'],
+    })
     .demandOption(["subdomain-url"])
 
 class Config {

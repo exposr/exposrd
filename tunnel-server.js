@@ -6,6 +6,7 @@ import Router from 'koa-router';
 import Koa from 'koa';
 import net from 'net';
 import TunnelManager from './tunnel-manager.js';
+import Logger from './logger.js';
 
 class TunnelServer {
     constructor(opts) {
@@ -19,6 +20,22 @@ class TunnelServer {
 
         const router = this.router = new Router();
         const app = this.app = new Koa();
+
+        app.use(async (ctx, next) => {
+            await next();
+            Logger.info({
+                request: {
+                    path: ctx.request.url,
+                    method: ctx.request.method,
+                    headers: ctx.request.headers
+                },
+                response: {
+                    headers: ctx.response.header,
+                    status: ctx.response.status,
+                    body: ctx.response.body
+                }
+            });
+        });
 
         const tunnelInfo = (tunnel) => {
             const tunnels = {};
@@ -161,7 +178,7 @@ class TunnelServer {
 
     listen(cb) {
         const listenError = (err) => {
-            console.log(`Failed to start server: ${err.message}`);
+            Logger.error(`Failed to start server: ${err.message}`);
         };
         this.server.once('error', listenError);
         this.server.listen({port: this.opts.port}, () => {
