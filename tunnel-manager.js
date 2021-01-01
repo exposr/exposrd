@@ -25,23 +25,6 @@ class TunnelManager {
         };
     }
 
-    _activateTunnels(tunnel) {
-        if (this.activeTunnels[tunnel.id]) {
-            return this.activeTunnels[tunnel.id];
-        }
-        const activeTunnels = this.activeTunnels[tunnel.id] = {};
-        activeTunnels['websocket'] = new WebSocketTunnel(tunnel, this.opts.subdomainUrl);
-        return activeTunnels;
-    }
-
-    _getTunnels(tunnel) {
-        const tunnels = this._activateTunnels(tunnel);
-        return {
-            ...tunnel,
-            tunnels
-        };
-    }
-
     _newTunnel(tunnelId) {
         const url = new URL(this.opts.subdomainUrl.href);
         url.hostname = `${tunnelId}.${url.hostname}`;
@@ -54,12 +37,39 @@ class TunnelManager {
         };
     }
 
+    activate(tunnel) {
+        const tunnelId = tunnel.id;
+        if (this.activeTunnels[tunnelId]) {
+            return this.activeTunnels[tunnelId];
+        }
+        const activeTunnels = this.activeTunnels[tunnelId] = {};
+        activeTunnels['websocket'] = new WebSocketTunnel(tunnel, this.opts.subdomainUrl);
+        return activeTunnels;
+    }
+
+    deactivate(tunnelId) {
+        if (!this.activeTunnels[tunnelId]) {
+            return;
+        }
+        const activeTunnels = this.activeTunnels[tunnelId];
+        activeTunnels['websocket'].shutdown();
+        delete this.activeTunnels[tunnelId];
+    }
+
+    _getActiveTunnels(tunnel) {
+        const tunnels = this.activate(tunnel);
+        return {
+            ...tunnel,
+            tunnels
+        };
+    }
+
     async get(tunnelId) {
         const tunnel = await this._get(tunnelId);
         if (tunnel === undefined) {
             return false;
         }
-        return this._getTunnels(tunnel);
+        return this._getActiveTunnels(tunnel);
     }
 
     async _allocateRandomTunnel() {
@@ -86,10 +96,13 @@ class TunnelManager {
         if (tunnel === false) {
             return false;
         }
-        return this._getTunnels(tunnel);
+        return this._getActiveTunnels(tunnel);
     }
 
-    delete(id) {
+    shutdown() {
+        Object.keys(this.activeTunnels).forEach((tunnelId) => {
+            this.deactivate(tunnelId);
+        });
     }
 
 }

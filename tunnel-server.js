@@ -188,6 +188,7 @@ class TunnelServer {
     }
 
     shutdown(cb) {
+        this.tunnelManager.shutdown();
         this.server.close(cb);
     }
 }

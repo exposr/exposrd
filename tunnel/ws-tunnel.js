@@ -32,6 +32,7 @@ class WebSocketTunnel extends TunnelInterface {
             self.connected = true;
             sock.handleUpgrade(req, res, head, (ws) => {
                 clearTimeout(timeout);
+                self.ws = ws;
                 const multiplex = self.multiplex = new WebSocketMultiplex(ws);
                 self.agent = new WebSocketAgent(multiplex);
 
@@ -44,6 +45,23 @@ class WebSocketTunnel extends TunnelInterface {
                 resolve(false);
             });
         });
+    }
+
+    shutdown() {
+        if (!this.connected) {
+            return;
+        }
+
+        if (this.multiplex) {
+            this.multiplex.terminate();
+            this.multiplex = undefined;
+        }
+
+        if (this.ws) {
+            this.ws.terminate();
+            this.ws = undefined;
+        }
+        this.connected = false;
     }
 
     async httpRequest(sock, req, res, head) {
