@@ -233,13 +233,6 @@ http-errors@~1.7.2:
     statuses ">= 1.5.0 < 2"
     toidentifier "1.0.0"
 
-human-readable-ids@^1.0.4:
-  version "1.0.4"
-  resolved "https://registry.yarnpkg.com/human-readable-ids/-/human-readable-ids-1.0.4.tgz#41b3a2a6966636e104e41e0673b984b36dfde202"
-  integrity sha512-h1zwThTims8A/SpqFGWyTx+jG1+WRMJaEeZgbtPGrIpj2AZjsOgy8Y+iNzJ0yAyN669Q6F02EK66WMWcst+2FA==
-  dependencies:
-    knuth-shuffle "^1.0.0"
-
 inherits@2.0.4:
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/inherits/-/inherits-2.0.4.tgz#0fa2c64f932917c3433a0ded55363aae37416b7c"
@@ -268,11 +261,6 @@ keygrip@~1.1.0:
   integrity sha512-iYSchDJ+liQ8iwbSI2QqsQOvqv58eJCEanyJPJi+Khyu8smkcKSFUCbPwzFcL7YVtZ6eONjqRX/38caJ7QjRAQ==
   dependencies:
     tsscmp "1.0.6"
-
-knuth-shuffle@^1.0.0:
-  version "1.0.8"
-  resolved "https://registry.yarnpkg.com/knuth-shuffle/-/knuth-shuffle-1.0.8.tgz#929a467b0efd8d297bdcf318ca988a9f1037f80d"
-  integrity sha512-IdC4Hpp+mx53zTt6VAGsAtbGM0g4BV9fP8tTcviCosSwocHcRDw9uG5Rnv6wLWckF4r72qeXFoK9NkvV1gUJCQ==
 
 koa-compose@^3.0.0:
   version "3.2.1"

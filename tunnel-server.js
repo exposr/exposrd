@@ -54,17 +54,6 @@ class TunnelServer {
             return info;
         };
 
-        router.post('/v1/tunnel', async (ctx, next) => {
-            const tunnel = await this.tunnelManager.create();
-            if (tunnel == false) {
-                ctx.status = 403;
-            } else {
-                ctx.body = tunnelInfo(tunnel);
-                ctx.status = 201;
-            }
-            return;
-        });
-
         router.put('/v1/tunnel/:id', async (ctx, next) => {
             const tunnelId = ctx.params.id;
             if (!/^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/.test(tunnelId)) {

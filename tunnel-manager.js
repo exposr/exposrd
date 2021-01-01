@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import hri from 'human-readable-ids';
 import WebSocketTunnel from './tunnel/ws-tunnel.js';
 
 class TunnelManager {
@@ -72,25 +71,10 @@ class TunnelManager {
         return this._getActiveTunnels(tunnel);
     }
 
-    async _allocateRandomTunnel() {
-        let tunnelId;
-        let tunnel;
-        do {
-            tunnelId = hri.hri.random();
-            tunnel = await this._set(tunnelId, this._newTunnel(tunnelId), {NX: true});
-        } while (tunnel === false);
-        return tunnel;
-    }
-
     async create(tunnelId, opts = {}) {
-        let tunnel;
-        if (tunnelId == undefined) {
-            tunnel = await this._allocateRandomTunnel();
-        } else {
-            tunnel = await this._set(tunnelId, this._newTunnel(tunnelId), {NX: true});
-            if (tunnel === false && opts.allowExists) {
-                tunnel = await this._get(tunnelId);
-            }
+        let tunnel = await this._set(tunnelId, this._newTunnel(tunnelId), {NX: true});
+        if (tunnel === false && opts.allowExists) {
+            tunnel = await this._get(tunnelId);
         }
 
         if (tunnel === false) {

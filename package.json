@@ -6,7 +6,6 @@
   "author": "Fredrik Lindberg <fli@shapeshifter.se>",
   "license": "MIT",
   "dependencies": {
-    "human-readable-ids": "^1.0.4",
     "koa": "^2.13.0",
     "koa-router": "^9.4.0",
     "log4js": "^6.3.0",
