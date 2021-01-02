@@ -6,7 +6,7 @@ import Router from 'koa-router';
 import Koa from 'koa';
 import net from 'net';
 import TunnelManager from './tunnel-manager.js';
-import Logger from './logger.js';
+import { Logger } from './logger.js'; const logger = Logger("tunnel-server");
 
 class TunnelServer {
     constructor(opts) {
@@ -23,7 +23,7 @@ class TunnelServer {
 
         app.use(async (ctx, next) => {
             await next();
-            Logger.info({
+            logger.info({
                 request: {
                     path: ctx.request.url,
                     method: ctx.request.method,
@@ -167,7 +167,7 @@ class TunnelServer {
 
     listen(cb) {
         const listenError = (err) => {
-            Logger.error(`Failed to start server: ${err.message}`);
+            logger.error(`Failed to start server: ${err.message}`);
         };
         this.server.once('error', listenError);
         this.server.listen({port: this.opts.port}, () => {

@@ -14,8 +14,8 @@ Log4js.addLayout('json', function(config) {
     }
 });
 
-class Logger {
-    constructor() {
+class LoggerFactory {
+    constructor(namespace) {
         const logger = this._logger = Log4js.getLogger("json");
         Log4js.configure({
             appenders: {
@@ -27,7 +27,10 @@ class Logger {
         });
 
         logger.level = Config.get("log-level");
+        namespace && logger.addContext("logger", namespace)
+        return logger;
     }
 }
 
-export default new Logger()._logger;
+export function Logger(ns) { return new LoggerFactory(ns); };
+export default new LoggerFactory();
