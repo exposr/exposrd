@@ -1,7 +1,7 @@
 {
   "name": "untitled-tunnel-project",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "type": "module",
   "author": "Fredrik Lindberg <fli@shapeshifter.se>",
   "license": "MIT",
