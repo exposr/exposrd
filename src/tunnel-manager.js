@@ -1,27 +1,12 @@
 import crypto from 'crypto';
 import WebSocketTunnel from './tunnel/ws-tunnel.js';
+import Storage from './storage/index.js';
 
 class TunnelManager {
     constructor(opts) {
         this.opts = opts;
         this.activeTunnels = {};
-
-        this.config = {};
-        this._get = async (key) => {
-            return this.config[key];
-        };
-
-        this._set = async (key, data, opts = {}) => {
-            if (opts.NX === true && this.config[key] !== undefined) {
-                return false;
-            }
-            this.config[key] = data;
-            return this.config[key];
-        };
-
-        this._delete = async (key) => {
-            delete this.config[key];
-        };
+        this.db = new Storage("tm");
     }
 
     _newTunnel(tunnelId) {
@@ -64,7 +49,7 @@ class TunnelManager {
     }
 
     async get(tunnelId) {
-        const tunnel = await this._get(tunnelId);
+        const tunnel = await this.db.get(tunnelId);
         if (tunnel === undefined) {
             return false;
         }
@@ -72,9 +57,9 @@ class TunnelManager {
     }
 
     async create(tunnelId, opts = {}) {
-        let tunnel = await this._set(tunnelId, this._newTunnel(tunnelId), {NX: true});
+        let tunnel = await this.db.set(tunnelId, this._newTunnel(tunnelId), {NX: true});
         if (tunnel === false && opts.allowExists) {
-            tunnel = await this._get(tunnelId);
+            tunnel = await this.db.get(tunnelId);
         }
 
         if (tunnel === false) {
