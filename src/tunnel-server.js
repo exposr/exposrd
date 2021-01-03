@@ -1,16 +1,14 @@
-import http from 'http';
-import querystring from 'querystring';
-import url from 'url';
-import WebSocket from 'ws';
 import Router from 'koa-router';
 import Koa from 'koa';
-import net from 'net';
 import TunnelManager from './tunnel-manager.js';
+import WebSocketServer from './tunnel/ws-server.js';
+import Listener from './listener/index.js';
 import { Logger } from './logger.js'; const logger = Logger("tunnel-server");
 
 class TunnelServer {
     constructor(opts) {
         this.opts = opts;
+        this.httpListener = new Listener().getListener('http');
         this.tunnelManager = new TunnelManager(this.opts);
         this._initializeRoutes();
         this._initializeServer();
@@ -88,97 +86,21 @@ class TunnelServer {
         this.appCallback = app.callback();
     }
 
-    _getTunnelId(hostname) {
-        const host = hostname.toLowerCase().split(":")[0];
-        const tunnelId = host.substr(0, host.indexOf(this.opts.subdomainUrl.hostname) - 1);
-        return tunnelId !== '' ? tunnelId : undefined;
-    }
-
     _initializeServer() {
-        const server = this.server = http.createServer();
-        const wss = this.wss = new WebSocket.Server({ noServer: true });
-
-        const getTunnel = async (req) => {
-            const hostname = req.headers.host;
-            if (hostname === undefined) {
-                return;
-            }
-
-            const tunnelId = this._getTunnelId(hostname);
-            if (tunnelId === undefined) {
-                return;
-            }
-
-            const tunnel = await this.tunnelManager.get(tunnelId);
-            return tunnel;
-        };
-
-        const clientIp = (req) => {
-            let ip;
-            if (req.headers['x-forwarder-for']) {
-                ip = req.headers['x-forwarded-for'].split(/\s*,\s*/)[0];
-            }
-            return net.isIP(ip) ? ip : req.socket.remoteAddress;
-        }
-
-        server.on('request', async (req, res) => {
-            const tunnel = await getTunnel(req);
-            if (tunnel) {
-                req.headers['x-forwarded-for'] = clientIp(req);
-                req.headers['x-real-ip'] = req.headers['x-forwarded-for'];
-                const wsTunnel = tunnel.tunnels['websocket'];
-                if (wsTunnel) {
-                    wsTunnel.httpRequest(wss, req, res);
-                } else {
-                    res.statusCode = 401;
-                }
-            } else {
-                this.appCallback(req, res);
-            }
+        const wsServer = new WebSocketServer({
+            ...this.opts,
+            tunnelManager: this.tunnelManager
         });
 
-        const unauthorized = (sock) => {
-            sock.end(`HTTP/1.1 401 Unauthorized\r\n\r\n`);
-        };
-
-        const authenticate = (req, tunnel) => {
-            const requestUrl = url.parse(req.url);
-            const queryParams = querystring.decode(requestUrl.query);
-            const token = queryParams['token'];
-            return tunnel != undefined && tunnel.authenticate(token) === true;
-        };
-
-        server.on('upgrade', async (req, sock, head) => {
-            const tunnelConfig = await getTunnel(req);
-            if (tunnelConfig == undefined) {
-                return unauthorized(sock);
-            }
-
-            const tunnel = tunnelConfig.tunnels['websocket'];
-            if (authenticate(req, tunnel) !== true) {
-                return unauthorized(sock);
-            }
-
-            req.headers['x-forwarded-for'] = clientIp(req);
-            req.headers['x-real-ip'] = req.headers['x-forwarded-for'];
-            tunnel.httpRequest(wss, req, sock, head);
+        const appCallback = this.appCallback;
+        this.httpListener.use('request', async (ctx, next) => {
+            appCallback(ctx.req, ctx.res);
         });
-    }
 
-    listen(cb) {
-        const listenError = (err) => {
-            logger.error(`Failed to start server: ${err.message}`);
-        };
-        this.server.once('error', listenError);
-        this.server.listen({port: this.opts.port}, () => {
-            this.server.removeListener('error', listenError);
-            cb();
-        });
     }
 
     shutdown(cb) {
         this.tunnelManager.shutdown();
-        this.server.close(cb);
     }
 }
 
