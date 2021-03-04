@@ -5,7 +5,7 @@ import WebSocketServer from './tunnel/ws-server.js';
 import Listener from './listener/index.js';
 import { Logger } from './logger.js'; const logger = Logger("tunnel-server");
 
-class TunnelServer {
+class ApiServer {
     constructor(opts) {
         this.opts = opts;
         this.httpListener = new Listener().getListener('http');
@@ -104,4 +104,4 @@ class TunnelServer {
     }
 }
 
-export default TunnelServer;
+export default ApiServer;
