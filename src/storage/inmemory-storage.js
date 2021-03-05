@@ -3,7 +3,7 @@ import { Logger } from '../logger.js';
 const _DB = {};
 
 class InMemoryStorage {
-    constructor(namespace) {
+    constructor(namespace, opts) {
         this.logger = Logger("in-memory-storage");
         this.logger.addContext("ns", namespace);
         this.ns = namespace;

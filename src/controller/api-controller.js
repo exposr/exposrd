@@ -1,15 +1,14 @@
 import Router from 'koa-router';
 import Koa from 'koa';
-import TunnelManager from './tunnel-manager.js';
-import WebSocketServer from './tunnel/ws-server.js';
-import Listener from './listener/index.js';
-import { Logger } from './logger.js'; const logger = Logger("tunnel-server");
+import TunnelManager from '../tunnel/tunnel-manager.js';
+import Listener from '../listener/index.js';
+import { Logger } from '../logger.js'; const logger = Logger("tunnel-server");
 
-class ApiServer {
+class ApiController {
     constructor(opts) {
         this.opts = opts;
         this.httpListener = new Listener().getListener('http');
-        this.tunnelManager = new TunnelManager(this.opts);
+        this.tunnelManager = new TunnelManager();
         this._initializeRoutes();
         this._initializeServer();
     }
@@ -36,19 +35,27 @@ class ApiServer {
         });
 
         const tunnelInfo = (tunnel) => {
-            const tunnels = {};
-            Object.keys(tunnel.tunnels).forEach((k) => {
-                const entry = tunnel.tunnels[k];
-                tunnels[k] = {
-                    endpoint: entry.endpoint,
-                };
-            });
             const info = {
                 id: tunnel.id,
-                auth_token: tunnel.authToken,
-                ingress: tunnel.ingress,
-                tunnels,
+                auth_token: tunnel.spec.authToken,
+                endpoints: {},
+                ingress: {},
             }
+
+            Object.keys(tunnel.spec.endpoints).forEach((k) => {
+                const endpoint = tunnel.spec.endpoints[k];
+                if (endpoint.enabled) {
+                    info.endpoints[k] = endpoint;
+                }
+            });
+
+            Object.keys(tunnel.spec.ingress).forEach((k) => {
+                const ingress = tunnel.spec.ingress[k];
+                if (ingress.enabled) {
+                    info.ingress[k] = ingress;
+                }
+            });
+
             return info;
         };
 
@@ -61,8 +68,20 @@ class ApiServer {
                 };
                 return;
             }
-            const tunnel = await this.tunnelManager.create(tunnelId, {allowExists: true});
-            if (tunnel == false) {
+            const config = {
+                ingress: {
+                    http: {
+                        enabled: true,
+                    }
+                },
+                endpoints: {
+                    ws: {
+                        enabled: true,
+                    }
+                }
+            };
+            const tunnel = await this.tunnelManager.create(tunnelId, config, {allowExists: true});
+            if (tunnel === false) {
                 ctx.status = 403;
             } else {
                 ctx.body = tunnelInfo(tunnel);
@@ -87,11 +106,6 @@ class ApiServer {
     }
 
     _initializeServer() {
-        const wsServer = new WebSocketServer({
-            ...this.opts,
-            tunnelManager: this.tunnelManager
-        });
-
         const appCallback = this.appCallback;
         this.httpListener.use('request', async (ctx, next) => {
             appCallback(ctx.req, ctx.res);
@@ -100,8 +114,8 @@ class ApiServer {
     }
 
     shutdown(cb) {
-        this.tunnelManager.shutdown();
+        cb();
     }
 }
 
-export default ApiServer;
+export default ApiController;

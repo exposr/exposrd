@@ -1,8 +1,8 @@
 import InMemoryStorage from './inmemory-storage.js';
 
 class Storage {
-    constructor(namespace) {
-        return new InMemoryStorage(namespace);
+    constructor(namespace, opts = {}) {
+        return new InMemoryStorage(namespace, opts);
     }
 }
 

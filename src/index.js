@@ -1,51 +1,68 @@
 import Logger from './logger.js';
 import Config from './config.js';
-import ApiServer from './api-server.js';
-import AdminServer from './admin-server.js';
+import ApiController from './controller/api-controller.js';
+import AdminController from './controller/admin-controller.js';
 import Listener from './listener/index.js';
+import Ingress from './ingress/index.js';
+import Endpoint from './endpoint/index.js';
 
-export default () => { 
-  Logger.info("Untitled Tunnel Project");
+export default () => {
+    Logger.info("Untitled Tunnel Project");
 
-  const listener = new Listener({
-    http: {
-      port: Config.get('port')
-    }
-  });
-
-  const adminServer = Config.get('enable-admin') ? new AdminServer(Config.get('admin-port')) : undefined;
-  const tunnelServer = new ApiServer({
-      subdomainUrl: Config.get('subdomain-url'),
-      port: Config.get('port'),
-  });
-  listener.listen((err) => {
-    if (err === undefined) {
-      if (adminServer) {
-        adminServer.setReady();
-        Logger.info({
-          message: "Admin interface enabled",
-          port: Config.get('admin-port')
-        });
-      } else {
-        Logger.info({message: "Admin interface disabled"});
-      }
-      Logger.info({
-        message: "Ready",
-        subdomain_url: Config.get('subdomain-url'),
-        port: Config.get('port')
-      });
-    }
-  });
-  
-  const sigHandler = (signal) => {
-    Logger.info(`Shutdown initiated, signal=${signal}`)
-    tunnelServer.shutdown(() => {});
-    listener.shutdown(() => {
-      Logger.info(`Shutdown complete`)
-      process.exit(0);
+    // Setup listeners
+    const listener = new Listener({
+        http: {
+          port: Config.get('port')
+        }
     });
-  };
-  
-  process.on('SIGTERM', sigHandler);
-  process.on('SIGINT', sigHandler);
+
+    // Setup tunnel connection endpoints (for clients to establish tunnels)
+    const endpoint = new Endpoint({
+      ws: {
+        enabled: true,
+        subdomainUrl: Config.get('subdomain-url')
+      }
+    });
+
+    // Setup tunnel data ingress (incoming tunnel data)
+    const ingress = new Ingress({
+      http: {
+        enabled: true,
+        subdomainUrl: Config.get('subdomain-url')
+      }
+    });
+
+    const adminController = Config.get('enable-admin') ? new AdminController(Config.get('admin-port')) : undefined;
+    const apiController = new ApiController();
+
+    listener.listen((err) => {
+        if (err === undefined) {
+          if (adminController) {
+              adminController.setReady();
+              Logger.info({
+                  message: "Admin interface enabled",
+                  port: Config.get('admin-port')
+              });
+          } else {
+              Logger.info({message: "Admin interface disabled"});
+          }
+          Logger.info({
+              message: "Ready",
+              subdomain_url: Config.get('subdomain-url'),
+              port: Config.get('port')
+          });
+        }
+    });
+
+    const sigHandler = (signal) => {
+        Logger.info(`Shutdown initiated, signal=${signal}`)
+        apiController.shutdown(() => {});
+        listener.shutdown(() => {
+            Logger.info(`Shutdown complete`)
+            process.exit(0);
+        });
+    };
+
+    process.on('SIGTERM', sigHandler);
+    process.on('SIGINT', sigHandler);
 }
