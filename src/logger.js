@@ -28,6 +28,24 @@ class LoggerFactory {
 
         logger.level = Config.get("log-level");
         namespace && logger.addContext("logger", namespace)
+
+        logger.withContext = (key, value) => {
+            logger.addContext(key, value);
+
+            const logfn = (orig, fn, ...args) => {
+                logger[fn] = orig;
+                logger[fn](...args)
+                logger.removeContext(key, value);
+            };
+
+            ['trace', 'debug', 'info', 'warn', 'error', 'fatal'].forEach(fn => {
+                const orig = logger[fn];
+                logger[fn] = (...args) => { return logfn(orig, fn, ...args); }
+            });
+
+            return logger;
+        }
+
         return logger;
     }
 }
