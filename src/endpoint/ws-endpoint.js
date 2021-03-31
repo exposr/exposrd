@@ -3,11 +3,14 @@ import net from 'net';
 import querystring from 'querystring';
 import url from 'url';
 import Listener from '../listener/index.js';
-import WebSocketTransport from '../transport/ws/ws-transport.js';
+import Transport from '../transport/index.js';
 import TunnelManager from '../tunnel/tunnel-manager.js';
 import { Logger } from '../logger.js'; const logger = Logger("ws-server");
 
 class WebSocketEndpoint {
+
+    static UPGRADE_TIMEOUT = 5000;
+
     constructor(opts) {
         this.opts = opts;
         this.httpListener = new Listener().getListener('http');
@@ -15,7 +18,9 @@ class WebSocketEndpoint {
         this.wss = new WebSocket.Server({ noServer: true });
 
         this.httpListener.use('upgrade', async (ctx, next) => {
-            await this.handleUpgrade(ctx.req, ctx.sock, ctx.head);
+            if (!await this.handleUpgrade(ctx.req, ctx.sock, ctx.head)) {
+                next();
+            }
         });
     }
 
@@ -44,50 +49,60 @@ class WebSocketEndpoint {
         return token;
     }
 
-    async _connect(wss, req, sock, head) {
-        const self = this;
-        return new Promise((resolve, reject) => {
-            if (req.upgrade !== true) {
-                return reject("upgrade request expected");
-            }
-
-            const timeout = setTimeout(() => {
-                reject("timeout");
-            }, 1000);
-            wss.handleUpgrade(req, sock, head, (ws) => {
-                clearTimeout(timeout);
-                const transport = new WebSocketTransport(ws)
-                resolve(transport);
-            });
-        });
-    }
-
     _unauthorized(sock) {
-        sock.end(`HTTP/1.1 401 Unauthorized\r\n\r\n`);
+        this._rawHttpResponse(sock, 401, 'Unauthorized', '');
     };
 
+    _rawHttpResponse(sock, code, codeString, body) {
+        sock.write(`HTTP/1.1 ${code} ${codeString}\r\n\r\n`);
+        sock.write(JSON.stringify(body));
+        sock.destroy();
+    }
+
     async handleUpgrade(req, sock, head) {
+        if (req.upgrade !== true) {
+            logger.trace("upgrade called on non-upgrade request");
+            return false;
+        }
+
         const tunnelId = this._getRequestTunnelId(req);
         const authToken = this._getRequestAuthToken(req);
         if (tunnelId === undefined || authToken === undefined) {
             this._unauthorized(sock);
-            return;
+            return true;
         }
 
         const tunnel = await this.tunnelManager.get(tunnelId);
         if (tunnel.authenticate(authToken) === false) {
             this._unauthorized(sock);
-            return;
+            return true;
         }
 
-        const transport = await this._connect(this.wss, req, sock, head)
-            .catch(err => {
-                res.statusCode = 503;
-                res.end(JSON.stringify({error: "tunnel not connected"}));
-                return false;
+        if (tunnel.connected) {
+            this._rawHttpResponse(sock, 503, 'Service unavailable', {
+                error: 'tunnel already connected'
             });
+        }
 
-        tunnel.updateState(true, transport);
+        const timeout = setTimeout(() => {
+            logger.withContext("tunnel", tunnelId).debug(`HTTP upgrade on websocket timeout`);
+            this._rawHttpResponse(sock, 504, `Timeout`, {
+                error: 'HTTP upgrade timeout'
+            })
+        }, this.UPGRADE_TIMEOUT);
+
+        this.wss.handleUpgrade(req, sock, head, (ws) => {
+            clearTimeout(timeout);
+            const transport = Transport.createTransport({
+                method: 'WS',
+                opts: {
+                    tunnelId: tunnel.id,
+                    socket: ws
+                }
+            });
+            tunnel.setTransport(transport);
+        });
+        return true;
     }
 }
 

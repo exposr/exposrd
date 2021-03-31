@@ -21,6 +21,7 @@ class Tunnel {
             }
         });
 
+        this.connected = false;
         this.transport = undefined;
 
         if (this._spec.authToken === undefined) {
@@ -89,9 +90,23 @@ class Tunnel {
         return this.spec.authToken === authToken;
     }
 
-    updateState(connected, transport) {
-        this.connected = connected;
+    setTransport(transport) {
+        if (transport === this.transport) {
+            return;
+        }
+
+        if (this.tranport != undefined) {
+            this.transport.removeAllListeners('close');
+            this.transport.destroy();
+        }
+
+        this.connected = true;
         this.transport = transport;
+
+        this.transport.once('close', () => {
+            this.transport = undefined;
+            this.connected = false;
+        });
     }
 
 }
