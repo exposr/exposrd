@@ -415,6 +415,7 @@ class WebSocketTransportSocket extends Duplex {
     }
 
     _close(err) {
+        this.logger.isTraceEnabled() && this.logger.trace(`_close fd=${this.fd} state=${this.state} err=${err}`);
         if (err) {
             this.emit('error', err);
         }
@@ -423,7 +424,6 @@ class WebSocketTransportSocket extends Duplex {
         this.state = WebSocketTransportSocket.ENDED;
         this.wasFd = this.fd;
         this.fd = undefined;
-        this.logger.isTraceEnabled() && this.logger.trace(`_close fd=${this.fd} state=${this.state} err=${err}`);
     }
 
     destroy(error = undefined) {
