@@ -2,8 +2,10 @@ import net from 'net';
 import http, { Agent } from 'http';
 import Listener from '../listener/index.js';
 import TunnelManager from '../tunnel/tunnel-manager.js';
-import { Logger } from '../logger.js'; const logger = Logger("http-ingress");
+import { Logger } from '../logger.js';
+import { EMFILE } from 'constants';
 
+const logger = Logger("http-ingress");
 class HttpIngress {
     constructor(opts) {
         this.opts = opts;
@@ -124,8 +126,15 @@ class HttpIngress {
         clientReq.on('error', (err) => {
             logger.isDebugEnabled() &&
                 logger.withContext("tunnel", tunnel.id).debug(err);
-            res.statusCode = 502;
-            res.end(JSON.stringify({error: "tunnel request failed"}));
+            let msg;
+            if (err.code === EMFILE) {
+                res.statusCode = 503;
+                msg = 'concurrent tunnel request limit';
+            } else {
+                res.statusCode = 502;
+                msg = 'tunnel request failed';
+            }
+            res.end(JSON.stringify({error: msg}));
         });
 
         req.pipe(clientReq);
