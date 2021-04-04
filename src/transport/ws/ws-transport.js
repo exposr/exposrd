@@ -3,7 +3,7 @@ import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import assert from 'assert/strict';
 import { Logger } from '../../logger.js';
-import { EMFILE } from 'constants';
+import { ECONNREFUSED, EINPROGRESS, EMFILE, ETIMEDOUT, EPIPE } from 'constants';
 import CustomError from '../../utils/errors.js';
 
 // Multiplexes multiple streams over one websocket connection
@@ -106,8 +106,7 @@ class WebSocketTransport extends EventEmitter {
     _sendMessage(type, channel, data = undefined, callback) {
         assert(channel !== undefined);
         if (this._socket.readyState !== WebSocket.OPEN) {
-            callback(new Error("transport closed"))
-            return;
+            return callback(new CustomError(EPIPE, `transport closed`));
         }
 
         const message = this._encodeMessage(type, channel, data);
@@ -214,10 +213,10 @@ class WebSocketTransport extends EventEmitter {
                 handle();
             });
             this._eventBus.once(`fin-${fd}`, (fd) => {
-                handle(new Error("refused"));
+                handle(new CustomError(ECONNREFUSED, `connection refused fd=${fd}`));
             });
             connectTimeout = setTimeout(() => {
-                handle(new Error("timeout"));
+                handle(new CustomError(ETIMEDOUT, `connection timeout fd=${fd}`));
             }, timeout);
         });
     }
@@ -380,7 +379,7 @@ class WebSocketTransportSocket extends Duplex {
 
     connect(opts = {}, cb = undefined) {
         if (this.state === WebSocketTransportSocket.CONNECTING) {
-            cb(new Error("inprogress"));
+            cb(new CustomError(EINPROGRESS, `connection already in progress`));
             return;
         }
         this.cork();
