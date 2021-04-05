@@ -443,23 +443,18 @@ class WebSocketTransportSocket extends Duplex {
     }
 
     end(data, encoding, callback) {
-        if (this.destroyed) {
-            return;
-        }
-
-        const close = () => {
-            this.remote.close(this, () => {
-                callback && callback();
-            });
+        super.end(data, encoding, () => {
+            if (this.destroyed) {
+                typeof callback === 'function' && callback();
+                return;
+            }
             this.readyState = "readOnly";
             this.state = WebSocketTransportSocket.HALFOPEN;
-        };
+            this.remote.close(this, () => {
+                typeof callback === 'function' && callback();
+            });
+        });
 
-        if (data !== undefined) {
-            this._write(data, encoding, close);
-        } else {
-            close();
-        }
         return this;
     }
 
