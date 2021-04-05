@@ -426,21 +426,19 @@ class WebSocketTransportSocket extends Duplex {
         this.fd = undefined;
     }
 
-    destroy(error = undefined) {
-        if (this.destroyed) {
-            return;
-        }
-
+    _destroy(error, callback) {
         this.logger.isTraceEnabled() && this.logger.trace(`destroy fd=${this.fd} state=${this.state} err=${error}`);
 
         if (this.fd !== undefined) {
             this.remote.close(this, () => {
                 this._close(error);
                 this.destroyed = true;
+                typeof callback === 'function' && callback();
             });
         } else {
             this.destroyed = true;
             this._close(error);
+            typeof callback === 'function' && callback();
         }
     }
 
