@@ -3,7 +3,8 @@ import http, { Agent } from 'http';
 import Listener from '../listener/index.js';
 import TunnelManager from '../tunnel/tunnel-manager.js';
 import { Logger } from '../logger.js';
-import { EMFILE } from 'constants';
+import { EMFILE, EPIPE } from 'constants';
+import CustomError from '../utils/errors.js';
 
 const logger = Logger("http-ingress");
 class HttpIngress {
@@ -50,7 +51,7 @@ class HttpIngress {
     }
 
     _getAgent(tunnel) {
-        const newAgent = () => {
+        const createAgent = () => {
             const agent = new Agent({
                 keepAlive: true,
                 defaultPort: 80,
@@ -59,11 +60,30 @@ class HttpIngress {
             });
 
             agent.createConnection = (opts, callback) => {
-                const sock = tunnel.transport.createConnection(opts, callback);
-                return sock;
+                if (tunnel.connected) {
+                    const sock = tunnel.transport.createConnection(opts, callback);
+                    return sock;
+                } else {
+                    return undefined;
+                }
             };
 
             return agent;
+        };
+
+        const deleteAgent = () => {
+            const tunnelAgent = this._agents[tunnel.id];
+            if (tunnelAgent === undefined) {
+                return;
+            }
+            tunnelAgent.agent.destroy();
+            clearTimeout(tunnelAgent.timer);
+            if (tunnel.transport !== undefined) {
+                tunnel.transport.removeListener('close', deleteAgent);
+            }
+            delete this._agents[tunnel.id];
+            logger.isDebugEnabled() &&
+                logger.withContext("tunnel", tunnel.id).debug("http agent destroyed")
         };
 
         let agent;
@@ -71,19 +91,15 @@ class HttpIngress {
             agent = this._agents[tunnel.id].agent;
             clearTimeout(this._agents[tunnel.id].timer);
         } else {
-            agent = newAgent();
+            agent = createAgent();
+            tunnel.transport.once('close', deleteAgent);
             logger.isDebugEnabled() &&
                 logger.withContext("tunnel", tunnel.id).debug("http agent created")
         }
 
         this._agents[tunnel.id] = {
             agent: agent,
-            timer: setTimeout(() => {
-                agent.destroy();
-                delete this._agents[tunnel.id];
-                logger.isDebugEnabled() &&
-                    logger.withContext("tunnel", tunnel.id).debug("http agent destroyed")
-            }, 65000)
+            timer: setTimeout(deleteAgent, 65000)
         }
         return agent;
 
@@ -93,6 +109,14 @@ class HttpIngress {
         const tunnel = await this._getTunnel(req);
         if (!tunnel) {
             return false;
+        }
+
+        if (!tunnel.connected) {
+            res.statusCode = 502;
+            res.end(JSON.stringify({
+                error: 'upstream not connected'
+            }))
+            return true;
         }
 
         req.headers['x-forwarded-for'] = this._clientIp(req);
@@ -118,6 +142,7 @@ class HttpIngress {
                 path: req.url,
                 headers: req.headers,
             });
+
         const clientReq = http.request(opt, (clientRes) => {
             res.writeHead(clientRes.statusCode, clientRes.headers);
             clientRes.pipe(res);
