@@ -16,10 +16,11 @@ Log4js.addLayout('json', function(config) {
 
 class LoggerFactory {
     constructor(namespace) {
-        const logger = this._logger = Log4js.getLogger("json");
+        const logger = this._logger = Log4js.getLogger('UTP');
+
         Log4js.configure({
             appenders: {
-              out: { type: 'stdout', layout: { type: 'json', separator: ',' } }
+              out: { type: 'stdout', layout: { type: Config.get('log-format'), separator: ',' } }
             },
             categories: {
               default: { appenders: ['out'], level: Config.get("log-level") }

@@ -36,6 +36,11 @@ const args = yargs
         default: 'info',
         choices: ['all', 'trace', 'debug', 'info', 'warn', 'error', 'fatal', 'off'],
     })
+    .option('log-format', {
+        type: 'string',
+        default: 'json',
+        choices: ['json'],
+    })
     .demandOption(["subdomain-url"])
 
 class Config {
