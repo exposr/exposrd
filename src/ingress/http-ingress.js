@@ -52,9 +52,6 @@ class HttpIngress {
         const createAgent = () => {
             const agent = new Agent({
                 keepAlive: true,
-                defaultPort: 80,
-                maxSockets: 64,
-                maxTotalSockets: 1024,
             });
 
             agent.createConnection = (opts, callback) => {
