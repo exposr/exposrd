@@ -3,8 +3,6 @@ import http, { Agent } from 'http';
 import Listener from '../listener/index.js';
 import TunnelManager from '../tunnel/tunnel-manager.js';
 import { Logger } from '../logger.js';
-import { EMFILE, EPIPE } from 'constants';
-import CustomError from '../utils/errors.js';
 
 const logger = Logger("http-ingress");
 class HttpIngress {
@@ -114,7 +112,7 @@ class HttpIngress {
         if (!tunnel.connected) {
             res.statusCode = 502;
             res.end(JSON.stringify({
-                error: 'upstream not connected'
+                error: 'not connected'
             }))
             return true;
         }
@@ -150,14 +148,17 @@ class HttpIngress {
 
         clientReq.on('error', (err) => {
             logger.isDebugEnabled() &&
-                logger.withContext("tunnel", tunnel.id).debug(err);
+                logger.withContext("tunnel", tunnel.id).debug(`HTTP request failed: ${err.message} (${err.code})`);
             let msg;
-            if (err.code === EMFILE) {
+            if (err.code === 'EMFILE') {
+                res.statusCode = 429;
+                msg = 'concurrent request limit';
+            } else if (err.code == 'ECONNRESET') {
                 res.statusCode = 503;
-                msg = 'concurrent tunnel request limit';
+                msg = 'upstream connection refused';
             } else {
-                res.statusCode = 502;
-                msg = 'tunnel request failed';
+                res.statusCode = 503;
+                msg = 'upstream request failed';
             }
             res.end(JSON.stringify({error: msg}));
         });
