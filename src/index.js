@@ -32,7 +32,7 @@ export default () => {
       }
     });
 
-    const adminController = Config.get('enable-admin') ? new AdminController(Config.get('admin-port')) : undefined;
+    const adminController = Config.get('admin-enable') ? new AdminController(Config.get('admin-port')) : undefined;
     const apiController = new ApiController();
 
     listener.listen((err) => {

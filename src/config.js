@@ -39,7 +39,7 @@ const args = yargs
         default: 8080,
         description: 'Server port to listen on',
     })
-    .option('enable-admin', {
+    .option('admin-enable', {
         type: 'boolean',
         default: false,
         description: "Enable admin interface"
