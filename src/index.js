@@ -20,7 +20,7 @@ export default () => {
     const endpoint = new Endpoint({
       ws: {
         enabled: true,
-        subdomainUrl: Config.get('http-ingress-domain') //FIXME
+        baseUrl: Config.get('base-url')
       }
     });
 

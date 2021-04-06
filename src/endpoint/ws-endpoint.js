@@ -1,13 +1,13 @@
 import WebSocket from 'ws';
 import net from 'net';
-import querystring from 'querystring';
-import url from 'url';
 import Listener from '../listener/index.js';
 import Transport from '../transport/index.js';
 import TunnelManager from '../tunnel/tunnel-manager.js';
 import { Logger } from '../logger.js'; const logger = Logger("ws-server");
 
 class WebSocketEndpoint {
+
+    static PATH = '/v1/endpoint/ws';
 
     static UPGRADE_TIMEOUT = 5000;
 
@@ -24,16 +24,6 @@ class WebSocketEndpoint {
         });
     }
 
-    _getRequestTunnelId(req) {
-        const hostname = req.headers.host;
-        if (hostname === undefined) {
-            return undefined;
-        }
-        const host = hostname.toLowerCase().split(":")[0];
-        const tunnelId = host.substr(0, host.indexOf(this.opts.subdomainUrl.hostname) - 1);
-        return tunnelId !== '' ? tunnelId : undefined;
-    }
-
     _getRequestClientIp(req) {
         let ip;
         if (req.headers['x-forwarder-for']) {
@@ -42,11 +32,24 @@ class WebSocketEndpoint {
         return net.isIP(ip) ? ip : req.socket.remoteAddress;
     }
 
-    _getRequestAuthToken(req) {
-        const requestUrl = url.parse(req.url);
-        const queryParams = querystring.decode(requestUrl.query);
-        const token = queryParams['token'];
-        return token;
+    _parseRequest(req) {
+        let requestUrl;
+        try {
+            requestUrl = new URL(req.url, `http://${req.headers.host}`);
+        } catch (err) {
+            return undefined;
+        }
+
+        if (!requestUrl.pathname.startsWith(WebSocketEndpoint.PATH)) {
+            return undefined;
+        }
+
+        const tunnelId = requestUrl.pathname.substr(WebSocketEndpoint.PATH.length + 1);
+        const authToken = requestUrl.searchParams.get('token');
+        return {
+            tunnelId,
+            authToken
+        };
     }
 
     _unauthorized(sock) {
@@ -65,8 +68,12 @@ class WebSocketEndpoint {
             return false;
         }
 
-        const tunnelId = this._getRequestTunnelId(req);
-        const authToken = this._getRequestAuthToken(req);
+        const parsed = this._parseRequest(req);
+        if (parsed == undefined) {
+            return false;
+        }
+
+        const {tunnelId, authToken} = parsed;
         if (tunnelId === undefined || authToken === undefined) {
             this._unauthorized(sock);
             return true;

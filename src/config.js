@@ -2,6 +2,19 @@ import yargs from 'yargs';
 
 const args = yargs
     .env("UTP")
+    .option('base-url', {
+        type: 'string',
+        describe: 'Base URL for API (ex https://api.example.com)',
+        demandOption: true,
+        coerce: (url) => {
+            try {
+                return new URL(url);
+            } catch (err) {
+                console.log(err.message);
+                process.exit(-1);
+            }
+        },
+    })
     .option('ingress', {
         type: 'array',
         describe: 'Ingress to enable',
@@ -10,7 +23,7 @@ const args = yargs
     })
     .option('http-ingress-domain', {
         type: 'string',
-        describe: 'Wildcard domain for HTTP ingress (ex. https://example.com creates https://<tunnel-id>.example.com ingress points)',
+        describe: 'Wildcard domain for HTTP ingress (ex. https://tun.example.com creates https://<tunnel-id>.tun.example.com ingress points)',
         coerce: (url) => {
             try {
                 return new URL(url);

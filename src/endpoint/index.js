@@ -20,9 +20,9 @@ class Endpoint {
         const endpoints = {};
 
         if (this.opts.ws && this.opts.ws.enabled === true) {
-            const url = new URL(this.opts.ws.subdomainUrl.href);
-            url.protocol = this.opts.ws.subdomainUrl.protocol == 'https:' ? 'wss' : 'ws';
-            url.hostname = `${tunnel.id}.${url.hostname}`;
+            const url = new URL(this.opts.ws.baseUrl.href);
+            url.protocol = this.opts.ws.baseUrl.protocol == 'https:' ? 'wss' : 'ws';
+            url.pathname =  `${WebSocketEndpoint.PATH}/${tunnel.id}`;
             url.search = '?' + querystring.encode({token: tunnel.spec.authToken});
             endpoints.ws = {
                 url: url.href
