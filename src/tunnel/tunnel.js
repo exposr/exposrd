@@ -90,7 +90,7 @@ class Tunnel {
         return this.spec.authToken === authToken;
     }
 
-    setTransport(transport) {
+    setTransport(transport, peer) {
         if (transport === this.transport) {
             return;
         }
@@ -102,13 +102,22 @@ class Tunnel {
 
         this.connected = true;
         this.transport = transport;
+        this.peer = peer;
 
         this.transport.once('close', () => {
+            logger
+                .withContext("tunnel", `${this.id}`)
+                .withContext("peer", `${this.peer}`)
+                .info(`Tunnel disconnected`);
             this.transport = undefined;
             this.connected = false;
+            this.peer = undefined;
         });
+        logger
+            .withContext("tunnel", `${this.id}`)
+            .withContext("peer", `${this.peer}`)
+            .info(`Tunnel connected`);
     }
-
 }
 
 export default Tunnel;

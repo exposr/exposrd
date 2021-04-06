@@ -107,7 +107,7 @@ class WebSocketEndpoint {
                     socket: ws
                 }
             });
-            tunnel.setTransport(transport);
+            tunnel.setTransport(transport, this._getRequestClientIp(req));
         });
         return true;
     }
