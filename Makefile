@@ -1,4 +1,4 @@
-repository?=
+registry?=
 
 project:=untitled-tunnel-project
 version:=$(shell git describe --tags --dirty 2> /dev/null || git rev-parse --short HEAD)
@@ -11,9 +11,9 @@ image-build:
 	docker tag $(project):$(version) $(project):latest
 
 image-push:
-	docker tag $(project):$(version) $(repository)$(project):$(version)
-	docker push $(repository)$(project):$(version)
+	docker tag $(project):$(version) $(registry)$(project):$(version)
+	docker push $(registry)$(project):$(version)
 ifeq ($(git_is_master), yes)
-	docker tag $(project):$(version) $(repository)$(project):latest
-	docker push $(repository)$(project):latest
+	docker tag $(project):$(version) $(registry)$(project):latest
+	docker push $(registry)$(project):latest
 endif
