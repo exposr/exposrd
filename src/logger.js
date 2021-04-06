@@ -3,9 +3,12 @@ import Config from './config.js';
 
 Log4js.addLayout('json', function(config) {
     return function(logEvent) {
+        const data = typeof logEvent.data[0] == 'string' ? {
+            message: logEvent.data[0]
+        } : logEvent.data[0];
         const logEntry = {
             timestamp: logEvent.startTime,
-            data: logEvent.data[0],
+            data,
             ...logEvent.context,
             level: logEvent.level.levelStr,
             pid: logEvent.pid,
