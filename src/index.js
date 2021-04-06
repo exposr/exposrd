@@ -25,12 +25,17 @@ export default () => {
     });
 
     // Setup tunnel data ingress (incoming tunnel data)
-    const ingress = new Ingress({
-      http: {
-        enabled: Config.get('ingress').includes('http'),
-        subdomainUrl: Config.get('http-ingress-domain')
-      }
-    });
+    try {
+      const ingress = new Ingress({
+        http: {
+          enabled: Config.get('ingress').includes('http'),
+          subdomainUrl: Config.get('http-ingress-domain')
+        }
+      });
+    } catch (err) {
+      Logger.error(err.message);
+      process.exit(-1);
+    }
 
     const adminController = Config.get('admin-enable') ? new AdminController(Config.get('admin-port')) : undefined;
     const apiController = new ApiController();

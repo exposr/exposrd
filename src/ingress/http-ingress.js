@@ -8,6 +8,11 @@ const logger = Logger("http-ingress");
 class HttpIngress {
     constructor(opts) {
         this.opts = opts;
+
+        if (opts.subdomainUrl == undefined) {
+            throw new Error("No wildcard domain given for HTTP ingress");
+        }
+
         this.tunnelManager = new TunnelManager();
         this.httpListener = new Listener().getListener('http');
         this.httpListener.use('request', async (ctx, next) => {
