@@ -11,6 +11,7 @@ Log4js.addLayout('json', function(config) {
             data,
             ...logEvent.context,
             level: logEvent.level.levelStr,
+            logger: logEvent.categoryName,
             pid: logEvent.pid,
         }
         return JSON.stringify(logEntry, undefined, 0);
@@ -19,7 +20,7 @@ Log4js.addLayout('json', function(config) {
 
 class LoggerFactory {
     constructor(namespace) {
-        const logger = this._logger = Log4js.getLogger('UTP');
+        const logger = this._logger = Log4js.getLogger(namespace);
 
         Log4js.configure({
             appenders: {
@@ -31,7 +32,6 @@ class LoggerFactory {
         });
 
         logger.level = Config.get("log-level");
-        namespace && logger.addContext("logger", namespace)
 
         logger.withContext = (key, value) => {
             logger.addContext(key, value);
