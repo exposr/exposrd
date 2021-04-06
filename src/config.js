@@ -2,10 +2,15 @@ import yargs from 'yargs';
 
 const args = yargs
     .env("UTP")
-    .option('subdomain-url', {
-        alias: 's',
+    .option('ingress', {
+        type: 'array',
+        describe: 'Ingress to enable',
+        default: ['http'],
+        choices: ['http']
+    })
+    .option('http-ingress-domain', {
         type: 'string',
-        describe: 'Subdomain hostname used for tunnels, ex. https://example.com',
+        describe: 'Wildcard domain for HTTP ingress (ex. https://example.com creates https://<tunnel-id>.example.com ingress points)',
         coerce: (url) => {
             try {
                 return new URL(url);
@@ -41,8 +46,6 @@ const args = yargs
         default: 'json',
         choices: ['json'],
     })
-    .demandOption(["subdomain-url"])
-
 class Config {
     constructor() {
         this._config = args.argv;

@@ -20,15 +20,15 @@ export default () => {
     const endpoint = new Endpoint({
       ws: {
         enabled: true,
-        subdomainUrl: Config.get('subdomain-url')
+        subdomainUrl: Config.get('http-ingress-domain') //FIXME
       }
     });
 
     // Setup tunnel data ingress (incoming tunnel data)
     const ingress = new Ingress({
       http: {
-        enabled: true,
-        subdomainUrl: Config.get('subdomain-url')
+        enabled: Config.get('ingress').includes('http'),
+        subdomainUrl: Config.get('http-ingress-domain')
       }
     });
 
