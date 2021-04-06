@@ -102,8 +102,14 @@ class HttpIngress {
 
     async handleRequest(req, res) {
         const tunnel = await this._getTunnel(req);
-        if (!tunnel) {
+        if (tunnel === undefined) {
             return false;
+        } else if (tunnel === false) {
+            res.statusCode = 404;
+            res.end(JSON.stringify({
+                error: 'not configured'
+            }))
+            return true;
         }
 
         if (!tunnel.connected) {
