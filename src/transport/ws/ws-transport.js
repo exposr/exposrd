@@ -110,17 +110,11 @@ class WebSocketTransport extends EventEmitter {
         }
 
         const message = this._encodeMessage(type, channel, data);
-        const stream = this._socketStream;
 
         try {
-            const success = stream.write(message);
-            this._packetTrace(success ? '>' : '!', channel, type, data != undefined ? data.length : 0);
-            if (!success) {
-                stream.once('drain', callback);
-            } else {
-                process.nextTick(callback);
-            }
-            return success;
+            this._packetTrace('>', channel, type, data != undefined ? data.length : 0);
+            this._socket.send(message, callback);
+            return true;
         } catch (err) {
             callback(err);
             return false;
