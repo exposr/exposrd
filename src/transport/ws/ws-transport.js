@@ -56,6 +56,19 @@ class WebSocketTransport extends EventEmitter {
             this.destroy();
         });
 
+        this._socket.on('pong', () => {
+            this._alive = true;
+        });
+        this._alive = true;
+        this._keepAlive = setInterval(() => {
+            if (this._alive === false) {
+                this.logger.info("No heartbeat for 30000ms");
+                return this.destroy();
+            }
+            this._alive = false;
+            this._socket.ping();
+        }, 30000);
+
         this.maxChannels = opts.maxChannels || WebSocketTransport.MAX_CHANNELS;
         this.channelId = 0;
     }
@@ -322,9 +335,13 @@ class WebSocketTransport extends EventEmitter {
             const sock = this.openSockets[fd];
             sock.destroy();
         });
+        this._keepAlive && clearInterval(this._keepAlive);
+        this._keepAlive = false;
+        this._eventBus.removeAllListeners('connect');
         this._socketStream.removeAllListeners('data');
         this._socketStream.destroy();
         this._socket.removeAllListeners('close');
+        this._socket.removeAllListeners('pong');
         this._socket.close();
         this.destroyed = true;
         this.emit('close');
