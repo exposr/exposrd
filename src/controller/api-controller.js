@@ -2,7 +2,7 @@ import Router from 'koa-router';
 import Koa from 'koa';
 import TunnelManager from '../tunnel/tunnel-manager.js';
 import Listener from '../listener/index.js';
-import { Logger } from '../logger.js'; const logger = Logger("tunnel-server");
+import { Logger } from '../logger.js'; const logger = Logger("api");
 
 class ApiController {
     constructor(opts) {
