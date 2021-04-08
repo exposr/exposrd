@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 
 const args = yargs
-    .env("UTP")
+    .env("EXPOSR")
     .option('base-url', {
         type: 'string',
         describe: 'Base URL for API (ex https://api.example.com)',

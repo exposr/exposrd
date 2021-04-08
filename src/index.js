@@ -7,7 +7,7 @@ import Ingress from './ingress/index.js';
 import Endpoint from './endpoint/index.js';
 
 export default () => {
-    Logger.info("Untitled Tunnel Project");
+    Logger.info("exposr");
 
     // Setup listeners
     const listener = new Listener({
@@ -53,7 +53,7 @@ export default () => {
           }
           Logger.info({
               message: "Ready",
-              subdomain_url: Config.get('subdomain-url'),
+              base_url: Config.get('base-url'),
               port: Config.get('port')
           });
         }

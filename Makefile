@@ -1,6 +1,6 @@
 registry?=
 
-project:=untitled-tunnel-project
+project:=exposr-server
 version:=$(shell git describe --tags --dirty 2> /dev/null || git rev-parse --short HEAD)
 git_is_master:=$(shell bash -c '[[ $$(git rev-list origin/master..HEAD) == "" ]] && echo yes')
 

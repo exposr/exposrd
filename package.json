@@ -1,6 +1,6 @@
 {
-  "name": "untitled-tunnel-project",
-  "version": "1.0.0",
+  "name": "exposr-server",
+  "version": "0.1.0",
   "main": "server.js",
   "type": "module",
   "author": "Fredrik Lindberg <fli@shapeshifter.se>",

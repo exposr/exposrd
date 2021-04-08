@@ -1,2 +1,2 @@
-import UTP from './src/index.js';
-UTP();
+import Exposr from './src/index.js';
+Exposr();
