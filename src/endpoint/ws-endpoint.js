@@ -35,7 +35,7 @@ class WebSocketEndpoint {
 
     _getRequestClientIp(req) {
         let ip;
-        if (req.headers['x-forwarder-for']) {
+        if (req.headers['x-forwarded-for']) {
             ip = req.headers['x-forwarded-for'].split(/\s*,\s*/)[0];
         }
         return net.isIP(ip) ? ip : req.socket.remoteAddress;
