@@ -294,7 +294,7 @@ class WebSocketTransport extends EventEmitter {
         return sock;
     }
 
-    createConnection(opts, callback) {
+    createConnection(opts = {}, callback) {
         const sock = this._createSock();
         sock.connect(opts, callback);
         return sock;
@@ -385,19 +385,24 @@ class WebSocketTransportSocket extends Duplex {
             this.state = WebSocketTransportSocket.PENDING;
         }
 
+        this.cork();
+
         this.logger.isTraceEnabled() && this.logger.trace(`new socket fd=${this.fd} state=${this.state}`);
     }
 
-    connect(opts = {}, cb = undefined) {
+    connect(opts = {}, callback = undefined) {
         if (this.state === WebSocketTransportSocket.CONNECTING) {
-            cb(new CustomError(EINPROGRESS, `connection already in progress`));
+            callback(new CustomError(EINPROGRESS, `connection already in progress`));
             return;
         }
-        this.cork();
         this.connecting = true;
         this.readyState = "opening";
         this.state = WebSocketTransportSocket.CONNECTING;
-        const self = this;
+        if (typeof callback === 'function') {
+            this.once('connect', () => {
+                callback();
+            });
+        }
         this.remote.open(this, 1000, (err) => {
             if (this.state !== WebSocketTransportSocket.CONNECTING) {
                 return;
@@ -406,23 +411,27 @@ class WebSocketTransportSocket extends Duplex {
             this.connecting = false;
             this.pending = false;
             if (!err) {
-                this._ready(cb);
+                this.emit('connect');
+                this._ready();
             } else {
+                typeof callback === 'function' && this.removeListener('connect', callback);
                 this.readyState = undefined;
                 this._close(err);
             }
         });
     }
 
-    _ready(cb) {
+    accept() {
+        this._ready();
+    }
+
+    _ready() {
         this.readyState = "open";
         this.state = WebSocketTransportSocket.OPEN;
-        this.uncork();
-        super.pause();
-        this.emit('connect');
         this.emit('ready');
-        this.logger.isTraceEnabled() && this.logger.trace(`_ready fd=${this.fd}`);
-        cb && cb();
+        this.uncork();
+        this.resume();
+        this.logger.isTraceEnabled() && this.logger.trace(`_ready fd=${this.fd} paused=${this.isPaused()}`);
     }
 
     _close(err) {
@@ -493,8 +502,6 @@ class WebSocketTransportSocket extends Duplex {
             });
         } else if (this.state === WebSocketTransportSocket.OPEN) {
             super.resume();
-        } else if (this.state == WebSocketTransportSocket.PENDING) {
-            this._ready();
         }
     }
 
