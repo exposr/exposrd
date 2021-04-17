@@ -19,6 +19,9 @@ class WebSocketEndpoint {
 
         this.httpListener.use('upgrade', async (ctx, next) => {
             const response = await this.handleUpgrade(ctx.req, ctx.sock, ctx.head);
+            if (response === undefined) {
+                return next();
+            }
             logger.info({
                 request: {
                     path: ctx.req.url,
@@ -80,12 +83,12 @@ class WebSocketEndpoint {
     async handleUpgrade(req, sock, head) {
         if (req.upgrade !== true) {
             logger.trace("upgrade called on non-upgrade request");
-            return false;
+            return undefined;
         }
 
         const parsed = this._parseRequest(req);
         if (parsed == undefined) {
-            return false;
+            return undefined;
         }
 
         const {tunnelId, authToken} = parsed;
