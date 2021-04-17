@@ -20,6 +20,11 @@ class HttpIngress {
                 next();
             }
         });
+        this.httpListener.use('upgrade', async (ctx, next) => {
+            if (!await this.handleUpgradeRequest(ctx.req, ctx.sock, ctx.head)) {
+                next();
+            }
+        });
 
         this._agents = {};
     }
@@ -172,6 +177,74 @@ class HttpIngress {
         });
 
         req.pipe(clientReq);
+        return true
+    }
+
+    async handleUpgradeRequest(req, sock, head) {
+
+        const _rawHttpResponse = (sock, request, response) => {
+            sock.write(`HTTP/${request.httpVersion} ${response.status} ${response.statusLine}\r\n`);
+            sock.write('\r\n');
+            response.body && sock.write(response.body);
+            sock.end();
+            sock.destroy();
+            return response;
+        };
+
+        const tunnel = await this._getTunnel(req);
+        if (tunnel === undefined) {
+            return false;
+        } else if (tunnel === false) {
+            _rawHttpResponse(sock, req, {
+                status: 404,
+                statusLine: 'Not Found',
+                body: JSON.stringify({error: 'not configured'}),
+            });
+            return true;
+        }
+
+        if (!tunnel.connected) {
+            _rawHttpResponse(sock, req, {
+                status: 502,
+                statusLine: 'Bad Gateway',
+                body: JSON.stringify({error: 'not connected'}),
+            });
+            return true;
+        }
+
+        req.headers['x-forwarded-for'] = this._clientIp(req);
+        req.headers['x-real-ip'] = req.headers['x-forwarded-for'];
+
+        logger.isTraceEnabled() &&
+            logger.withContext('tunnel', tunnel.id).trace({
+                method: req.method,
+                path: req.url,
+                headers: req.headers,
+            });
+
+        const upstream = tunnel.transport.createConnection();
+        if (upstream === undefined) {
+            sock.end();
+            return true;
+        }
+
+        upstream.on('error', (err) => {
+            logger.withContext("tunnel", tunnel.id).debug(err);
+            sock.end();
+        });
+
+        upstream.on('connect', () => {
+            upstream.pipe(sock);
+            sock.pipe(upstream);
+
+            let raw = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
+            Object.keys(req.headers).forEach(k => {
+                raw += `${k}: ${req.headers[k]}\r\n`;
+            });
+            raw += '\r\n';
+            upstream.write(raw);
+        });
+
         return true
     }
 
