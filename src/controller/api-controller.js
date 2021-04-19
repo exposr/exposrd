@@ -1,4 +1,5 @@
 import Router from 'koa-router';
+import koaBody from 'koa-body';
 import Koa from 'koa';
 import TunnelManager from '../tunnel/tunnel-manager.js';
 import Listener from '../listener/index.js';
@@ -22,17 +23,20 @@ class ApiController {
             await next();
             logger.info({
                 request: {
-                    path: ctx.request.url,
                     method: ctx.request.method,
-                    headers: ctx.request.headers
+                    path: ctx.request.url,
+                    headers: ctx.request.headers,
+                    body: ctx.request.body
                 },
                 response: {
-                    headers: ctx.response.header,
                     status: ctx.response.status,
+                    headers: ctx.response.header,
                     body: ctx.response.body
                 }
             });
         });
+
+        app.use(koaBody());
 
         const tunnelInfo = (tunnel) => {
             const info = {
