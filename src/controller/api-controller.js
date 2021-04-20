@@ -75,7 +75,7 @@ class ApiController {
             const config = {
                 ingress: {
                     http: {
-                        enabled: true,
+                        enabled: ctx.request.body?.ingress?.http?.enabled,
                     }
                 },
                 endpoints: {
