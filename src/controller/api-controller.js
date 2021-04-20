@@ -78,6 +78,9 @@ class ApiController {
                         enabled: ctx.request.body?.ingress?.http?.enabled,
                     }
                 },
+                upstream: {
+                    url: ctx.request.body?.upstream?.url,
+                },
                 endpoints: {
                     ws: {
                         enabled: true,

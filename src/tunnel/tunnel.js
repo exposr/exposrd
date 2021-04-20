@@ -64,6 +64,9 @@ class Tunnel {
                     enabled: false,
                     url: undefined,
                 }
+            },
+            upstream: {
+                url: undefined,
             }
         };
 
