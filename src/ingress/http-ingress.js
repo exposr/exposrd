@@ -159,7 +159,7 @@ class HttpIngress {
             res.statusCode = 404;
             res.end(JSON.stringify({
                 error: 'not configured'
-            }))
+            }));
             return true;
         }
 
@@ -167,7 +167,15 @@ class HttpIngress {
             res.statusCode = 502;
             res.end(JSON.stringify({
                 error: 'not connected'
-            }))
+            }));
+            return true;
+        }
+
+        if (!tunnel.spec.ingress?.http?.enabled) {
+            res.statusCode = 403;
+            res.end(JSON.stringify({
+                error: 'http ingress not enabled'
+            }));
             return true;
         }
 
