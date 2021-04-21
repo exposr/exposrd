@@ -5,25 +5,54 @@ import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js'; const logger = Logger("tunnel");
 
 class Tunnel {
-    constructor(id, tunnelSpec = undefined) {
+    static BASESPEC_V1 = {
+        version: "v1",
+        authToken: undefined,
+        endpoints: {
+            ws: {
+                enabled: false,
+                url: undefined,
+            },
+        },
+        ingress: {
+            http: {
+                enabled: false,
+                url: undefined,
+            }
+        },
+        upstream: {
+            url: undefined,
+        }
+    };
+
+    constructor(id, tunnelSpec = {}) {
         this._db = new Storage("tunnel");
         this.id = id;
 
-        const self = this;
-        this._spec = this._createSpec(tunnelSpec);
+        this.connected = false;
+        this.transport = undefined;
+        this.destroyed = false;
+
+        this.setSpec(tunnelSpec, Tunnel.BASESPEC_V1);
+
+        logger.isDebugEnabled() && logger.debug(`tunnel=${id} spec=${JSON.stringify(this.spec)}`);
+    }
+
+    setSpec(tunnelSpec, prevSpec = undefined) {
+        if (!prevSpec) {
+            this.prevSpec = this._spec;
+        }
+
+        this._spec = this._createSpec(prevSpec, tunnelSpec);
         this.spec = new Proxy(this._spec, {
             set: (obj, name, value) => {
                 setImmediate(async () => {
-                    await self._db.set(self.id, self._spec);
+                    await self._db.set(this.id, this._spec);
                 });
 
                 return true;
             }
         });
-
-        this.connected = false;
-        this.transport = undefined;
-        this.destroyed = false;
 
         if (this._spec.authToken === undefined) {
             this._spec.authToken = crypto.randomBytes(64).toString('base64');
@@ -42,8 +71,6 @@ class Tunnel {
         process.nextTick(async () => {
             this.sync();
         });
-
-        logger.isDebugEnabled() && logger.debug(`tunnel=${id} spec=${JSON.stringify(this.spec)}`);
     }
 
     destroy() {
@@ -63,27 +90,7 @@ class Tunnel {
         await this._db.set(this.id, this._spec);
     }
 
-    _createSpec(sourceSpec) {
-        const baseSpecv1 = {
-            version: "v1",
-            authToken: undefined,
-            endpoints: {
-                ws: {
-                    enabled: false,
-                    url: undefined,
-                },
-            },
-            ingress: {
-                http: {
-                    enabled: false,
-                    url: undefined,
-                }
-            },
-            upstream: {
-                url: undefined,
-            }
-        };
-
+    _createSpec(sourceSpec, baseSpec) {
         const merge = (target, source) => {
             for (const key of Object.keys(target)) {
                 if (target[key] instanceof Object && source[key] instanceof Object) {
@@ -98,8 +105,8 @@ class Tunnel {
 
         sourceSpec = sourceSpec || {};
         return {
-            ...merge(baseSpecv1, sourceSpec),
-            version: baseSpecv1.version,
+            ...merge(baseSpec, sourceSpec),
+            version: baseSpec.version,
         };
     }
 

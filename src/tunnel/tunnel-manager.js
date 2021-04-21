@@ -34,7 +34,9 @@ class TunnelManager {
         }
 
         if (this.activeTunnels[tunnelId] !== undefined) {
-            return this.activeTunnels[tunnelId];
+            const tunnel = this.activeTunnels[tunnelId];
+            tunnel.setSpec(tunnelSpec);
+            return tunnel;
         }
 
         logger.isDebugEnabled() && logger.debug(`created tunnel=${tunnelId}`);
