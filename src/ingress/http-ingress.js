@@ -110,6 +110,47 @@ class HttpIngress {
 
     }
 
+    _requestHeaders(req, tunnel) {
+        const headers = { ... req.headers };
+        const host = headers['host'];
+        delete headers['connection'];
+        headers['x-forwarded-for'] = this._clientIp(req);
+        headers['x-real-ip'] = headers['x-forwarded-for'];
+
+        let upstream;
+        if (tunnel.spec.upstream.url) {
+            try {
+                upstream = new URL(tunnel.spec.upstream.url);
+            } catch {}
+        }
+
+        const rewriteHeaders = ['host', 'referer', 'origin'];
+        if (upstream !== undefined && upstream.protocol.startsWith('http')) {
+            rewriteHeaders.forEach(headerName => {
+                let value = headers[headerName];
+                if (value == undefined) {
+                    return;
+                }
+                if (value.startsWith('http')) {
+                    try {
+                        const url = new URL(value);
+                        if (url.host == host) {
+                            url.protocol = upstream.protocol;
+                            url.host = upstream.host;
+                            url.port = upstream.port;
+                            headers[headerName] = url.href;
+                        }
+                    } catch {
+                    }
+                } else {
+                    headers[headerName] = upstream.host;
+                }
+            });
+        }
+
+        return headers;
+    }
+
     async handleRequest(req, res) {
         const tunnel = await this._getTunnel(req);
         if (tunnel === undefined) {
@@ -130,15 +171,11 @@ class HttpIngress {
             return true;
         }
 
-        req.headers['x-forwarded-for'] = this._clientIp(req);
-        req.headers['x-real-ip'] = req.headers['x-forwarded-for'];
-        delete req.headers['connection'];
-
         const opt = {
             path: req.url,
             agent: this._getAgent(tunnel),
             method: req.method,
-            headers: req.headers,
+            headers: this._requestHeaders(req, tunnel),
             family: 4,
             localAddress: "localhost",
             lookup: () => {
@@ -149,9 +186,9 @@ class HttpIngress {
 
         logger.isTraceEnabled() &&
             logger.withContext('tunnel', tunnel.id).trace({
-                method: req.method,
-                path: req.url,
-                headers: req.headers,
+                method: opt.method,
+                path: opt.path,
+                headers: opt.headers,
             });
 
         const clientReq = http.request(opt, (clientRes) => {
@@ -212,9 +249,6 @@ class HttpIngress {
             return true;
         }
 
-        req.headers['x-forwarded-for'] = this._clientIp(req);
-        req.headers['x-real-ip'] = req.headers['x-forwarded-for'];
-
         logger.isTraceEnabled() &&
             logger.withContext('tunnel', tunnel.id).trace({
                 method: req.method,
@@ -233,12 +267,13 @@ class HttpIngress {
             sock.end();
         });
 
+        const headers = this._requestHeaders(req, tunnel);
         upstream.on('connect', () => {
             upstream.pipe(sock);
             sock.pipe(upstream);
 
             let raw = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
-            Object.keys(req.headers).forEach(k => {
+            Object.keys(headers).forEach(k => {
                 raw += `${k}: ${req.headers[k]}\r\n`;
             });
             raw += '\r\n';
