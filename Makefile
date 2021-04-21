@@ -7,7 +7,7 @@ git_is_master:=$(shell bash -c '[[ $$(git rev-list origin/master..HEAD) == "" ]]
 all:
 
 image.build:
-	docker build -t $(project):$(version) .
+	docker build --pull -t $(project):$(version) .
 	docker tag $(project):$(version) $(project):latest
 
 image.push: image.build
