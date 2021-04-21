@@ -38,12 +38,12 @@ class Tunnel {
         logger.isDebugEnabled() && logger.debug(`tunnel=${id} spec=${JSON.stringify(this.spec)}`);
     }
 
-    setSpec(tunnelSpec, prevSpec = undefined) {
+    setSpec(spec, prevSpec = undefined) {
         if (!prevSpec) {
-            this.prevSpec = this._spec;
+            prevSpec = this._spec;
         }
 
-        this._spec = this._createSpec(prevSpec, tunnelSpec);
+        this._spec = this._createSpec(spec, prevSpec);
         this.spec = new Proxy(this._spec, {
             set: (obj, name, value) => {
                 setImmediate(async () => {
