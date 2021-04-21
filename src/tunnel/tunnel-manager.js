@@ -46,9 +46,14 @@ class TunnelManager {
     }
 
     async delete(tunnelId) {
+        if (this.activeTunnels[tunnelId] === undefined) {
+            return false;
+        }
+        const tunnel = this.activeTunnels[tunnelId];
+        await tunnel.delete();
         delete this.activeTunnels[tunnelId];
-        await this.db.delete(tunnelId)
         logger.isDebugEnabled() && logger.debug(`deleted tunnel=${tunnelId}`);
+        return true;
     }
 }
 

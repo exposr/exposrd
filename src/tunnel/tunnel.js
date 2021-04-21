@@ -23,6 +23,7 @@ class Tunnel {
 
         this.connected = false;
         this.transport = undefined;
+        this.destroyed = false;
 
         if (this._spec.authToken === undefined) {
             this._spec.authToken = crypto.randomBytes(64).toString('base64');
@@ -43,6 +44,19 @@ class Tunnel {
         });
 
         logger.isDebugEnabled() && logger.debug(`tunnel=${id} spec=${JSON.stringify(this.spec)}`);
+    }
+
+    destroy() {
+        this.destroyed = true;
+        this.transport && this.transport.destroy();
+    }
+
+    async delete() {
+        this.destroy();
+        await this._db.delete(this.id);
+        this._spec = {};
+        this.spec = undefined;
+        logger.isDebugEnabled() && logger.debug(`tunnel=${this.id} deleted`);
     }
 
     async sync() {

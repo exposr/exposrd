@@ -142,9 +142,21 @@ class ApiController {
             }]
         });
 
-        router.delete('/v1/tunnel/:id', async (ctx, next) => {
-            ctx.status = 501;
-            return;
+        router.route({
+            method: 'delete',
+            path: '/v1/tunnel/:tunnel_id',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
+                }
+            },
+            handler: [handleError, async (ctx, next) => {
+                const tunnelId = ctx.params.tunnel_id;
+                await this.tunnelManager.delete(tunnelId);
+                ctx.status = 204;
+            }]
         });
 
         router.route({
