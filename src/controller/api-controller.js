@@ -147,9 +147,29 @@ class ApiController {
             return;
         });
 
-        router.get('/v1/tunnel/:id', async (ctx, next) => {
-            ctx.status = 501;
-            return;
+        router.route({
+            method: 'get',
+            path: '/v1/tunnel/:tunnel_id',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
+                }
+            },
+            handler: [handleError, async (ctx, next) => {
+                const tunnelId = ctx.params.tunnel_id;
+                const tunnel = await this.tunnelManager.get(tunnelId);
+                if (tunnel === false) {
+                    ctx.status = 404;
+                    ctx.body = {
+                        error: 'no such tunnel'
+                    }
+                } else {
+                    ctx.status = 200;
+                    ctx.body = tunnelInfo(tunnel);
+                }
+            }]
         });
 
         app.use(router.middleware());
