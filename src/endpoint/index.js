@@ -1,4 +1,5 @@
 import querystring from 'querystring';
+import crypto from 'crypto';
 import WebSocketEndpoint from "./ws-endpoint.js";
 
 class Endpoint {
@@ -20,12 +21,14 @@ class Endpoint {
         const endpoints = {};
 
         if (this.opts.ws && this.opts.ws.enabled === true) {
+            const token = crypto.randomBytes(64).toString('base64');
             const url = new URL(this.opts.ws.baseUrl.href);
             url.protocol = this.opts.ws.baseUrl.protocol == 'https:' ? 'wss' : 'ws';
             url.pathname =  `${WebSocketEndpoint.PATH}/${tunnel.id}`;
-            url.search = '?' + querystring.encode({token: tunnel.spec.authToken});
+            url.search = '?' + querystring.encode({token: token});
             endpoints.ws = {
-                url: url.href
+                url: url.href,
+                token,
             }
         }
 

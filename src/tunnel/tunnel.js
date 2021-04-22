@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import Storage from '../storage/index.js';
 import Endpoint from '../endpoint/index.js';
 import Ingress from '../ingress/index.js';
@@ -7,11 +6,11 @@ import { Logger } from '../logger.js'; const logger = Logger("tunnel");
 class Tunnel {
     static BASESPEC_V1 = {
         version: "v1",
-        authToken: undefined,
         endpoints: {
             ws: {
                 enabled: false,
                 url: undefined,
+                token: undefined,
             },
         },
         ingress: {
@@ -54,13 +53,10 @@ class Tunnel {
             }
         });
 
-        if (this._spec.authToken === undefined) {
-            this._spec.authToken = crypto.randomBytes(64).toString('base64');
-        }
-
         const endpoints = new Endpoint().getEndpoints(this);
         if (this._spec.endpoints.ws.enabled && endpoints.ws) {
             this._spec.endpoints.ws.url = endpoints.ws.url;
+            this._spec.endpoints.ws.token = endpoints.ws.token;
         }
 
         const ingress = new Ingress().getIngress(this);
@@ -108,10 +104,6 @@ class Tunnel {
             ...merge(baseSpec, sourceSpec),
             version: baseSpec.version,
         };
-    }
-
-    authenticate(authToken) {
-        return this.spec.authToken === authToken;
     }
 
     setTransport(transport, peer) {

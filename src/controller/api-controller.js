@@ -71,7 +71,6 @@ class ApiController {
         const tunnelInfo = (tunnel) => {
             const info = {
                 id: tunnel.id,
-                auth_token: tunnel.spec.authToken,
                 endpoints: {},
                 ingress: {},
             }

@@ -57,10 +57,10 @@ class WebSocketEndpoint {
         }
 
         const tunnelId = requestUrl.pathname.substr(WebSocketEndpoint.PATH.length + 1);
-        const authToken = requestUrl.searchParams.get('token');
+        const token = requestUrl.searchParams.get('token');
         return {
             tunnelId,
-            authToken
+            token,
         };
     }
 
@@ -91,13 +91,13 @@ class WebSocketEndpoint {
             return undefined;
         }
 
-        const {tunnelId, authToken} = parsed;
-        if (tunnelId === undefined || authToken === undefined) {
+        const {tunnelId, token} = parsed;
+        if (tunnelId === undefined || token === undefined) {
             return this._unauthorized(sock, req);
         }
 
         const tunnel = await this.tunnelManager.get(tunnelId);
-        if (tunnel.authenticate(authToken) === false) {
+        if (tunnel.spec?.endpoints?.ws?.token !== token) {
             return this._unauthorized(sock, req);
         }
 
