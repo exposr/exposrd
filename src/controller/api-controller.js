@@ -62,7 +62,7 @@ class ApiController {
                 },
                 response: {
                     status: ctx.response.status,
-                    headers: ctx.response.header,
+                    headers: ctx.response.headers,
                     body: ctx.response.body
                 }
             });
