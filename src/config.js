@@ -49,6 +49,11 @@ const args = yargs
         default: 8081,
         description: "Admin port to listen on"
     })
+    .option('allow-registration', {
+        type: 'boolean',
+        default: false,
+        description: 'Allow public account registration - NB: this allows public tunnel creation!'
+    })
     .option('log-level', {
         type: 'string',
         default: 'info',

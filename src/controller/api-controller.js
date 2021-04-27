@@ -3,6 +3,7 @@ import Koa from 'koa';
 import AccountManager from '../account/account-manager.js';
 import Account from '../account/account.js';
 import Listener from '../listener/index.js';
+import Config from '../config.js';
 import { Logger } from '../logger.js'; const logger = Logger("api");
 
 class ApiController {
@@ -15,6 +16,10 @@ class ApiController {
         this.accountManager = new AccountManager();
         this._initializeRoutes();
         this._initializeServer();
+
+        if (Config.get('allow-registration')) {
+            logger.warn({message: "Public account registration is enabled"});
+        }
     }
 
     _initializeRoutes() {
@@ -231,6 +236,12 @@ class ApiController {
                 continueOnError: true,
             },
             handler: [handleError, async (ctx, next) => {
+                const allowRegistration = Config.get('allow-registration') || false;
+                if (!allowRegistration) {
+                    ctx.status = 404;
+                    return;
+                }
+
                 const account = await this.accountManager.create();
                 if (account === undefined) {
                     ctx.status = 503;
