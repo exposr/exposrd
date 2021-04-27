@@ -49,6 +49,15 @@ const args = yargs
         default: 8081,
         description: "Admin port to listen on"
     })
+    .option('admin-api-key', {
+        type: 'string',
+        description: 'API key for admin resource access'
+    })
+    .option('admin-allow-access-without-api-key', {
+        type: 'boolean',
+        default: false,
+        description: 'Allow access to admin resource without any authentication'
+    })
     .option('allow-registration', {
         type: 'boolean',
         default: false,

@@ -1,24 +1,53 @@
 import Koa from 'koa';
 import Router from 'koa-joi-router'
 import AccountManager from '../account/account-manager.js';
+import Config from '../config.js';
+import { Logger } from '../logger.js'; const logger = Logger("admin");
 
 class AdminServer {
     constructor(port) {
         this.appReady = false;
+        this.apiKey = typeof Config.get('admin-api-key') === 'string' &&
+            Config.get('admin-api-key')?.length > 0 ? Config.get('admin-api-key') : undefined;
+        this.unauthAccess = this.apiKey === undefined && Config.get('admin-allow-access-without-api-key') === true;
         this.accountManager = new AccountManager();
         const app = this.app = new Koa();
         const router = this.router = Router();
         this._initializeRoutes();
-        app.use(router.middleware());
         app.listen(port);
+
+        if (this.apiKey != undefined) {
+            logger.info("Admin API resource enabled with API key");
+        } else if (this.unauthAccess) {
+            logger.warn("Admin API resource enabled without authentication");
+        } else {
+            logger.warn("Admin API resource disabled - no API key given");
+        }
     }
 
     _initializeRoutes() {
         const router = this.router;
 
+        this.app.use(async (ctx, next) => {
+            await next();
+            logger.info({
+                request: {
+                    method: ctx.request.method,
+                    path: ctx.request.url,
+                    headers: ctx.request.headers,
+                    body: ctx.request.body
+                },
+                response: {
+                    status: ctx.response.status,
+                    headers: ctx.response.headers,
+                    body: ctx.response.body
+                }
+            });
+        });
+
         const handleError = async (ctx, next) => {
             if (!ctx.invalid) {
-                return next(ctx, next);
+                return next();
             }
 
             if (ctx.invalid.type) {
@@ -42,16 +71,24 @@ class AdminServer {
                     error: 'unable to determine error'
                 }
             }
-
         };
 
-        router.route({
-            method: 'get',
-            path: '/ping',
-            handler: async (ctx) => {
-                ctx.status = this.appReady ? 200 : 404;
-            },
-        });
+        const handleAdminAuth = (ctx, next) => {
+            if (this.unauthAccess === true)  {
+                return next();
+            } else if (this.apiKey != undefined) {
+                const token = ctx.request.header.authorization ? ctx.request.header.authorization.split(' ')[1] : undefined;
+                const apiKey = token ? Buffer.from(token, 'base64').toString('utf-8') : undefined;
+                if (this.apiKey === apiKey) {
+                    return next();
+                } else {
+                    ctx.status = 403;
+                    return;
+                }
+            } else {
+                ctx.status = 404;
+            }
+        };
 
         const accountProps = (account) => {
             const {accountId, formatted} = account.getId();
@@ -62,9 +99,17 @@ class AdminServer {
         };
 
         router.route({
+            method: 'get',
+            path: '/ping',
+            handler: async (ctx, next) => {
+                ctx.status = this.appReady ? 200 : 404;
+            },
+        });
+
+        router.route({
             method: 'post',
             path: '/v1/account',
-            handler: async (ctx, next) => {
+            handler: [handleAdminAuth, async (ctx, next) => {
                 const account = await this.accountManager.create();
                 if (account === undefined) {
                     ctx.status = 503;
@@ -72,7 +117,7 @@ class AdminServer {
                 }
                 ctx.status = 201;
                 ctx.body = accountProps(account) ;
-            }
+            }]
         });
 
         router.route({
@@ -85,7 +130,7 @@ class AdminServer {
                     account_id: Router.Joi.string().required(),
                 }
             },
-            handler: [handleError, async (ctx, next) => {
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
                 const account = await this.accountManager.get(ctx.params.account_id);
                 if (!account) {
                     ctx.status = 404;
@@ -100,11 +145,12 @@ class AdminServer {
         router.route({
             method: 'delete',
             path: '/v1/account/:account_id',
-            handler: async (ctx, next) => {
+            handler: [handleAdminAuth, async (ctx, next) => {
                 ctx.status = 501;
-            }
+            }]
         });
 
+        this.app.use(router.middleware());
     }
 
     setReady() {
