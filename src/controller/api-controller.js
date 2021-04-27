@@ -1,6 +1,7 @@
 import Router from 'koa-joi-router'
 import Koa from 'koa';
-import TunnelManager from '../tunnel/tunnel-manager.js';
+import AccountManager from '../account/account-manager.js';
+import Account from '../account/account.js';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js'; const logger = Logger("api");
 
@@ -11,10 +12,9 @@ class ApiController {
     constructor(opts) {
         this.opts = opts;
         this.httpListener = new Listener().getListener('http');
-        this.tunnelManager = new TunnelManager();
+        this.accountManager = new AccountManager();
         this._initializeRoutes();
         this._initializeServer();
-
     }
 
     _initializeRoutes() {
@@ -48,7 +48,29 @@ class ApiController {
                     error: 'unable to determine error'
                 }
             }
+        };
 
+        const handleAuth = async (ctx, next) => {
+            const token = ctx.request.header.authorization ? ctx.request.header.authorization.split(' ')[1] : undefined;
+            const accountId = token ? Buffer.from(token, 'base64').toString('utf-8') : undefined;
+            if (!token || !accountId) {
+                ctx.status = 401;
+                ctx.body = {error: 'no access token'}
+                return;
+            }
+
+            const account = await this.accountManager.get(accountId);
+            if (account instanceof Account == false) {
+                ctx.status = 401;
+                ctx.body = {error: 'permission denied'}
+                return;
+            }
+
+            ctx._context = {
+                account
+            };
+
+            return next();
         };
 
         app.use(async (ctx, next) => {
@@ -114,7 +136,7 @@ class ApiController {
                     },
                 },
             },
-            handler: [handleError, async (ctx, next) => {
+            handler: [handleError, handleAuth, async (ctx, next) => {
                 const config = {
                     ingress: {
                         http: {
@@ -131,7 +153,8 @@ class ApiController {
                     }
                 };
                 const tunnelId = ctx.params.tunnel_id;
-                const tunnel = await this.tunnelManager.create(tunnelId, config, {allowExists: true});
+                const account = ctx._context.account;
+                const tunnel = await account.createTunnel(tunnelId, config, {allowExists: true});
                 if (tunnel === false) {
                     ctx.status = 403;
                 } else {
@@ -151,10 +174,18 @@ class ApiController {
                     tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
                 }
             },
-            handler: [handleError, async (ctx, next) => {
+            handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
-                await this.tunnelManager.delete(tunnelId);
-                ctx.status = 204;
+                const account = ctx._context.account;
+                const result = await account.deleteTunnel(tunnelId);
+                if (result === false) {
+                    ctx.status = 404;
+                    ctx.body = {
+                        error: 'no such tunnel'
+                    }
+                } else {
+                    ctx.status = 204;
+                }
             }]
         });
 
@@ -168,10 +199,11 @@ class ApiController {
                     tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
                 }
             },
-            handler: [handleError, async (ctx, next) => {
+            handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
-                const tunnel = await this.tunnelManager.get(tunnelId);
-                if (tunnel === false) {
+                const account = ctx._context.account;
+                const tunnel = await account.getTunnel(tunnelId);
+                if (!tunnel) {
                     ctx.status = 404;
                     ctx.body = {
                         error: 'no such tunnel'
@@ -180,6 +212,32 @@ class ApiController {
                     ctx.status = 200;
                     ctx.body = tunnelInfo(tunnel);
                 }
+            }]
+        });
+
+        const accountProps = (account) => {
+            const {accountId, formatted} = account.getId();
+            return {
+                account_id: accountId,
+                account_id_hr: formatted,
+            }
+        };
+
+        router.route({
+            method: 'post',
+            path: '/v1/account',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+            },
+            handler: [handleError, async (ctx, next) => {
+                const account = await this.accountManager.create();
+                if (account === undefined) {
+                    ctx.status = 503;
+                    return;
+                }
+                ctx.status = 201;
+                ctx.body = accountProps(account) ;
             }]
         });
 

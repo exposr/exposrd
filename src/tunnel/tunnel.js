@@ -6,6 +6,8 @@ import { Logger } from '../logger.js'; const logger = Logger("tunnel");
 class Tunnel {
     static BASESPEC_V1 = {
         version: "v1",
+        id: undefined,
+        account: undefined,
         endpoints: {
             ws: {
                 enabled: false,
@@ -32,6 +34,7 @@ class Tunnel {
         this.transport = undefined;
         this.destroyed = false;
 
+        tunnelSpec.id = id;
         this.setSpec(tunnelSpec, Tunnel.BASESPEC_V1);
 
         logger.isDebugEnabled() && logger.debug(`tunnel=${id} spec=${JSON.stringify(this.spec)}`);
