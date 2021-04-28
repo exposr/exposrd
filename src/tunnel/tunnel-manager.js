@@ -46,7 +46,7 @@ class TunnelManager {
         const created = await this.db.set(tunnelId, tunnelProps, {NX: true});
         if (!created) {
             if (opts?.allowExists) {
-                const tunnel = await this.get(tunnel, accountId);
+                const tunnel = await this.get(tunnelId, accountId);
                 if (tunnel) {
                     tunnel.setSpec(tunnelProps);
                 }
