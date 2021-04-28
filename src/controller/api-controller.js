@@ -120,7 +120,7 @@ class ApiController {
         };
 
         router.route({
-            method: 'put',
+            method: ['put', 'patch'],
             path: '/v1/tunnel/:tunnel_id',
             validate: {
                 type: 'json',
@@ -139,6 +139,11 @@ class ApiController {
                     upstream: {
                         url: Router.Joi.string().uri(),
                     },
+                    endpoints: {
+                        ws: {
+                            enabled: Router.Joi.boolean(),
+                        }
+                    }
                 },
             },
             handler: [handleError, handleAuth, async (ctx, next) => {
@@ -153,18 +158,29 @@ class ApiController {
                     },
                     endpoints: {
                         ws: {
-                            enabled: true,
+                            enabled: ctx.request.body?.endpoints?.ws?.enabled || true,
                         }
                     }
                 };
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const tunnel = await account.createTunnel(tunnelId, config, {allowExists: true});
-                if (tunnel === false) {
+                let tunnel;
+                if (ctx.request.method === 'PUT') {
+                    tunnel = await account.createTunnel(tunnelId, config, {allowExists: true});
+                } else if (ctx.request.method === 'PATCH') {
+                    tunnel = await account.getTunnel(tunnelId);
+                    if (tunnel) {
+                        tunnel.setSpec(config);
+                    }
+                } else {
+                    ctx.status = 405;
+                    return;
+                }
+                if (!tunnel) {
                     ctx.status = 403;
                 } else {
                     ctx.body = tunnelInfo(tunnel);
-                    ctx.status = 201;
+                    ctx.status = 200;
                 }
             }]
         });
