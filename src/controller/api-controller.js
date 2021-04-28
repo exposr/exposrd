@@ -268,6 +268,30 @@ class ApiController {
             }]
         });
 
+        router.route({
+            method: 'get',
+            path: '/v1/account/:account_id/token',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    account_id: Router.Joi.string().required(),
+                }
+            },
+            handler: [handleError, async (ctx, next) => {
+                const account = await this.accountManager.get(ctx.params.account_id);
+                if (!account) {
+                    ctx.status = 404;
+                    return;
+                }
+                const {accountId, _} = account.getId();
+                ctx.status = 201;
+                ctx.body = {
+                    token: Buffer.from(accountId).toString('base64'),
+                }
+            }]
+        });
+
         app.use(router.middleware());
         this.appCallback = app.callback();
     }
