@@ -97,7 +97,7 @@ class WebSocketEndpoint {
         }
 
         const tunnel = await this.tunnelManager.get(tunnelId);
-        if (tunnel.spec?.endpoints?.ws?.token !== token) {
+        if (tunnel?.spec?.endpoints?.ws?.token !== token) {
             return this._unauthorized(sock, req);
         }
 
