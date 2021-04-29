@@ -24,13 +24,18 @@ class AccountManager {
 
     async create() {
         let accountId;
+        let maxTries = 100;
         do {
             accountId = Account.generateId();
             const created = await this._db.set(accountId, {}, {NX: true});
             if (!created) {
                 accountId = undefined;
             }
-        } while (accountId === undefined)
+        } while (accountId === undefined && maxTries-- > 0);
+
+        if (!accountId) {
+            return undefined;
+        }
 
         return new Account(accountId);
     }
