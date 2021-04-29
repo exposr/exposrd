@@ -259,7 +259,7 @@ class ApiController {
                 }
 
                 const account = await this.accountManager.create();
-                if (account === undefined) {
+                if (!account) {
                     ctx.status = 503;
                     return;
                 }

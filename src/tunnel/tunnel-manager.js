@@ -19,7 +19,7 @@ class TunnelManager {
 
         if (tunnel == undefined) {
             const tunnelProps = await this.db.get(tunnelId);
-            if (tunnelProps === undefined) {
+            if (!tunnelProps) {
                 return undefined;
             }
             tunnel = new Tunnel(tunnelId, tunnelProps);

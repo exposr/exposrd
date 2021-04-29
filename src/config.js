@@ -63,6 +63,23 @@ const args = yargs
         default: false,
         description: 'Allow public account registration - NB: this allows public tunnel creation!'
     })
+    .option('storage', {
+        type: 'string',
+        default: 'memory',
+        choices: ['memory', 'redis'],
+    })
+    .option('storage-redis-url', {
+        type: 'string',
+        description: 'Redis connection URL',
+        coerce: (url) => {
+            try {
+                return new URL(url);
+            } catch (err) {
+                console.log(err.message);
+                process.exit(-1);
+            }
+        },
+    })
     .option('log-level', {
         type: 'string',
         default: 'info',
