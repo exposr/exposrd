@@ -118,9 +118,9 @@ class HttpIngress {
         headers['x-real-ip'] = headers['x-forwarded-for'];
 
         let upstream;
-        if (tunnel.spec.upstream.url) {
+        if (tunnel.props.upstream.url) {
             try {
-                upstream = new URL(tunnel.spec.upstream.url);
+                upstream = new URL(tunnel.props.upstream.url);
             } catch {}
         }
 
@@ -171,7 +171,7 @@ class HttpIngress {
             return true;
         }
 
-        if (!tunnel.spec.ingress?.http?.enabled) {
+        if (!tunnel.props.ingress?.http?.enabled) {
             res.statusCode = 403;
             res.end(JSON.stringify({
                 error: 'http ingress not enabled'

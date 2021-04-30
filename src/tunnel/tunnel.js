@@ -4,7 +4,7 @@ import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js'; const logger = Logger("tunnel");
 
 class Tunnel {
-    static BASESPEC_V1 = {
+    static BASEPROPS_V1 = {
         version: "v1",
         id: undefined,
         account: undefined,
@@ -26,7 +26,7 @@ class Tunnel {
         }
     };
 
-    constructor(id, tunnelSpec = {}) {
+    constructor(id, tunnelProps = {}) {
         this._db = new Storage("tunnel");
         this.id = id;
 
@@ -34,22 +34,22 @@ class Tunnel {
         this.transport = undefined;
         this.destroyed = false;
 
-        tunnelSpec.id = id;
-        this.setSpec(tunnelSpec, Tunnel.BASESPEC_V1);
+        tunnelProps.id = id;
+        this.setProps(tunnelProps, Tunnel.BASEPROPS_V1);
 
-        logger.isDebugEnabled() && logger.debug(`tunnel=${id} spec=${JSON.stringify(this.spec)}`);
+        logger.isDebugEnabled() && logger.debug(`tunnel=${id} props=${JSON.stringify(this.props)}`);
     }
 
-    setSpec(spec, prevSpec = undefined) {
-        if (!prevSpec) {
-            prevSpec = this._spec;
+    setProps(props, prevProps = undefined) {
+        if (!prevProps) {
+            prevProps = this._props;
         }
 
-        this._spec = this._createSpec(spec, prevSpec);
-        this.spec = new Proxy(this._spec, {
+        this._props = this._createSpec(props, prevProps);
+        this.props = new Proxy(this._props, {
             set: (obj, name, value) => {
                 setImmediate(async () => {
-                    await self._db.set(this.id, this._spec);
+                    await self._db.set(this.id, this._props);
                 });
 
                 return true;
@@ -57,14 +57,14 @@ class Tunnel {
         });
 
         const endpoints = new Endpoint().getEndpoints(this);
-        if (this._spec.endpoints.ws.enabled && endpoints.ws) {
-            this._spec.endpoints.ws.url = endpoints.ws.url;
-            this._spec.endpoints.ws.token = endpoints.ws.token;
+        if (this._props.endpoints.ws.enabled && endpoints.ws) {
+            this._props.endpoints.ws.url = endpoints.ws.url;
+            this._props.endpoints.ws.token = endpoints.ws.token;
         }
 
         const ingress = new Ingress().getIngress(this);
-        if (this._spec.ingress.http.enabled && ingress.http) {
-            this._spec.ingress.http.url = ingress.http.url;
+        if (this._props.ingress.http.enabled && ingress.http) {
+            this._props.ingress.http.url = ingress.http.url;
         }
 
         process.nextTick(async () => {
@@ -80,13 +80,13 @@ class Tunnel {
     async delete() {
         this.destroy();
         await this._db.delete(this.id);
-        this._spec = {};
-        this.spec = undefined;
+        this._props = {};
+        this.props = undefined;
         logger.isDebugEnabled() && logger.debug(`tunnel=${this.id} deleted`);
     }
 
     async sync() {
-        await this._db.set(this.id, this._spec);
+        await this._db.set(this.id, this._props);
     }
 
     _createSpec(sourceSpec, baseSpec) {

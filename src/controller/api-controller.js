@@ -102,15 +102,15 @@ class ApiController {
                 ingress: {},
             }
 
-            Object.keys(tunnel.spec.endpoints).forEach((k) => {
-                const endpoint = tunnel.spec.endpoints[k];
+            Object.keys(tunnel.props.endpoints).forEach((k) => {
+                const endpoint = tunnel.props.endpoints[k];
                 if (endpoint.enabled) {
                     info.endpoints[k] = endpoint;
                 }
             });
 
-            Object.keys(tunnel.spec.ingress).forEach((k) => {
-                const ingress = tunnel.spec.ingress[k];
+            Object.keys(tunnel.props.ingress).forEach((k) => {
+                const ingress = tunnel.props.ingress[k];
                 if (ingress.enabled) {
                     info.ingress[k] = ingress;
                 }
@@ -170,7 +170,7 @@ class ApiController {
                 } else if (ctx.request.method === 'PATCH') {
                     tunnel = await account.getTunnel(tunnelId);
                     if (tunnel) {
-                        tunnel.setSpec(config);
+                        tunnel.setProps(config);
                     }
                 } else {
                     ctx.status = 405;

@@ -25,15 +25,15 @@ class TunnelManager {
             tunnel = new Tunnel(tunnelId, tunnelProps);
         }
 
-        if (accountId != undefined && tunnel.spec.account !== accountId) {
+        if (accountId != undefined && tunnel.props.account !== accountId) {
             return false;
         }
 
         this.activeTunnels[tunnelId] = tunnel;
         logger.isDebugEnabled() && logger.debug({
             operation: 'get_tunnel',
-            tunnel: tunnel.spec.id,
-            account: tunnel.spec.account,
+            tunnel: tunnel.props.id,
+            account: tunnel.props.account,
         });
         return tunnel;
     }
@@ -48,7 +48,7 @@ class TunnelManager {
             if (opts?.allowExists) {
                 const tunnel = await this.get(tunnelId, accountId);
                 if (tunnel) {
-                    tunnel.setSpec(tunnelProps);
+                    tunnel.setProps(tunnelProps);
                 }
             } else {
                 return false;
@@ -60,8 +60,8 @@ class TunnelManager {
 
         logger.isDebugEnabled() && logger.debug({
             operation: 'create_tunnel',
-            tunnel: tunnel.spec.id,
-            account: tunnel.spec.account,
+            tunnel: tunnel.props.id,
+            account: tunnel.props.account,
         });
         return tunnel;
     }
