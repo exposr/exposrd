@@ -2,7 +2,7 @@ import WebSocket from 'ws';
 import net from 'net';
 import Listener from '../listener/index.js';
 import Transport from '../transport/index.js';
-import TunnelManager from '../tunnel/tunnel-manager.js';
+import TunnelService from '../tunnel/tunnel-service.js';
 import { Logger } from '../logger.js'; const logger = Logger("ws-endpoint");
 
 class WebSocketEndpoint {
@@ -14,7 +14,7 @@ class WebSocketEndpoint {
     constructor(opts) {
         this.opts = opts;
         this.httpListener = new Listener().getListener('http');
-        this.tunnelManager = new TunnelManager();
+        this.tunnelService = new TunnelService();
         this.wss = new WebSocket.Server({ noServer: true });
 
         this.httpListener.use('upgrade', async (ctx, next) => {
@@ -96,7 +96,7 @@ class WebSocketEndpoint {
             return this._unauthorized(sock, req);
         }
 
-        const tunnel = await this.tunnelManager.get(tunnelId);
+        const tunnel = await this.tunnelService.get(tunnelId);
         if (tunnel?.props?.endpoints?.ws?.token !== token) {
             return this._unauthorized(sock, req);
         }

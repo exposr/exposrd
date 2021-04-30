@@ -1,7 +1,7 @@
 import net from 'net';
 import http, { Agent } from 'http';
 import Listener from '../listener/index.js';
-import TunnelManager from '../tunnel/tunnel-manager.js';
+import TunnelService from '../tunnel/tunnel-service.js';
 import { Logger } from '../logger.js';
 
 const logger = Logger("http-ingress");
@@ -13,7 +13,7 @@ class HttpIngress {
             throw new Error("No wildcard domain given for HTTP ingress");
         }
 
-        this.tunnelManager = new TunnelManager();
+        this.tunnelService = new TunnelService();
         this.httpListener = new Listener().getListener('http');
         this.httpListener.use('request', async (ctx, next) => {
             if (!await this.handleRequest(ctx.req, ctx.res)) {
@@ -46,7 +46,7 @@ class HttpIngress {
             return;
         }
 
-        const tunnel = await this.tunnelManager.get(tunnelId);
+        const tunnel = await this.tunnelService.get(tunnelId);
         return tunnel;
     }
 

@@ -1,5 +1,5 @@
 import Storage from '../storage/index.js';
-import TunnelManager from '../tunnel/tunnel-manager.js';
+import TunnelService from '../tunnel/tunnel-service.js';
 
 class Account {
 
@@ -47,7 +47,7 @@ class Account {
             }
         });
 
-        this.tunnelManager = new TunnelManager();
+        this.tunnelService = new TunnelService();
 
         process.nextTick(async () => {
             this._props = await this._db.get()
@@ -62,15 +62,15 @@ class Account {
     }
 
     async getTunnel(tunnelId) {
-        return await this.tunnelManager.get(tunnelId, this._accountId);
+        return await this.tunnelService.get(tunnelId, this._accountId);
     }
 
     async createTunnel(tunnelId, props) {
-        return await this.tunnelManager.create(tunnelId, this._accountId, props, { allowExists: true });
+        return await this.tunnelService.create(tunnelId, this._accountId, props, { allowExists: true });
     }
 
     async deleteTunnel(tunnelId) {
-        return await this.tunnelManager.delete(tunnelId, this._accountId);
+        return await this.tunnelService.delete(tunnelId, this._accountId);
     }
 
 }

@@ -1,16 +1,16 @@
 import assert from 'assert/strict';
 import Storage from '../storage/index.js';
 import Tunnel from './tunnel.js';
-import { Logger } from '../logger.js'; const logger = Logger("tunnel-manager");
+import { Logger } from '../logger.js'; const logger = Logger("tunnel-service");
 
-class TunnelManager {
+class TunnelService {
     constructor() {
-        if (TunnelManager.instance !== undefined) {
-            return TunnelManager.instance
+        if (TunnelService.instance !== undefined) {
+            return TunnelService.instance
         }
         this.activeTunnels = {};
         this.db = new Storage("tunnel");
-        TunnelManager.instance = this;
+        TunnelService.instance = this;
     }
 
     async get(tunnelId, accountId = undefined) {
@@ -85,4 +85,4 @@ class TunnelManager {
     }
 }
 
-export default TunnelManager;
+export default TunnelService;
