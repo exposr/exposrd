@@ -1,9 +1,9 @@
 import assert from 'assert/strict';
 import Storage from '../storage/index.js';
 import Account from './account.js';
-import { Logger } from '../logger.js'; const logger = Logger("account-manager");
+import { Logger } from '../logger.js'; const logger = Logger("account-service");
 
-class AccountManager {
+class AccountService {
     constructor() {
         this._db = new Storage("account");
     }
@@ -51,4 +51,4 @@ class AccountManager {
 
 }
 
-export default AccountManager;
+export default AccountService;

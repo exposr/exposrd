@@ -1,6 +1,6 @@
 import Router from 'koa-joi-router'
 import Koa from 'koa';
-import AccountManager from '../account/account-manager.js';
+import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
 import Listener from '../listener/index.js';
 import Config from '../config.js';
@@ -13,7 +13,7 @@ class ApiController {
     constructor(opts) {
         this.opts = opts;
         this.httpListener = new Listener().getListener('http');
-        this.accountManager = new AccountManager();
+        this.accountService = new AccountService();
         this._initializeRoutes();
         this._initializeServer();
 
@@ -64,7 +64,7 @@ class ApiController {
                 return;
             }
 
-            const account = await this.accountManager.get(accountId);
+            const account = await this.accountService.get(accountId);
             if (account instanceof Account == false) {
                 ctx.status = 401;
                 ctx.body = {error: 'permission denied'}
@@ -258,7 +258,7 @@ class ApiController {
                     return;
                 }
 
-                const account = await this.accountManager.create();
+                const account = await this.accountService.create();
                 if (!account) {
                     ctx.status = 503;
                     return;
@@ -279,7 +279,7 @@ class ApiController {
                 }
             },
             handler: [handleError, async (ctx, next) => {
-                const account = await this.accountManager.get(ctx.params.account_id);
+                const account = await this.accountService.get(ctx.params.account_id);
                 if (!account) {
                     ctx.status = 404;
                     return;

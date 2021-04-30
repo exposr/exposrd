@@ -1,6 +1,6 @@
 import Koa from 'koa';
 import Router from 'koa-joi-router'
-import AccountManager from '../account/account-manager.js';
+import AccountService from '../account/account-service.js';
 import Config from '../config.js';
 import { Logger } from '../logger.js'; const logger = Logger("admin");
 
@@ -10,7 +10,7 @@ class AdminServer {
         this.apiKey = typeof Config.get('admin-api-key') === 'string' &&
             Config.get('admin-api-key')?.length > 0 ? Config.get('admin-api-key') : undefined;
         this.unauthAccess = this.apiKey === undefined && Config.get('admin-allow-access-without-api-key') === true;
-        this.accountManager = new AccountManager();
+        this.accountService = new AccountService();
         const app = this.app = new Koa();
         const router = this.router = Router();
         this._initializeRoutes();
@@ -110,7 +110,7 @@ class AdminServer {
             method: 'post',
             path: '/v1/account',
             handler: [handleAdminAuth, async (ctx, next) => {
-                const account = await this.accountManager.create();
+                const account = await this.accountService.create();
                 if (account === undefined) {
                     ctx.status = 503;
                     return;
@@ -131,7 +131,7 @@ class AdminServer {
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const account = await this.accountManager.get(ctx.params.account_id);
+                const account = await this.accountService.get(ctx.params.account_id);
                 if (!account) {
                     ctx.status = 404;
                     ctx.body = {};
