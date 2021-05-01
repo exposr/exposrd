@@ -138,6 +138,13 @@ class WebSocketTransport extends EventEmitter {
         const socket = this.openSockets[fd];
         if (socket === undefined) {
             this.logger.debug(`data on non-connected channel fd=${fd}`)
+            this.logger.isTraceEnabled() &&
+                this.logger.trace({
+                    msg: 'data on non-connected channel',
+                    fd,
+                    length,
+                    data
+                });
             this._sendMessage(WebSocketTransport.MESSAGE_FIN, fd, undefined, () => {})
             return;
         }
