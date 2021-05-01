@@ -12,4 +12,4 @@ RUN yarn add /tmp/exposr-server*.tgz && \
 
 USER nobody
 EXPOSE 8080
-ENTRYPOINT ["node", "/node_modules/exposr-server/server.js"]
+ENTRYPOINT ["node", "--trace-warnings", "/node_modules/exposr-server/server.js"]
