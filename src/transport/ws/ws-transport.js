@@ -119,7 +119,7 @@ class WebSocketTransport extends EventEmitter {
     _sendMessage(type, channel, data = undefined, callback) {
         assert(channel !== undefined);
         if (this._socket.readyState !== WebSocket.OPEN) {
-            return callback(new CustomError(EPIPE, `transport closed`));
+            return callback(new CustomError(EPIPE, `websocket transport closed fd=${channel}`));
         }
 
         const message = this._encodeMessage(type, channel, data);
@@ -196,7 +196,7 @@ class WebSocketTransport extends EventEmitter {
         if (sock.fd === undefined) {
             sock.fd = await this._getChannelId(1000);
             if (sock.fd == undefined) {
-                return callback(new CustomError(EMFILE, `No channels free (${this.maxChannels})`));
+                return callback(new CustomError(EMFILE, `No channels free ${sock?.toString()}`));
             }
         }
 
@@ -227,10 +227,10 @@ class WebSocketTransport extends EventEmitter {
                 handle();
             });
             this._eventBus.once(`fin-${fd}`, (fd) => {
-                handle(new CustomError(ECONNREFUSED, `connection refused fd=${fd}`));
+                handle(new CustomError(ECONNREFUSED, `connection refused ${sock?.toString()}`));
             });
             connectTimeout = setTimeout(() => {
-                handle(new CustomError(ETIMEDOUT, `connection timeout fd=${fd}`));
+                handle(new CustomError(ETIMEDOUT, `connection timeout ${sock?.toString()}`));
             }, timeout);
         });
     }
@@ -397,9 +397,13 @@ class WebSocketTransportSocket extends Duplex {
         this.logger.isTraceEnabled() && this.logger.trace(`new socket fd=${this.fd} state=${this.state}`);
     }
 
+    toString() {
+        return `<${WebSocketTransportSocket.name} fd=${this.fd} state=${this.state}>`;
+    }
+
     connect(opts = {}, callback = undefined) {
         if (this.state === WebSocketTransportSocket.CONNECTING) {
-            callback(new CustomError(EINPROGRESS, `connection already in progress`));
+            callback(new CustomError(EINPROGRESS, `connection already in progress ${this.toString}`));
             return;
         }
         this.connecting = true;

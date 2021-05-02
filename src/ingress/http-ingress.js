@@ -192,21 +192,33 @@ class HttpIngress {
             keepAlive: true,
         };
 
-        logger.isTraceEnabled() &&
-            logger.withContext('tunnel', tunnel.id).trace({
-                method: opt.method,
-                path: opt.path,
-                headers: opt.headers,
-            });
+        const logRequest = (fields) => {
+            logger.isTraceEnabled() &&
+                logger
+                    .withContext('tunnel', tunnel.id)
+                    .trace({
+                        request: {
+                            method: opt.method,
+                            path: opt.path,
+                            headers: opt.headers,
+                        },
+                        ...fields,
+                    });
+        };
 
         const clientReq = http.request(opt, (clientRes) => {
+            logRequest({
+                response: {
+                    status: clientRes.statusCode,
+                    headers: clientRes.headers,
+                },
+                socket: clientRes.socket.toString(),
+            })
             res.writeHead(clientRes.statusCode, clientRes.headers);
             clientRes.pipe(res);
         });
 
         clientReq.on('error', (err) => {
-            logger.isDebugEnabled() &&
-                logger.withContext("tunnel", tunnel.id).debug(`HTTP request failed: ${err.message} (${err.code})`);
             let msg;
             if (err.code === 'EMFILE') {
                 res.statusCode = 429;
@@ -218,6 +230,12 @@ class HttpIngress {
                 res.statusCode = 503;
                 msg = 'upstream request failed';
             }
+            logRequest({
+                response: {
+                    status: res.statusCode,
+                },
+                err,
+            })
             res.end(JSON.stringify({error: msg}));
         });
 
