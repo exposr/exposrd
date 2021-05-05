@@ -1,5 +1,9 @@
 import { EventEmitter } from 'events';
-import os from 'os';
+import RedisBus from './redis-bus.js';
+import InmemBus from './inmem-bus.js';
+import Node from '../utils/node.js';
+import Config from '../config.js';
+import { Logger } from '../logger.js';
 
 class EventBus extends EventEmitter {
     constructor() {
@@ -8,7 +12,13 @@ class EventBus extends EventEmitter {
         }
         super();
         EventBus.instance = this;
-        this._host = `${process.pid}@${os.hostname}`;
+        this.logger = Logger("eventbus");
+
+        if (Config.get('redis-url') != undefined) {
+            this.bus = new RedisBus(this);
+        } else {
+            this.bus = new InmemBus(this);
+        }
 
         this.setMaxListeners(1);
         this.on('newListener', () => {
@@ -19,10 +29,24 @@ class EventBus extends EventEmitter {
         });
     }
 
-    emit(channel, message) {
-        super.emit(channel, {
+    _emit(event, message) {
+        super.emit(event, message);
+        this.logger.isTraceEnabled() &&
+            this.logger.trace({
+                operation: 'emit',
+                event,
+                message
+            });
+    }
+
+    publish(event, message) {
+        this.bus.publish(event, {
             ...message,
-            _host: this._host,
+            _node: {
+                id: Node.identifier,
+                host: Node.hostname,
+                addr: Node.address,
+            },
             _ts: new Date().getTime(),
         });
     }

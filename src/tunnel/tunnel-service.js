@@ -33,7 +33,7 @@ class TunnelService {
 
                 delete this.connectedTransports[tunnelId];
                 transport.destroy();
-                this.eventBus.emit('disconnected', {
+                this.eventBus.publish('disconnected', {
                     tunnelId
                 });
             });
@@ -155,7 +155,7 @@ class TunnelService {
             updated.peer = opts.peer;
         });
 
-        this.eventBus.emit('connected', {
+        this.eventBus.publish('connected', {
             tunnelId,
             peer: opts.peer,
             tunnel: Serializer.serialize(tunnel),
@@ -177,7 +177,7 @@ class TunnelService {
             return true;
         }
         setImmediate(() => {
-            this.eventBus.emit('disconnect', {
+            this.eventBus.publish('disconnect', {
                 tunnelId
             });
         });

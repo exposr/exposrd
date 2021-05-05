@@ -6,19 +6,16 @@ import assert from 'assert/strict';
 
 class Storage {
     constructor(namespace, opts = {}) {
-        const storageType = Config.get('storage');
-
         const ready = () => {
             opts.callback && process.nextTick(opts.callback);
         };
 
-        if (storageType == 'memory') {
-            this.storage = new InMemoryStorage(ready);
-        } else if (storageType == 'redis') {
+        if (Config.get('redis-url') != undefined) {
             this.storage = new RedisStorage(ready);
         } else {
-            throw new Error(`Unknown storage ${storageType}`);
+            this.storage = new InMemoryStorage(ready);
         }
+
         this.ns = namespace;
     }
 

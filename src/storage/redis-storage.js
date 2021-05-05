@@ -16,7 +16,7 @@ class RedisStorage {
         }
         RedisStorage.instance = this;
         this.logger = Logger("redis-storage");
-        const redisUrl = Config.get('storage-redis-url');
+        const redisUrl = Config.get('redis-url');
         if (!redisUrl) {
             throw new Error("No Redis connection string provided");
         }
