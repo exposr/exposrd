@@ -6,9 +6,15 @@ import Listener from './listener/index.js';
 import Ingress from './ingress/index.js';
 import Endpoint from './endpoint/index.js';
 import Storage from './storage/index.js';
+import Node from './utils/node.js';
 
 export default () => {
     Logger.info("exposr");
+    Logger.info({
+      node_id: Node.identifier,
+      host: Node.hostname,
+      address: Node.address,
+    })
 
     let listener;
     try {
