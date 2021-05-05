@@ -15,38 +15,35 @@ class AccountService {
             return undefined;
         }
 
-        const accountProps = await this._db.get(normalizedId);
-        if (accountProps === undefined) {
-            return false;
-        }
-        return new Account(normalizedId);
+        const account = await this._db.read(accountId, Account);
+        return account;
     }
 
     async create() {
-        let accountId;
         let maxTries = 100;
         let created;
+        let account;
         do {
-            accountId = Account.generateId();
-            created = await this._db.set(accountId, {}, {NX: true});
+            account = new Account();
+            created = await this._db.create(account.accountId, account);
         } while (!created && accountId === undefined && maxTries-- > 0);
 
         if (!created) {
             return undefined;
         }
 
-        return new Account(accountId);
+        return account;
     }
 
     async delete(accountId) {
         assert(accountId != undefined);
-        const normalizedId = Account.normalizeId(accountId);
-        if (normalizedId == undefined) {
-            return undefined;
+        const account = this.get(accountId);
+        if (account instanceof Account) {
+            await this._db.delete(account.accountId);
+            return true;
+        } else {
+            return false;
         }
-
-        await this._db.delete(normalizedId);
-        return true;
     }
 
 }

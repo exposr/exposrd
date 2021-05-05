@@ -18,7 +18,8 @@ class InMemoryStorage {
         this.logger.isTraceEnabled() &&
             this.logger.trace({
                 operation: 'get',
-                key
+                key,
+                data: this.db[key],
             });
         return this.db[key];
     };
@@ -30,7 +31,7 @@ class InMemoryStorage {
                 operation: 'set',
                 opts,
                 key,
-                data: JSON.stringify(data),
+                data
             });
         if (opts.NX === true && this.db[key] !== undefined) {
             return false;

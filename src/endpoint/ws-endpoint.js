@@ -97,7 +97,7 @@ class WebSocketEndpoint {
         }
 
         const tunnel = await this.tunnelService.get(tunnelId);
-        if (tunnel?.props?.endpoints?.ws?.token !== token) {
+        if (tunnel?.endpoints?.ws?.token !== token) {
             return this._unauthorized(sock, req);
         }
 
@@ -127,7 +127,18 @@ class WebSocketEndpoint {
                     socket: ws
                 }
             });
-            tunnel.setTransport(transport, this._getRequestClientIp(req));
+            const res = this.tunnelService.connect(tunnelId, transport, {
+                peer: this._getRequestClientIp(req),
+            });
+            if (!res) {
+                logger
+                    .withContext("tunnel", tunnelId)
+                    .error({
+                        operation: 'upgrade',
+                        msg: 'failed to connect transport'
+                    });
+                transport.destroy();
+            }
         });
         return true;
     }

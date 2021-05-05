@@ -73,7 +73,7 @@ class RedisStorage {
                 if (err) {
                     return resolve(false);
                 }
-                resolve(JSON.parse(data));
+                resolve(data);
             });
         });
     }
@@ -85,13 +85,12 @@ class RedisStorage {
             return false;
         }
         return new Promise((resolve, reject) => {
-            const serialized = JSON.stringify(data);
             const cb = (err, res) => {
                 this.logger.isTraceEnabled() &&
                     this.logger.trace({
                         operation: 'set',
                         key,
-                        data: serialized,
+                        data,
                         res,
                         err
                     });
@@ -102,9 +101,9 @@ class RedisStorage {
                 }
             }
             if (opts.NX) {
-                this._client.set(key, serialized, 'NX', cb);
+                this._client.set(key, data, 'NX', cb);
             } else {
-                this._client.set(key, serialized, cb);
+                this._client.set(key, data, cb);
             }
         });
     };

@@ -337,6 +337,9 @@ class WebSocketTransport extends EventEmitter {
     }
 
     destroy() {
+        if (this.destroyed) {
+            return;
+        }
         this.logger.debug(`transport destroy, open_sockets=${Object.keys(this.openSockets).length}`);
         Object.keys(this.openSockets).forEach((fd) => {
             const sock = this.openSockets[fd];

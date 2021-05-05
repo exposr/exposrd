@@ -102,15 +102,15 @@ class ApiController {
                 ingress: {},
             }
 
-            Object.keys(tunnel.props.endpoints).forEach((k) => {
-                const endpoint = tunnel.props.endpoints[k];
+            Object.keys(tunnel.endpoints).forEach((k) => {
+                const endpoint = tunnel.endpoints[k];
                 if (endpoint.enabled) {
                     info.endpoints[k] = endpoint;
                 }
             });
 
-            Object.keys(tunnel.props.ingress).forEach((k) => {
-                const ingress = tunnel.props.ingress[k];
+            Object.keys(tunnel.ingress).forEach((k) => {
+                const ingress = tunnel.ingress[k];
                 if (ingress.enabled) {
                     info.ingress[k] = ingress;
                 }
@@ -147,40 +147,24 @@ class ApiController {
                 },
             },
             handler: [handleError, handleAuth, async (ctx, next) => {
-                const config = {
-                    ingress: {
-                        http: {
-                            enabled: ctx.request.body?.ingress?.http?.enabled,
-                        }
-                    },
-                    upstream: {
-                        url: ctx.request.body?.upstream?.url,
-                    },
-                    endpoints: {
-                        ws: {
-                            enabled: ctx.request.body?.endpoints?.ws?.enabled || true,
-                        }
-                    }
-                };
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                let tunnel;
-                if (ctx.request.method === 'PUT') {
-                    tunnel = await account.createTunnel(tunnelId, config, {allowExists: true});
-                } else if (ctx.request.method === 'PATCH') {
-                    tunnel = await account.getTunnel(tunnelId);
-                    if (tunnel) {
-                        tunnel.setProps(config);
-                    }
-                } else {
-                    ctx.status = 405;
+                const created = await account.createTunnel(tunnelId);
+                if (created == false) {
+                    ctx.status = 403;
                     return;
                 }
-                if (!tunnel) {
-                    ctx.status = 403;
-                } else {
-                    ctx.body = tunnelInfo(tunnel);
+
+                const updatedTunnel = await account.updateTunnel(tunnelId, (tunnel) => {
+                    tunnel.ingress.http.enabled = ctx.request.body?.ingress?.http?.enabled;
+                    tunnel.upstream.url = ctx.request.body?.upstream?.url;
+                    tunnel.endpoints.ws.enabled = ctx.request.body?.endpoints?.ws?.enabled || true;
+                });
+                if (updatedTunnel) {
+                    ctx.body = tunnelInfo(updatedTunnel);
                     ctx.status = 200;
+                } else {
+                    ctx.status = 403;
                 }
             }]
         });

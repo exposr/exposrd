@@ -1,6 +1,7 @@
 import InMemoryStorage from './inmemory-storage.js';
 import RedisStorage from './redis-storage.js';
 import Config from '../config.js'
+import Serializer from './serializer.js';
 import assert from 'assert/strict';
 
 class Storage {
@@ -19,29 +20,66 @@ class Storage {
             throw new Error(`Unknown storage ${storageType}`);
         }
         this.ns = namespace;
-        this.key = opts.key;
     }
 
     _key(key) {
+        assert(key !== undefined);
         return `${this.ns}:${key}`;
     }
 
-    // Returns
-    // Object on success
-    // undefined on not found
-    // false on storage error
-    async get(key = undefined) {
-        if (!key) {
-            key = this.key;
+    async read(key, clazz) {
+        const str = await this.get(key);
+        if (!str) {
+            return str;
         }
-        assert(key !== undefined);
-        return this.storage.get(this._key(key));
+        return Serializer.deserialize(str, clazz);
+    }
+
+    async update(key, clazz, cb) {
+        // TODO multi-node: lock
+        const obj = await this.read(key, clazz);
+        const res = await cb(obj);
+        if (res === false) {
+            // TODO multi-node: unlock
+            return false;
+        }
+        const serialized = Serializer.serialize(obj);
+        await this.set(key, serialized)
+        // TODO multi-node: unlock
+        return obj;
+    }
+
+    async create(key, obj) {
+        const serialized = Serializer.serialize(obj);
+        await this.set(key, serialized, { NX: true });
+        return obj;
+    }
+
+    async get(key) {
+        return this._get(this._key(key));
     };
 
     // Returns
-    // Object on success
+    // String on success
+    // undefined on not found
     // false on storage error
-    async set(arg1, arg2, arg3) {
+    async _get(key) {
+        return this.storage.get(key);
+    };
+
+    async set(key, data, opts = {}) {
+        return this._set(this._key(key), data, opts);
+    }
+
+    // Returns
+    // String on success
+    // false on storage error
+    async _set(key, data, opts) {
+        return this.storage.set(key, data, opts);
+    }
+
+
+    async set2(arg1, arg2, arg3) {
         // set(key, obj, opts)
         if (arg1 != undefined && arg2 != undefined && arg3 != undefined) {
             return this.storage.set(this._key(arg1), arg2, arg3);

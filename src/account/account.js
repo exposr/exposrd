@@ -1,4 +1,3 @@
-import Storage from '../storage/index.js';
 import TunnelService from '../tunnel/tunnel-service.js';
 
 class Account {
@@ -32,45 +31,32 @@ class Account {
             }
             accountId = normalized;
         }
-        this._accountId = accountId || Account.generateId();
-        this._formattedAccountId = Account.formatId(this._accountId);
-        this._db = new Storage("account", {
-            key: this._accountId,
-        });
-        this._props = {};
-        this.props = new Proxy(this._props, {
-            set: (obj, name, value) => {
-                process.nextTick(async () => {
-                    await self._db.set(this._props);
-                });
-                return true;
-            }
-        });
+        this.accountId = accountId || Account.generateId();
 
-        this.tunnelService = new TunnelService();
-
-        process.nextTick(async () => {
-            this._props = await this._db.get()
-        });
+        this._tunnelService = new TunnelService();
     }
 
     getId() {
         return {
-            accountId: this._accountId,
-            formatted: this._formattedAccountId,
+            accountId: this.accountId,
+            formatted: Account.formatId(this.accountId),
         }
     }
 
     async getTunnel(tunnelId) {
-        return await this.tunnelService.get(tunnelId, this._accountId);
+        return await this._tunnelService.get(tunnelId, this.accountId);
     }
 
-    async createTunnel(tunnelId, props) {
-        return await this.tunnelService.create(tunnelId, this._accountId, props, { allowExists: true });
+    async createTunnel(tunnelId) {
+        return await this._tunnelService.create(tunnelId, this.accountId);
+    }
+
+    async updateTunnel(tunnelId, cb) {
+        return await this._tunnelService.update(tunnelId, this.accountId, cb);
     }
 
     async deleteTunnel(tunnelId) {
-        return await this.tunnelService.delete(tunnelId, this._accountId);
+        return await this._tunnelService.delete(tunnelId, this.accountId);
     }
 
 }
