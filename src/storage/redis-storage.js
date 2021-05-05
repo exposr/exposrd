@@ -117,8 +117,9 @@ class RedisStorage {
             this._client.del(key, (res) => {
                 this.logger.isTraceEnabled() &&
                     this.logger.trace({
-                        operation: 'get',
-                        key
+                        operation: 'delete',
+                        key,
+                        res
                     });
                 resolve(true);
             });
