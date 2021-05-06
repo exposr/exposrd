@@ -1,5 +1,7 @@
 import http from 'http';
-import { Logger } from '../logger.js'; const logger = Logger("http-listener");
+import { Logger } from '../logger.js';
+
+const logger = Logger("http-listener");
 
 class HttpListener {
     constructor(opts) {

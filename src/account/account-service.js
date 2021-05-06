@@ -1,8 +1,9 @@
 import assert from 'assert/strict';
+import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';
 import Account from './account.js';
-import { Logger } from '../logger.js'; const logger = Logger("account-service");
 
+const logger = Logger("account-service");
 class AccountService {
     constructor() {
         this._db = new Storage("account");

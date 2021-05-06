@@ -1,9 +1,9 @@
 import { EventEmitter } from 'events';
-import RedisBus from './redis-bus.js';
-import InmemBus from './inmem-bus.js';
-import Node from '../utils/node.js';
 import Config from '../config.js';
 import { Logger } from '../logger.js';
+import Node from '../utils/node.js';
+import InmemBus from './inmem-bus.js';
+import RedisBus from './redis-bus.js';
 
 class EventBus extends EventEmitter {
     constructor() {

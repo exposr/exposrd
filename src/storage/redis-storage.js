@@ -1,5 +1,5 @@
-import Redis from 'redis';
 import assert from 'assert/strict';
+import Redis from 'redis';
 import Config from '../config.js';
 import { Logger } from '../logger.js';
 

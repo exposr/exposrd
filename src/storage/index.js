@@ -1,9 +1,9 @@
+import assert from 'assert/strict';
+import Config from '../config.js';
+import LockService from '../lock/index.js';
 import InMemoryStorage from './inmemory-storage.js';
 import RedisStorage from './redis-storage.js';
-import Config from '../config.js'
 import Serializer from './serializer.js';
-import assert from 'assert/strict';
-import LockService from '../lock/index.js';
 
 class Storage {
     constructor(namespace, opts = {}) {

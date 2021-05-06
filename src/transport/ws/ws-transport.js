@@ -1,9 +1,9 @@
-import WebSocket from 'ws';
-import { Duplex } from 'stream';
-import { EventEmitter } from 'events';
 import assert from 'assert/strict';
+import { ECONNREFUSED, EINPROGRESS, EMFILE, EPIPE, ETIMEDOUT } from 'constants';
+import { EventEmitter } from 'events';
+import { Duplex } from 'stream';
+import WebSocket from 'ws';
 import { Logger } from '../../logger.js';
-import { ECONNREFUSED, EINPROGRESS, EMFILE, ETIMEDOUT, EPIPE } from 'constants';
 import CustomError from '../../utils/errors.js';
 
 // Multiplexes multiple streams over one websocket connection

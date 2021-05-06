@@ -1,10 +1,12 @@
-import Router from 'koa-joi-router'
 import Koa from 'koa';
+import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
-import Listener from '../listener/index.js';
 import Config from '../config.js';
-import { Logger } from '../logger.js'; const logger = Logger("api");
+import Listener from '../listener/index.js';
+import { Logger } from '../logger.js';
+
+const logger = Logger("api");
 
 class ApiController {
 

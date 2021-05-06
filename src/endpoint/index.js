@@ -1,5 +1,5 @@
-import querystring from 'querystring';
 import crypto from 'crypto';
+import querystring from 'querystring';
 import WebSocketEndpoint from "./ws-endpoint.js";
 
 class Endpoint {

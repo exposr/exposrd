@@ -1,8 +1,10 @@
 import Koa from 'koa';
-import Router from 'koa-joi-router'
+import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import Config from '../config.js';
-import { Logger } from '../logger.js'; const logger = Logger("admin");
+import { Logger } from '../logger.js';
+
+const logger = Logger("admin");
 
 class AdminServer {
     constructor(port) {

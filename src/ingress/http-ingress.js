@@ -1,13 +1,12 @@
-import net from 'net';
 import http, { Agent } from 'http';
+import net from 'net';
+import EventBus from '../eventbus/index.js';
 import Listener from '../listener/index.js';
+import { Logger } from '../logger.js';
+import Serializer from '../storage/serializer.js';
 import TunnelService from '../tunnel/tunnel-service.js';
 import Tunnel from '../tunnel/tunnel.js';
-import EventBus from '../eventbus/index.js';
-import Serializer from '../storage/serializer.js';
 import Node from '../utils/node.js';
-import Config from '../config.js';
-import { Logger } from '../logger.js';
 
 const logger = Logger("http-ingress");
 class HttpIngress {

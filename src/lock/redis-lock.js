@@ -1,5 +1,5 @@
-import Redlock from 'redlock';
 import Redis from 'redis';
+import Redlock from 'redlock';
 import Config from '../config.js';
 
 class RedisLock {

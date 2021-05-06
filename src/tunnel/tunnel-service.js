@@ -1,12 +1,14 @@
 import assert from 'assert/strict';
-import Storage from '../storage/index.js';
-import Serializer from '../storage/serializer.js';
-import Tunnel from './tunnel.js';
+import Endpoint from '../endpoint/index.js';
 import EventBus from '../eventbus/index.js';
 import Ingress from '../ingress/index.js';
-import Endpoint from '../endpoint/index.js';
+import { Logger } from '../logger.js';
+import Storage from '../storage/index.js';
+import Serializer from '../storage/serializer.js';
 import Node from '../utils/node.js';
-import { Logger } from '../logger.js'; const logger = Logger("tunnel-service");
+import Tunnel from './tunnel.js';
+
+const logger = Logger("tunnel-service");
 
 class TunnelService {
     constructor() {

@@ -1,9 +1,11 @@
-import WebSocket from 'ws';
 import net from 'net';
+import WebSocket from 'ws';
 import Listener from '../listener/index.js';
+import { Logger } from '../logger.js';
 import Transport from '../transport/index.js';
 import TunnelService from '../tunnel/tunnel-service.js';
-import { Logger } from '../logger.js'; const logger = Logger("ws-endpoint");
+
+const logger = Logger("ws-endpoint");
 
 class WebSocketEndpoint {
 
