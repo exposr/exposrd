@@ -45,7 +45,6 @@ class EventBus extends EventEmitter {
             _node: {
                 id: Node.identifier,
                 host: Node.hostname,
-                addr: Node.address,
             },
             _ts: new Date().getTime(),
         });

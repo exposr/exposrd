@@ -25,7 +25,7 @@ class Storage {
     }
 
     async read(key, clazz) {
-        const str = await this.get(key);
+        const str = await this._get(key);
         if (!str) {
             return str;
         }
@@ -41,19 +41,19 @@ class Storage {
             return false;
         }
         const serialized = Serializer.serialize(obj);
-        await this.set(key, serialized)
+        await this._set(key, serialized)
         // TODO multi-node: unlock
         return obj;
     }
 
     async create(key, obj) {
         const serialized = Serializer.serialize(obj);
-        await this.set(key, serialized, { NX: true });
+        await this._set(key, serialized, { NX: true });
         return obj;
     }
 
     async get(key) {
-        return this._get(this._key(key));
+        return JSON.parse(this._get(key));
     };
 
     // Returns
@@ -61,39 +61,18 @@ class Storage {
     // undefined on not found
     // false on storage error
     async _get(key) {
-        return this.storage.get(key);
+        return this.storage.get(this._key(key));
     };
 
     async set(key, data, opts = {}) {
-        return this._set(this._key(key), data, opts);
+        return this._set(key, JSON.stringify(data), opts);
     }
 
     // Returns
     // String on success
     // false on storage error
     async _set(key, data, opts) {
-        return this.storage.set(key, data, opts);
-    }
-
-
-    async set2(arg1, arg2, arg3) {
-        // set(key, obj, opts)
-        if (arg1 != undefined && arg2 != undefined && arg3 != undefined) {
-            return this.storage.set(this._key(arg1), arg2, arg3);
-        } else if (arg1 != undefined && arg2 != undefined && arg3 == undefined) {
-            // set(key, obj)
-            if (typeof arg1 === 'string') {
-                return this.storage.set(this._key(arg1), arg2, {});
-            // set(obj, opts)
-            } else {
-                return this.storage.set(this._key(this.key), arg1, arg2);
-            }
-        // set(obj)
-        } else if (arg1 != undefined && arg2 == undefined && arg3 == undefined) {
-            return this.storage.set(this._key(this.key), arg1, {});
-        } else {
-            assert.fail("invalid call to set");
-        }
+        return this.storage.set(this._key(key), data, opts);
     }
 
     // Returns
