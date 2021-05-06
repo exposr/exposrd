@@ -89,6 +89,7 @@ class RedisStorage {
                 this.logger.isTraceEnabled() &&
                     this.logger.trace({
                         operation: 'set',
+                        opts,
                         key,
                         data,
                         res,
@@ -100,11 +101,15 @@ class RedisStorage {
                     resolve(data);
                 }
             }
+            const args = [key, data];
             if (opts.NX) {
-                this._client.set(key, data, 'NX', cb);
-            } else {
-                this._client.set(key, data, cb);
+                args.push('NX');
             }
+            if (typeof opts.TTL == 'number') {
+                args.push('EX', `${opts.TTL}`);
+            }
+            args.push(cb)
+            this._client.set(...args);
         });
     };
 

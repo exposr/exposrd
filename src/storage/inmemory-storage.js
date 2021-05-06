@@ -10,6 +10,8 @@ class InMemoryStorage {
         InMemoryStorage.instance = this;
         this.logger = Logger("in-memory-storage");
         this.db = {};
+        this.timers = {};
+        this._ttl = {};
         process.nextTick(callback);
     }
 
@@ -37,6 +39,13 @@ class InMemoryStorage {
             return false;
         }
         this.db[key] = data;
+        this.timers[key] && clearTimeout(this.timers[key]);
+        delete this.timers[key];
+        if (typeof opts.TTL == 'number') {
+            this.timers[key] = setTimeout(() => {
+                delete this.db[key];
+            }, opts.TTL);
+        }
         return this.db[key];
     };
 
