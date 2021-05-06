@@ -19,7 +19,10 @@ class Tunnel {
             url: undefined,
         };
         this.connected = false;
-        this.peer = undefined;
+        this.connection = {
+            peer: undefined,
+            node: undefined,
+        };
     }
 }
 

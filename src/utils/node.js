@@ -70,6 +70,7 @@ class Node {
                 id: Node.identifier,
                 host: Node.hostname,
                 address: Node.getIP(),
+                port: Config.get('port'),
             }
         }
 

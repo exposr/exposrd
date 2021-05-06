@@ -53,7 +53,11 @@ class Storage {
     }
 
     async get(key) {
-        return JSON.parse(this._get(key));
+        const data = await this._get(key);
+        if (!data) {
+            return data;
+        }
+        return JSON.parse(data);
     };
 
     // Returns

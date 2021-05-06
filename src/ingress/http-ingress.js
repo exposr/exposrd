@@ -5,6 +5,8 @@ import TunnelService from '../tunnel/tunnel-service.js';
 import Tunnel from '../tunnel/tunnel.js';
 import EventBus from '../eventbus/index.js';
 import Serializer from '../storage/serializer.js';
+import Node from '../utils/node.js';
+import Config from '../config.js';
 import { Logger } from '../logger.js';
 
 const logger = Logger("http-ingress");
@@ -30,8 +32,8 @@ class HttpIngress {
         });
 
         this._agents = {};
-
         this._connectedTunnels = {};
+
         const eventBus = this.eventBus = new EventBus();
         eventBus.on('connected', (data) => {
             if (!data?.tunnelId) {
@@ -63,8 +65,29 @@ class HttpIngress {
             return;
         }
 
-        const tunnel = this._connectedTunnels[tunnelId];
+        let tunnel = this._connectedTunnels[tunnelId];
+        if (!tunnel) {
+            tunnel = await this.tunnelService.get(tunnelId);
+            if (tunnel && tunnel.connected) {
+                this._connectedTunnels[tunnelId] = tunnel;
+            }
+        }
         return tunnel;
+    }
+
+    async _getProxy(tunnel) {
+        if (tunnel.connection.node == Node.identifier) {
+            return undefined;
+        }
+
+        const node = await Node.get(tunnel.connection.node);
+        if (node == undefined) {
+            return undefined;
+        }
+        return {
+            host: node.address,
+            port: node.port,
+        }
     }
 
     _clientIp(req) {
@@ -189,16 +212,20 @@ class HttpIngress {
 
         const opt = {
             path: req.url,
-            agent: this._getAgent(tunnel.id),
             method: req.method,
-            headers: this._requestHeaders(req, tunnel),
-            family: 4,
-            localAddress: "localhost",
-            lookup: () => {
-                return "127.0.0.1";
-            },
             keepAlive: true,
         };
+
+        const proxy = await this._getProxy(tunnel);
+        if (!proxy) {
+            opt.agent = this._getAgent(tunnel.id);
+            opt.headers = this._requestHeaders(req, tunnel);
+        } else {
+            opt.host = proxy.host;
+            opt.port = proxy.port;
+            opt.headers = req.headers;
+        }
+        opt.headers['exposr-node'] = Node.identifier;
 
         const logRequest = (fields) => {
             logger.isTraceEnabled() &&
@@ -206,9 +233,9 @@ class HttpIngress {
                     .withContext('tunnel', tunnel.id)
                     .trace({
                         request: {
-                            method: opt.method,
-                            path: opt.path,
-                            headers: opt.headers,
+                            method: req.method,
+                            path: req.path,
+                            headers: req.headers,
                         },
                         ...fields,
                     });

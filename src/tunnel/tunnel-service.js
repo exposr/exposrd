@@ -5,6 +5,7 @@ import Tunnel from './tunnel.js';
 import EventBus from '../eventbus/index.js';
 import Ingress from '../ingress/index.js';
 import Endpoint from '../endpoint/index.js';
+import Node from '../utils/node.js';
 import { Logger } from '../logger.js'; const logger = Logger("tunnel-service");
 
 class TunnelService {
@@ -28,7 +29,8 @@ class TunnelService {
 
                 await this.db.update(tunnelId, Tunnel, (tunnel) => {
                     tunnel.connected = false;
-                    tunnel.peer = undefined;
+                    tunnel.connection.peer = undefined;
+                    tunnel.connection.node = undefined;
                 });
 
                 delete this.connectedTransports[tunnelId];
@@ -152,7 +154,8 @@ class TunnelService {
 
         tunnel = await this.db.update(tunnelId, Tunnel, (updated) => {
             updated.connected = true;
-            updated.peer = opts.peer;
+            updated.connection.peer = opts.peer;
+            updated.connection.node = Node.identifier;
         });
 
         this.eventBus.publish('connected', {
