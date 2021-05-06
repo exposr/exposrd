@@ -3,6 +3,7 @@ import RedisStorage from './redis-storage.js';
 import Config from '../config.js'
 import Serializer from './serializer.js';
 import assert from 'assert/strict';
+import LockService from '../lock/index.js';
 
 class Storage {
     constructor(namespace, opts = {}) {
@@ -15,6 +16,7 @@ class Storage {
         } else {
             this.storage = new InMemoryStorage(ready);
         }
+        this.lockService = new LockService();
 
         this.ns = namespace;
     }
@@ -33,16 +35,20 @@ class Storage {
     }
 
     async update(key, clazz, cb) {
-        // TODO multi-node: lock
+        const lock = await this.lockService.lock(key);
+        if (!lock) {
+            return false;
+        }
+
         const obj = await this.read(key, clazz);
         const res = await cb(obj);
         if (res === false) {
-            // TODO multi-node: unlock
+            lock.unlock();
             return false;
         }
         const serialized = Serializer.serialize(obj);
         await this._set(key, serialized)
-        // TODO multi-node: unlock
+        lock.unlock();
         return obj;
     }
 
