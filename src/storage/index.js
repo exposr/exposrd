@@ -41,6 +41,11 @@ class Storage {
         }
 
         const obj = await this.read(key, clazz);
+        if (!obj) {
+            lock.unlock();
+            return false;
+        }
+
         const res = await cb(obj);
         if (res === false) {
             lock.unlock();
