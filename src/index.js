@@ -11,40 +11,40 @@ import Node from './utils/node.js';
 export default async () => {
     Logger.info("exposr-server");
     Logger.info({
-      node_id: Node.identifier,
-      host: Node.hostname,
-      address: Node.address,
+        node_id: Node.identifier,
+        host: Node.hostname,
+        address: Node.address,
     })
 
     let listener;
     let endpoint;
     let ingress;
     try {
-      // Setup listeners
-      listener = new Listener({
-          http: {
-            port: Config.get('port')
-          }
+        // Setup listeners
+        listener = new Listener({
+            http: {
+              port: Config.get('port')
+            }
       });
 
       // Setup tunnel connection endpoints (for clients to establish tunnels)
       endpoint = new Endpoint({
-        ws: {
-          enabled: true,
-          baseUrl: Config.get('base-url')
-        }
+          ws: {
+            enabled: true,
+            baseUrl: Config.get('base-url')
+          }
       });
 
     // Setup tunnel data ingress (incoming tunnel data)
       ingress = new Ingress({
-        http: {
-          enabled: Config.get('ingress').includes('http'),
-          subdomainUrl: Config.get('http-ingress-domain')
-        }
+          http: {
+              enabled: Config.get('ingress').includes('http'),
+              subdomainUrl: Config.get('http-ingress-domain')
+          }
       });
     } catch (err) {
-      Logger.error(err.message);
-      process.exit(-1);
+        Logger.error(err.message);
+        process.exit(-1);
     }
 
     const adminController = Config.get('admin-enable') ? new AdminController(Config.get('admin-port')) : undefined;
@@ -60,8 +60,8 @@ export default async () => {
 
     await Promise
         .all([
-          listener.listen(),
-          redisProbe,
+            listener.listen(),
+            redisProbe,
         ])
         .catch((err) => {
             Logger.error(`Failed to start up: ${err.message}`);
