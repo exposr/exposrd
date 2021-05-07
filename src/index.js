@@ -31,7 +31,7 @@ export default async () => {
       endpoint = new Endpoint({
           ws: {
             enabled: true,
-            baseUrl: Config.get('base-url')
+            baseUrl: Config.get('api-url')
           }
       });
 
@@ -80,7 +80,7 @@ export default async () => {
 
     Logger.info({
         message: "API endpoint",
-        base_url: Config.get('base-url'),
+        base_url: Config.get('api-url'),
         port: Config.get('port')
     });
     Logger.info("exposr-server ready");

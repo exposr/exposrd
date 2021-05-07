@@ -2,7 +2,7 @@ import yargs from 'yargs';
 
 const args = yargs
     .env("EXPOSR")
-    .option('base-url', {
+    .option('api-url', {
         type: 'string',
         describe: 'Base URL for API (ex https://api.example.com)',
         demandOption: true,
