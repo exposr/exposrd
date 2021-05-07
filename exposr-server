@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+":" //# comment; cd `dirname "$0"`; exec /usr/bin/env node --trace-warnings --input-type=module - "$@" < `basename "$0"`
+import ExposrServer from './src/index.js';
+ExposrServer();

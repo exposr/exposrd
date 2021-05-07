@@ -85,6 +85,8 @@ const args = yargs
         default: 'json',
         choices: ['json'],
     })
+    .scriptName('exposr-server')
+
 class Config {
     constructor() {
         this._config = args.argv;
