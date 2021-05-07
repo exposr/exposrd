@@ -159,8 +159,9 @@ class AdminServer {
         this.appReady = true;
     }
 
-    shutdown(cb) {
-        this.app.shutdown(cb);
+    async destroy() {
+        await this.accountService.destroy();
+        this.appReady = false;
     }
 }
 

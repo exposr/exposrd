@@ -289,8 +289,8 @@ class ApiController {
         });
     }
 
-    shutdown(cb) {
-        cb();
+    async destroy() {
+        await this.accountService.destroy();
     }
 }
 

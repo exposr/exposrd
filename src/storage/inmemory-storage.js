@@ -15,6 +15,10 @@ class InMemoryStorage {
         process.nextTick(callback);
     }
 
+    async destroy() {
+        return true;
+    }
+
     async get(key) {
         assert(key !== undefined);
         this.logger.isTraceEnabled() &&

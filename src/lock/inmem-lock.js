@@ -8,6 +8,10 @@ class InmemLock {
             unlock: () => { return true; }
         }
     }
+
+    async destroy() {
+        return true;
+    }
 }
 
 export default InmemLock;

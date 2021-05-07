@@ -5,7 +5,7 @@ import Config from '../config.js';
 class RedisLock {
     constructor() {
         const redisUrl = Config.get('redis-url');
-        const redis = Redis.createClient({
+        const redis = this._redisClient = Redis.createClient({
             url: redisUrl.href,
             connect_timeout: 2147483647,
         });
@@ -13,6 +13,14 @@ class RedisLock {
             retryCount: -1,
             retryDelay: 150,
             retryJitter:  200,
+        });
+    }
+
+    async destroy() {
+        return new Promise((resolve) => {
+            this.redlock.quit((res) => {
+                resolve();
+            })
         });
     }
 

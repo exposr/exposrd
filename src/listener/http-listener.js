@@ -39,20 +39,27 @@ class HttpListener {
         this.callbacks[event].push(callback);
     }
 
-    listen(cb) {
+    async listen() {
         const listenError = (err) => {
             logger.error(`Failed to start http listener: ${err.message}`);
         };
         this.server.once('error', listenError);
-        this.server.listen({port: this.opts.port}, (err) => {
-            this.server.removeListener('error', listenError);
-            cb(err);
+        return new Promise((resolve, reject) => {
+            this.server.listen({port: this.opts.port}, (err) => {
+                if (err) {
+                    return reject(err);
+                }
+                this.server.removeListener('error', listenError);
+                resolve();
+            });
         });
     }
 
-    shutdown(cb) {
-        this.server.close();
-        cb();
+    async destroy() {
+        return new Promise((resolve) => {
+            this.server.close();
+            resolve();
+        });
     }
 }
 

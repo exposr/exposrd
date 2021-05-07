@@ -18,8 +18,12 @@ class WebSocketEndpoint {
         this.httpListener = new Listener().getListener('http');
         this.tunnelService = new TunnelService();
         this.wss = new WebSocket.Server({ noServer: true });
+        this.destroyed = false;
 
         this.httpListener.use('upgrade', async (ctx, next) => {
+            if (this.destroyed) {
+                return next();
+            }
             const response = await this.handleUpgrade(ctx.req, ctx.sock, ctx.head);
             if (response === undefined) {
                 return next();
@@ -35,6 +39,14 @@ class WebSocketEndpoint {
             if (!response) {
                 next();
             }
+        });
+    }
+
+    async destroy() {
+        this.destroyed = true;
+        await this.tunnelService.destroy();
+        this.wss.clients.forEach((client) => {
+            client.close();
         });
     }
 

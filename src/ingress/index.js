@@ -15,6 +15,10 @@ class Ingress {
         Ingress.instance = this;
     }
 
+    async destroy() {
+        this.ingress.http && await this.ingress.http.destroy();
+    }
+
     getIngress(tunnel) {
         const ingress = {};
 

@@ -9,6 +9,10 @@ class AccountService {
         this._db = new Storage("account");
     }
 
+    async destroy() {
+        await this._db.destroy();
+    }
+
     async get(accountId) {
         assert(accountId != undefined);
         const normalizedId = Account.normalizeId(accountId);

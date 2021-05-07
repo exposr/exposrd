@@ -17,8 +17,11 @@ class Storage {
             this.storage = new InMemoryStorage(ready);
         }
         this.lockService = new LockService();
-
         this.ns = namespace;
+    }
+
+    async destroy() {
+        await Promise.all([this.storage.destroy(), this.lockService.destroy()]);
     }
 
     _key(key) {

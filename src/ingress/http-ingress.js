@@ -17,14 +17,21 @@ class HttpIngress {
             throw new Error("No wildcard domain given for HTTP ingress");
         }
 
+        this.destroyed = false;
         this.tunnelService = new TunnelService();
         this.httpListener = new Listener().getListener('http');
         this.httpListener.use('request', async (ctx, next) => {
+            if (this.destroyed) {
+                return next();
+            }
             if (!await this.handleRequest(ctx.req, ctx.res)) {
                 next();
             }
         });
         this.httpListener.use('upgrade', async (ctx, next) => {
+            if (this.destroyed) {
+                return next();
+            }
             if (!await this.handleUpgradeRequest(ctx.req, ctx.sock, ctx.head)) {
                 next();
             }
@@ -341,6 +348,11 @@ class HttpIngress {
         });
 
         return true
+    }
+
+    async destroy() {
+        await this.tunnelService.destroy();
+        this.destroyed = true;
     }
 
 }

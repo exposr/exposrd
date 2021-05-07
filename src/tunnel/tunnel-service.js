@@ -224,6 +224,17 @@ class TunnelService {
         }
         return transport.createConnection(opts, callback);
     }
+
+    async destroy() {
+        const tunnels = Object.keys(this.connectedTransports);
+        const arr = []
+        tunnels.forEach((tunnelId) => {
+            arr.push(this.disconnect(tunnelId));
+        });
+        await Promise.all(arr);
+        await this.db.destroy();
+        this.destroyed = true;
+    }
 }
 
 export default TunnelService;

@@ -23,37 +23,24 @@ class Listener {
         return l;
     }
 
-    _call_listeners(fn) {
+    _call_listeners_async(fn) {
         const allListeners = [];
         Object.keys(this.listeners).forEach((k) => {
             const listener = this.listeners[k];
-            allListeners.push(new Promise((resolve, reject) => {
-                listener[fn]((err) => {
-                    if (err === undefined) {
-                        resolve();
-                    } else {
-                        reject(err);
-                    }
-                });
-            }));
+            allListeners.push(listener[fn]())
         });
         return allListeners;
     }
 
-    listen(cb) {
-        Promise.all(this._call_listeners('listen')).then(vals => {
-            cb();
-        }).catch(rejected => {
-            cb(new Error("Failed to start listeners"));
-        });
+    async listen() {
+        return Promise.all(this._call_listeners_async('listen'));
     }
 
-    shutdown(cb) {
-        Promise.all(this._call_listeners('shutdown')).then(vals => {
-            cb();
-        }).catch(rejected => {
-            cb();
-        });
+    async destroy() {
+        try {
+            await Promise.all(this._call_listeners_async('destroy'))
+        } catch (e) {
+        }
     }
 }
 

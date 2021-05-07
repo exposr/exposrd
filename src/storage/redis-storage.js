@@ -131,17 +131,25 @@ class RedisStorage {
         });
     };
 
-    destroy(cb) {
+    destroy() {
+        if (this.destroyed) {
+            return;
+        }
+        this.destroyed = true;
+        this.connected = false;
         this.logger.trace({
             operation: 'destroy',
             message: 'initiated'
         });
-        this._client.quit(() => {
-            delete RedisStorage.instance;
-            process.nextTick(cb);
-            logger.trace({
-                operation: 'destroy',
-                message: 'complete'
+        return new Promise((resolve) => {
+            this._client.quit((res) => {
+                delete RedisStorage.instance;
+                this.logger.trace({
+                    operation: 'destroy',
+                    message: 'complete',
+                    res,
+                });
+                resolve();
             });
         });
     }

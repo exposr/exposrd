@@ -17,6 +17,12 @@ class Endpoint {
         Endpoint.instance = this;
     }
 
+    async destroy() {
+        if (this.endpoints.ws) {
+            await this.endpoints.ws.destroy();
+        }
+    }
+
     getEndpoints(tunnel) {
         const endpoints = {};
 

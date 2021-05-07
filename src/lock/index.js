@@ -35,6 +35,10 @@ class LockService {
         }
     }
 
+    async destroy() {
+        return this._lock.destroy();
+    }
+
     async lock(resource, ttl = 5000) {
         const lock = await this._lock.lock(`lock:${resource}`, ttl);
         logger.isTraceEnabled() &&

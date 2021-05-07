@@ -8,8 +8,8 @@ import Logger from './logger.js';
 import Storage from './storage/index.js';
 import Node from './utils/node.js';
 
-export default () => {
-    Logger.info("exposr");
+export default async () => {
+    Logger.info("exposr-server");
     Logger.info({
       node_id: Node.identifier,
       host: Node.hostname,
@@ -17,6 +17,8 @@ export default () => {
     })
 
     let listener;
+    let endpoint;
+    let ingress;
     try {
       // Setup listeners
       listener = new Listener({
@@ -26,7 +28,7 @@ export default () => {
       });
 
       // Setup tunnel connection endpoints (for clients to establish tunnels)
-      const endpoint = new Endpoint({
+      endpoint = new Endpoint({
         ws: {
           enabled: true,
           baseUrl: Config.get('base-url')
@@ -34,7 +36,7 @@ export default () => {
       });
 
     // Setup tunnel data ingress (incoming tunnel data)
-      const ingress = new Ingress({
+      ingress = new Ingress({
         http: {
           enabled: Config.get('ingress').includes('http'),
           subdomainUrl: Config.get('http-ingress-domain')
@@ -48,39 +50,51 @@ export default () => {
     const adminController = Config.get('admin-enable') ? new AdminController(Config.get('admin-port')) : undefined;
     const apiController = new ApiController();
 
-    const readyCallback = () => {
-      adminController.setReady();
-      Logger.info("Service fully ready");
-    };
+    const redisProbe = new Promise((resolve, reject) => {
+        try {
+            new Storage("default", { callback: resolve });
+        } catch (e) {
+            reject(e);
+        }
+    })
 
-    listener.listen((err) => {
-        if (err) {
-            Logger.error(err);
+    await Promise
+        .all([
+          listener.listen(),
+          redisProbe,
+        ])
+        .catch((err) => {
+            Logger.error(`Failed to start up: ${err.message}`);
             process.exit(-1);
-        }
-        if (adminController) {
-            Logger.info({
-                message: "Admin interface enabled",
-                port: Config.get('admin-port')
-            });
-            new Storage("default", { callback: readyCallback });
-        } else {
-            Logger.info({message: "Admin interface disabled"});
-        }
-        Logger.info({
-            message: "API endpoint available",
-            base_url: Config.get('base-url'),
-            port: Config.get('port')
         });
-    });
 
-    const sigHandler = (signal) => {
-        Logger.info(`Shutdown initiated, signal=${signal}`)
-        apiController.shutdown(() => {});
-        listener.shutdown(() => {
-            Logger.info(`Shutdown complete`)
-            process.exit(0);
+    if (adminController) {
+        Logger.info({
+            message: "Admin interface enabled",
+            port: Config.get('admin-port')
         });
+        adminController.setReady();
+    } else {
+        Logger.info({message: "Admin interface disabled"});
+    }
+
+    Logger.info({
+        message: "API endpoint",
+        base_url: Config.get('base-url'),
+        port: Config.get('port')
+    });
+    Logger.info("exposr-server ready");
+
+    const sigHandler = async (signal) => {
+        Logger.info(`Shutdown initiated, signal=${signal}`)
+
+        await listener.destroy();
+        await endpoint.destroy();
+        await ingress.destroy();
+        await apiController.destroy();
+        await adminController.destroy();
+        Logger.info(`Shutdown complete`)
+        process.exit(0);
     };
 
     process.on('SIGTERM', sigHandler);
