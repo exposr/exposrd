@@ -6,7 +6,6 @@
   "author": "Fredrik Lindberg <fli@shapeshifter.se>",
   "license": "MIT",
   "dependencies": {
-    "joi-router": "^0.0.9",
     "koa": "^2.13.0",
     "koa-joi-router": "^7.0.0",
     "koa-router": "^9.4.0",
