@@ -37,7 +37,7 @@ class Storage {
         return Serializer.deserialize(str, clazz);
     }
 
-    async update(key, clazz, cb) {
+    async update(key, clazz, cb, opts = {}) {
         const lock = await this.lockService.lock(this._key(key));
         if (!lock) {
             return false;
@@ -55,14 +55,14 @@ class Storage {
             return false;
         }
         const serialized = Serializer.serialize(obj);
-        await this._set(key, serialized)
+        await this._set(key, serialized, opts)
         lock.unlock();
         return obj;
     }
 
-    async create(key, obj) {
+    async create(key, obj, opts = { NX: true }) {
         const serialized = Serializer.serialize(obj);
-        await this._set(key, serialized, { NX: true });
+        await this._set(key, serialized, opts);
         return obj;
     }
 
