@@ -38,7 +38,7 @@ class Storage {
     }
 
     async update(key, clazz, cb) {
-        const lock = await this.lockService.lock(key);
+        const lock = await this.lockService.lock(this._key(key));
         if (!lock) {
             return false;
         }
