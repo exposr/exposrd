@@ -20,7 +20,7 @@ class AccountService {
             return undefined;
         }
 
-        const account = await this._db.read(accountId, Account);
+        const account = await this._db.read(normalizedId, Account);
         return account;
     }
 
