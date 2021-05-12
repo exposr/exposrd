@@ -7,6 +7,7 @@ import Storage from '../storage/index.js';
 import Serializer from '../storage/serializer.js';
 import Node from '../utils/node.js';
 import Tunnel from './tunnel.js';
+import TunnelState from './tunnel-state.js';
 
 const logger = Logger("tunnel-service");
 
@@ -18,25 +19,28 @@ class TunnelService {
         TunnelService.instance = this;
 
         this.db = new Storage("tunnel");
+        this.db_state = new Storage("tunnel-state");
         this.eventBus = new EventBus();
-        this.connectedTransports = {};
+        this.connectedTunnels = {};
 
         this.eventBus.on('disconnect', (message) => {
             setImmediate(async () => {
                 const tunnelId = message?.tunnelId;
-                const transport = this.connectedTransports[tunnelId];
-                if (!transport) {
+                const connectedTunnel = this.connectedTunnels[tunnelId];
+                if (!connectedTunnel) {
                     return;
                 }
-
-                await this.db.update(tunnelId, Tunnel, (tunnel) => {
-                    tunnel.connected = false;
-                    tunnel.connection.peer = undefined;
-                    tunnel.connection.node = undefined;
+                const {transport, keepaliveTimer} = connectedTunnel;
+                keepaliveTimer && clearInterval(keepaliveTimer);
+                transport && transport.destroy();
+                delete this.connectedTunnels[tunnelId];
+                await this.db_state.update(tunnelId, TunnelState, (tunnelState) => {
+                    tunnelState.connected = false;
+                    tunnelState.peer = undefined;
+                    tunnelState.node = undefined;
+                    tunnelState.disconnected_at = new Date().toISOString();
                 });
 
-                delete this.connectedTransports[tunnelId];
-                transport.destroy();
                 this.eventBus.publish('disconnected', {
                     tunnelId
                 });
@@ -47,7 +51,11 @@ class TunnelService {
     async get(tunnelId, accountId = undefined) {
         assert(tunnelId != undefined);
 
-        const tunnel = await this.db.read(tunnelId, Tunnel);
+        const res = await Promise.all([
+            this.db.read(tunnelId, Tunnel),
+            this.db_state.read(tunnelId, TunnelState)
+        ]);
+        const tunnel = res[0];
         if (!tunnel) {
             return false;
         }
@@ -55,6 +63,9 @@ class TunnelService {
         if (accountId != undefined && tunnel.account !== accountId) {
             return false;
         }
+
+        tunnel._state = res[1] || new TunnelState();
+
         logger.isDebugEnabled() && logger.debug({
             operation: 'get_tunnel',
             tunnel: tunnel.id,
@@ -138,8 +149,8 @@ class TunnelService {
         }
 
         logger.isDebugEnabled() &&
-            assert(this.connectedTransports[tunnelId] === undefined);
-        if (this.connectedTransports[tunnelId] != undefined) {
+            assert(this.connectedTunnels[tunnelId] === undefined);
+        if (this.connectedTunnels[tunnelId] != undefined) {
             logger
                 .withContext('tunnel',tunnelId)
                 .error({
@@ -149,21 +160,45 @@ class TunnelService {
             return false;
         }
 
-        this.connectedTransports[tunnelId] = transport;
+        const keepaliveFun = async () => {
+            this.eventBus.publish('keepalive', {
+                tunnelId,
+            });
+            const updated = await this.db_state.update(tunnelId, TunnelState, (tunnelState) => {
+                tunnelState.connected = true;
+                tunnelState.alive_at = new Date().toISOString();
+            }, { TTL: 60 });
+        };
+
+        this.connectedTunnels[tunnelId] = {
+            keepaliveTimer: setInterval(keepaliveFun, 30 * 1000),
+            transport
+        }
         transport.once('close', () => {
             this.disconnect(tunnelId);
         });
 
-        tunnel = await this.db.update(tunnelId, Tunnel, (updated) => {
-            updated.connected = true;
-            updated.connection.peer = opts.peer;
-            updated.connection.node = Node.identifier;
-        });
+
+        const tunnelState = new TunnelState();
+        tunnelState.connected = true;
+        tunnelState.peer = opts.peer;
+        tunnelState.node = Node.identifier;
+        tunnelState.connected_at = new Date().toISOString();
+        tunnelState.alive_at = tunnelState.connected_at;
+        if (!await this.db_state.create(tunnelId, tunnelState, { NX: false })) {
+            logger
+                .withContext("tunnel", tunnelId)
+                .error({
+                    operation: 'connect_tunnel',
+                    msg: 'failed to persist tunnel state',
+                });
+
+            return false;
+        }
 
         this.eventBus.publish('connected', {
             tunnelId,
-            peer: opts.peer,
-            tunnel: Serializer.serialize(tunnel),
+            state: Serializer.serialize(tunnelState),
         });
 
         logger
@@ -178,7 +213,7 @@ class TunnelService {
 
     async disconnect(tunnelId) {
         let tunnel = await this.get(tunnelId);
-        if (!tunnel?.connected) {
+        if (this.connectedTunnels[tunnelId] === undefined) {
             return true;
         }
         setImmediate(() => {
@@ -187,7 +222,7 @@ class TunnelService {
             });
         });
         try {
-            await this.eventBus.waitFor('disconnected', (msg) => msg?.tunnelId == tunnelId, 10);
+            await this.eventBus.waitFor('disconnected', (msg) => msg?.tunnelId == tunnelId, 10000);
         } catch (timeout) {
             logger
                 .withContext('tunnel', tunnelId)
@@ -198,7 +233,7 @@ class TunnelService {
         }
 
         tunnel = await this.get(tunnelId);
-        if (!tunnel?.connected) {
+        if (!tunnel || !tunnel.state().connected) {
             logger
                 .withContext("tunnel", tunnelId)
                 .info({
@@ -218,15 +253,15 @@ class TunnelService {
     }
 
     createConnection(tunnelId, opts, callback) {
-        const transport = this.connectedTransports[tunnelId];
-        if (!transport) {
+        const connectedTunnel = this.connectedTunnels[tunnelId];
+        if (!connectedTunnel?.transport) {
             return undefined;
         }
         return transport.createConnection(opts, callback);
     }
 
     async destroy() {
-        const tunnels = Object.keys(this.connectedTransports);
+        const tunnels = Object.keys(this.connectedTunnels);
         const arr = []
         tunnels.forEach((tunnelId) => {
             arr.push(this.disconnect(tunnelId));

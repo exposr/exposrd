@@ -11,6 +11,7 @@
     "koa-joi-router": "^7.0.0",
     "koa-router": "^9.4.0",
     "log4js": "^6.3.0",
+    "node-cache": "^5.1.2",
     "redis": "^3.1.2",
     "redlock": "^4.2.0",
     "ws": "^7.3.1",

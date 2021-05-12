@@ -115,7 +115,7 @@ class WebSocketEndpoint {
             return this._unauthorized(sock, req);
         }
 
-        if (tunnel.connected) {
+        if (tunnel.state().connected) {
             return this._rawHttpResponse(sock, req, {
                 status: 503,
                 statusLine: 'Service unavailable',

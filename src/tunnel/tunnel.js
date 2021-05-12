@@ -1,3 +1,5 @@
+import TunnelState from "./tunnel-state.js";
+
 class Tunnel {
     constructor(tunnelId, account) {
         this.id = tunnelId;
@@ -18,11 +20,11 @@ class Tunnel {
         this.upstream = {
             url: undefined,
         };
-        this.connected = false;
-        this.connection = {
-            peer: undefined,
-            node: undefined,
-        };
+        this._state = new TunnelState();
+    }
+
+    state() {
+        return this._state;
     }
 }
 

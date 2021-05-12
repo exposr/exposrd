@@ -3,10 +3,9 @@ import net from 'net';
 import EventBus from '../eventbus/index.js';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
-import Serializer from '../storage/serializer.js';
 import TunnelService from '../tunnel/tunnel-service.js';
-import Tunnel from '../tunnel/tunnel.js';
 import Node from '../utils/node.js';
+import NodeCache from 'node-cache';
 
 const logger = Logger("http-ingress");
 class HttpIngress {
@@ -37,20 +36,29 @@ class HttpIngress {
             }
         });
 
-        this._agents = {};
-        this._connectedTunnels = {};
+        this._tunnelCache = new NodeCache({
+            useClones: false,
+            deleteOnExpire: true,
+        });
+
+        this._agentCache = new NodeCache({
+            useClones: false,
+            deleteOnExpire: false,
+        });
+        this._agentCache.on('del', (key, agent) => {
+            agent.destroy();
+            logger.isDebugEnabled() &&
+                logger.withContext("tunnel", key).debug("http agent destroyed")
+        });
 
         const eventBus = this.eventBus = new EventBus();
-        eventBus.on('connected', (data) => {
-            if (!data?.tunnelId) {
-                return;
-            }
-            const tunnel = Serializer.deserialize(data?.tunnel || {}, Tunnel);
-            this._connectedTunnels[data?.tunnelId] = tunnel;
-        });
         eventBus.on('disconnected', (data) => {
-            delete this._connectedTunnels[data?.tunnelId];
-            this._deleteAgent(data?.tunnelId);
+            this._tunnelCache.ttl(data?.tunnelId, 0);
+            this._agentCache.ttl(data?.tunnelId, 0);
+        });
+
+        eventBus.on('keepalive', (data) => {
+            this._tunnelCache.ttl(data?.tunnelId, 60);
         });
     }
 
@@ -71,22 +79,25 @@ class HttpIngress {
             return;
         }
 
-        let tunnel = this._connectedTunnels[tunnelId];
-        if (!tunnel) {
+        let tunnel = this._tunnelCache.get(tunnelId);
+        if (tunnel === undefined) {
             tunnel = await this.tunnelService.get(tunnelId);
-            if (tunnel && tunnel.connected) {
-                this._connectedTunnels[tunnelId] = tunnel;
+            if (tunnel && tunnel.state().connected) {
+                this._tunnelCache.set(tunnelId, tunnel);
             }
+        } else {
+            this._tunnelCache.ttl(tunnelId, 60);
         }
+
         return tunnel;
     }
 
     async _getProxy(tunnel) {
-        if (tunnel.connection.node == Node.identifier) {
+        if (tunnel.state().node == Node.identifier) {
             return undefined;
         }
 
-        const node = await Node.get(tunnel.connection.node);
+        const node = await Node.get(tunnel.state().node);
         if (node == undefined) {
             return undefined;
         }
@@ -104,18 +115,6 @@ class HttpIngress {
         return net.isIP(ip) ? ip : req.socket.remoteAddress;
     }
 
-    _deleteAgent(tunnelId) {
-        const tunnelAgent = this._agents[tunnelId];
-        if (tunnelAgent === undefined) {
-            return;
-        }
-        tunnelAgent.agent.destroy();
-        clearTimeout(tunnelAgent.timer);
-        delete this._agents[tunnelId];
-        logger.isDebugEnabled() &&
-            logger.withContext("tunnel", tunnelId).debug("http agent destroyed")
-    };
-
     _createAgent(tunnelId) {
         const agent = new Agent({
             keepAlive: true,
@@ -124,25 +123,19 @@ class HttpIngress {
         agent.createConnection = (opts, callback) => {
             return this.tunnelService.createConnection(tunnelId, opts, callback);
         };
+
+        logger.isDebugEnabled() &&
+            logger.withContext("tunnel", tunnelId).debug("http agent created")
         return agent;
     }
 
     _getAgent(tunnelId) {
-        let agent;
-        if (this._agents[tunnelId] !== undefined) {
-            agent = this._agents[tunnelId].agent;
-            clearTimeout(this._agents[tunnelId].timer);
-        } else {
+        let agent = this._agentCache.get(tunnelId);
+        if (agent === undefined) {
             agent = this._createAgent(tunnelId);
-            logger.isDebugEnabled() &&
-                logger.withContext("tunnel", tunnelId).debug("http agent created")
-        }
-
-        this._agents[tunnelId] = {
-            agent: agent,
-            timer: setTimeout(() => {
-                this._deleteAgent(tunnelId);
-            }, 65000)
+            this._agentCache.set(tunnelId, agent, 65);
+        } else {
+            this._agentCache.ttl(tunnelId, agent, 65);
         }
         return agent;
     }
@@ -200,7 +193,7 @@ class HttpIngress {
             return true;
         }
 
-        if (!tunnel.connected) {
+        if (!tunnel.state().connected) {
             res.statusCode = 502;
             res.end(JSON.stringify({
                 error: 'not connected'
@@ -259,6 +252,14 @@ class HttpIngress {
             clientRes.pipe(res);
         });
 
+        clientRes.on('error', (err) => {
+            logger.error({
+                msg: 'socket error',
+                err,
+            });
+            this.tunnelService.disconnect(tunnelId);
+        });
+
         clientReq.on('error', (err) => {
             let msg;
             if (err.code === 'EMFILE') {
@@ -307,7 +308,7 @@ class HttpIngress {
             return true;
         }
 
-        if (!tunnel.connected) {
+        if (!tunnel.state().connected) {
             _rawHttpResponse(sock, req, {
                 status: 502,
                 statusLine: 'Bad Gateway',

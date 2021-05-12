@@ -100,6 +100,13 @@ class ApiController {
         const tunnelInfo = (tunnel) => {
             const info = {
                 id: tunnel.id,
+                connection: {
+                    connected: tunnel.state().connected,
+                    peer: tunnel.state().peer,
+                    connected_at: tunnel.state().connected_at,
+                    disconnected_at: tunnel.state().disconnected_at,
+                    alive_at: tunnel.state().alive_at,
+                },
                 endpoints: {},
                 ingress: {},
             }
