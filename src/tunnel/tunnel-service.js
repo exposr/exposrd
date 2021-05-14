@@ -48,6 +48,13 @@ class TunnelService {
         });
     }
 
+    _isPermitted(tunnel, accountId) {
+        if (!(tunnel instanceof Tunnel)) {
+            return false;
+        }
+        return accountId === undefined || tunnel.isOwner(accountId);
+    }
+
     async get(tunnelId, accountId = undefined) {
         assert(tunnelId != undefined);
 
@@ -211,11 +218,16 @@ class TunnelService {
         return true;
     }
 
-    async disconnect(tunnelId) {
+    async disconnect(tunnelId, accountId = undefined) {
         let tunnel = await this.get(tunnelId);
-        if (this.connectedTunnels[tunnelId] === undefined) {
+        if (!this._isPermitted(tunnel, accountId)) {
+            return undefined;
+        }
+
+        if (!tunnel.state().connected && this.connectedTunnels[tunnelId] == undefined) {
             return true;
         }
+
         setImmediate(() => {
             this.eventBus.publish('disconnect', {
                 tunnelId

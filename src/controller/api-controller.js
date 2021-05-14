@@ -229,6 +229,34 @@ class ApiController {
             }]
         });
 
+        router.route({
+            method: 'post',
+            path: '/v1/tunnel/:tunnel_id/disconnect',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
+                }
+            },
+            handler: [handleError, handleAuth, async (ctx, next) => {
+                const tunnelId = ctx.params.tunnel_id;
+                const account = ctx._context.account;
+                const result = await account.disconnectTunnel(tunnelId);
+                if (result == undefined) {
+                    ctx.status = 404;
+                    ctx.body = {
+                        error: 'no such tunnel'
+                    };
+                } else {
+                    ctx.status = 200;
+                    ctx.body = {
+                        result
+                    }
+                }
+            }]
+        });
+
         const accountProps = (account) => {
             const {accountId, formatted} = account.getId();
             return {

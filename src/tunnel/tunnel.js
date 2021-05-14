@@ -26,6 +26,11 @@ class Tunnel {
     state() {
         return this._state;
     }
+
+    isOwner(accountId) {
+        return accountId != undefined && accountId === this.account;
+
+    }
 }
 
 export default Tunnel;

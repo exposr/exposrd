@@ -59,6 +59,10 @@ class Account {
         return await this._tunnelService.delete(tunnelId, this.accountId);
     }
 
+    async disconnectTunnel(tunnelId) {
+        return await this._tunnelService.disconnect(tunnelId, this.accountId);
+    }
+
 }
 
 export default Account;
