@@ -20,6 +20,7 @@ class Tunnel {
         this.upstream = {
             url: undefined,
         };
+        this.created_at = undefined;
         this._state = new TunnelState();
     }
 

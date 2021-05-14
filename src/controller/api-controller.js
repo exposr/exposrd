@@ -109,6 +109,7 @@ class ApiController {
                 },
                 endpoints: {},
                 ingress: {},
+                created_at: tunnel.created_at,
             }
 
             Object.keys(tunnel.endpoints).forEach((k) => {

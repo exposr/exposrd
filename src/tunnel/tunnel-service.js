@@ -86,6 +86,7 @@ class TunnelService {
         assert(accountId != undefined);
 
         const tunnel = new Tunnel(tunnelId, accountId);
+        tunnel.created_at = new Date().toISOString();
         const created = await this.db.create(tunnelId, tunnel);
         if (!created) {
             return false;
