@@ -34,12 +34,17 @@ class TunnelService {
                 keepaliveTimer && clearInterval(keepaliveTimer);
                 transport && transport.destroy();
                 delete this.connectedTunnels[tunnelId];
-                await this.db_state.update(tunnelId, TunnelState, (tunnelState) => {
+
+                const stateUpdate = this.db_state.update(tunnelId, TunnelState, (tunnelState) => {
                     tunnelState.connected = false;
                     tunnelState.peer = undefined;
                     tunnelState.node = undefined;
                     tunnelState.disconnected_at = new Date().toISOString();
                 });
+                // The folloing causes tunnel endpoint access tokens to be refreshed
+                const tunnelUpdate = this.update(tunnelId, undefined, (tunnel) => {});
+
+                await Promise.allSettled([stateUpdate, tunnelUpdate]);
 
                 this.eventBus.publish('disconnected', {
                     tunnelId
