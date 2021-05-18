@@ -92,7 +92,7 @@ export default async () => {
         await endpoint.destroy();
         await ingress.destroy();
         await apiController.destroy();
-        await adminController.destroy();
+        adminController && await adminController.destroy();
         Logger.info(`Shutdown complete`)
         process.exit(0);
     };
