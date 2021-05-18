@@ -1,7 +1,20 @@
 import yargs from 'yargs';
+import Version from './version.js';
 
 const args = yargs
     .env("EXPOSR")
+    .version(false)
+    .option('version', {
+        alias: 'v',
+        describe: 'Show version information',
+        coerce: () => {
+            const version = Version.version;
+            console.log(`version: ${version.version} (pkg ${version.package})`);
+            version?.build?.commit && console.log(`commit: ${version?.build?.commit}/${version?.build?.branch}`);
+            version?.build?.date && console.log(`timestamp: ${version.build.date}`);
+            process.exit(0);
+        }
+    })
     .option('api-url', {
         type: 'string',
         describe: 'Base URL for API (ex https://api.example.com)',

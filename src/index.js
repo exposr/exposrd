@@ -7,9 +7,10 @@ import Listener from './listener/index.js';
 import Logger from './logger.js';
 import Storage from './storage/index.js';
 import Node from './utils/node.js';
+import Version from './version.js';
 
 export default async () => {
-    Logger.info("exposr-server");
+    Logger.info(`exposr-server ${Version.version.version}`);
     Logger.info({
         node_id: Node.identifier,
         host: Node.hostname,
