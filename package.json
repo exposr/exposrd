@@ -5,6 +5,14 @@
   "type": "module",
   "author": "Fredrik Lindberg <fli@shapeshifter.se>",
   "license": "MIT",
+  "files": [
+    "exposr-server",
+    "src",
+    "README.md",
+    "LICENSE",
+    "yarn.lock",
+    "build.env"
+  ],
   "dependencies": {
     "koa": "^2.13.0",
     "koa-joi-router": "^7.0.0",
@@ -15,5 +23,13 @@
     "redlock": "^4.2.0",
     "ws": "^7.3.1",
     "yargs": "^15.4.1"
+  },
+  "devDependencies": {
+    "standard-version": "^9.3.0"
+  },
+  "scripts": {
+    "prepack": "scripts/build-env.sh > build.env",
+    "postpack": "rm build.env",
+    "release": "standard-version"
   }
 }

@@ -1,14 +1,18 @@
-FROM node:15-alpine AS builder
-RUN apk add git
-COPY . /workdir
+ARG NODE_IMAGE
+FROM node:${NODE_IMAGE} AS builder
+RUN apk add \
+    git \
+    make
+RUN mkdir /workdir
 WORKDIR /workdir
-RUN git clean -dffx
-RUN yarn pack
+ENTRYPOINT ["/bin/sh", "-c"]
 
-FROM node:15-alpine
-COPY --from=builder /workdir/exposr-server*.tgz /tmp
-RUN yarn add /tmp/exposr-server*.tgz && \
-    rm /tmp/exposr-server*.tgz
+FROM node:${NODE_IMAGE} AS runtime
+ARG PACKAGE_NAME
+COPY ${PACKAGE_NAME} /tmp/${PACKAGE_NAME}
+RUN yarn add --production --frozen-lockfile /tmp/${PACKAGE_NAME} && \
+    rm /tmp/${PACKAGE_NAME}
+ENV NODE_ENV=production
 
 USER nobody
 EXPOSE 8080
