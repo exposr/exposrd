@@ -1,0 +1,22 @@
+name: ci
+on:
+  push:
+    branches:
+      - '*'
+      - '!master'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare builder
+        run: make builder.build
+
+      - name: Build package
+        run:  |
+          make package.build.container
+          make image.build
