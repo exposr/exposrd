@@ -241,6 +241,13 @@ class HttpIngress {
         };
 
         const clientReq = http.request(opt, (clientRes) => {
+            clientRes.on('error', (err) => {
+                logger.error({
+                    msg: 'socket error',
+                    err,
+                });
+                this.tunnelService.disconnect(tunnelId);
+            });
             logRequest({
                 response: {
                     status: clientRes.statusCode,
@@ -250,14 +257,6 @@ class HttpIngress {
             })
             res.writeHead(clientRes.statusCode, clientRes.headers);
             clientRes.pipe(res);
-        });
-
-        clientRes.on('error', (err) => {
-            logger.error({
-                msg: 'socket error',
-                err,
-            });
-            this.tunnelService.disconnect(tunnelId);
         });
 
         clientReq.on('error', (err) => {
