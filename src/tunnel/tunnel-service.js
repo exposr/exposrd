@@ -275,7 +275,7 @@ class TunnelService {
         if (!connectedTunnel?.transport) {
             return undefined;
         }
-        return transport.createConnection(opts, callback);
+        return connectedTunnel.transport.createConnection(opts, callback);
     }
 
     async destroy() {
