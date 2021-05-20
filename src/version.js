@@ -30,7 +30,7 @@ class Version {
 
     static gitVersion() {
         try {
-            const obj = child_process.spawnSync("git describe --tags --always --dirty");
+            const obj = child_process.spawnSync("git", ["describe", "--tags", "--always", "--dirty"]);
             if (!obj.error && obj.stdout) {
                 return obj.stdout.toString('utf-8').trim();
             }
