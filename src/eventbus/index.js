@@ -25,7 +25,7 @@ class EventBus extends EventEmitter {
             this.setMaxListeners(this.getMaxListeners() + 1);
         });
         this.on('removeListener', () => {
-            this.setMaxListeners(this.getMaxListeners() + 1);
+            this.setMaxListeners(this.getMaxListeners() - 1);
         });
     }
 
