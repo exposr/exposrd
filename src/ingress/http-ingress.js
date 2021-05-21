@@ -135,7 +135,7 @@ class HttpIngress {
             agent = this._createAgent(tunnelId);
             this._agentCache.set(tunnelId, agent, 65);
         } else {
-            this._agentCache.ttl(tunnelId, agent, 65);
+            this._agentCache.ttl(tunnelId, 65);
         }
         return agent;
     }
