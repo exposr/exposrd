@@ -323,7 +323,7 @@ class HttpIngress {
                 headers: req.headers,
             });
 
-        const upstream = tunnel.transport.createConnection();
+        const upstream = this.tunnelService.createConnection();
         if (upstream === undefined) {
             sock.end();
             return true;
