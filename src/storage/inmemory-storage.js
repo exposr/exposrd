@@ -48,7 +48,7 @@ class InMemoryStorage {
         if (typeof opts.TTL == 'number') {
             this.timers[key] = setTimeout(() => {
                 delete this.db[key];
-            }, opts.TTL);
+            }, opts.TTL * 1000);
         }
         return this.db[key];
     };
