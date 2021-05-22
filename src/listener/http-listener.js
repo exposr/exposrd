@@ -31,6 +31,10 @@ class HttpListener {
         });
     }
 
+    getPort() {
+        return this.opts.port;
+    }
+
     use(event, callback) {
         if (this.callbacks[event] === undefined) {
             throw new Error("Unknown event " + event);
