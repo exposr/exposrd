@@ -19,7 +19,6 @@ export default async () => {
 
     let listener;
     let endpoint;
-    let ingress;
     try {
         // Setup listeners
         listener = new Listener({
@@ -35,23 +34,34 @@ export default async () => {
             baseUrl: Config.get('api-url')
           }
       });
-
-    // Setup tunnel data ingress (incoming tunnel data)
-      ingress = new Ingress({
-          http: {
-              enabled: Config.get('ingress').includes('http'),
-              subdomainUrl: Config.get('http-ingress-domain')
-          }
-      });
     } catch (err) {
         Logger.error(err.message);
         process.exit(-1);
     }
 
     const adminController = Config.get('admin-enable') ? new AdminController(Config.get('admin-port')) : undefined;
-    const apiController = new ApiController();
+    const apiController = new ApiController({
+        baseUrl: Config.get('api-url')
+    });
 
-    const redisProbe = new Promise((resolve, reject) => {
+    // Setup tunnel data ingress (incoming tunnel data)
+    const ingressReady = new Promise((resolve, reject) => {
+        try {
+            const ingress = new Ingress({
+                callback: () => {
+                    resolve(ingress);
+                },
+                http: {
+                    enabled: Config.get('ingress').includes('http'),
+                    subdomainUrl: Config.get('http-ingress-domain')
+                }
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+
+    const storageReady = new Promise((resolve, reject) => {
         try {
             new Storage("default", { callback: resolve });
         } catch (e) {
@@ -59,15 +69,18 @@ export default async () => {
         }
     })
 
-    await Promise
+    const res = await Promise
         .all([
             listener.listen(),
-            redisProbe,
+            storageReady,
+            ingressReady,
         ])
         .catch((err) => {
             Logger.error(`Failed to start up: ${err.message}`);
             process.exit(-1);
         });
+
+    const ingress = res[2];
 
     if (adminController) {
         Logger.info({

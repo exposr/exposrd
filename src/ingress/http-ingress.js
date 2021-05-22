@@ -9,6 +9,9 @@ import NodeCache from 'node-cache';
 
 const logger = Logger("http-ingress");
 class HttpIngress {
+
+    static HTTP_HEADER_EXPOSR_VIA = 'exposr-via';
+
     constructor(opts) {
         this.opts = opts;
 
@@ -17,7 +20,7 @@ class HttpIngress {
         }
 
         this.destroyed = false;
-        this.tunnelService = new TunnelService();
+        this.tunnelService = new TunnelService(opts.callback);
         this.httpListener = new Listener().getListener('http');
         this.httpListener.use('request', async (ctx, next) => {
             if (this.destroyed) {
@@ -36,11 +39,6 @@ class HttpIngress {
             }
         });
 
-        this._tunnelCache = new NodeCache({
-            useClones: false,
-            deleteOnExpire: true,
-        });
-
         this._agentCache = new NodeCache({
             useClones: false,
             deleteOnExpire: false,
@@ -53,12 +51,7 @@ class HttpIngress {
 
         const eventBus = this.eventBus = new EventBus();
         eventBus.on('disconnected', (data) => {
-            this._tunnelCache.ttl(data?.tunnelId, 0);
             this._agentCache.ttl(data?.tunnelId, 0);
-        });
-
-        eventBus.on('keepalive', (data) => {
-            this._tunnelCache.ttl(data?.tunnelId, 60);
         });
     }
 
@@ -79,32 +72,7 @@ class HttpIngress {
             return;
         }
 
-        let tunnel = this._tunnelCache.get(tunnelId);
-        if (tunnel === undefined) {
-            tunnel = await this.tunnelService.get(tunnelId);
-            if (tunnel && tunnel.state().connected) {
-                this._tunnelCache.set(tunnelId, tunnel);
-            }
-        } else {
-            this._tunnelCache.ttl(tunnelId, 60);
-        }
-
-        return tunnel;
-    }
-
-    async _getProxy(tunnel) {
-        if (tunnel.state().node == Node.identifier) {
-            return undefined;
-        }
-
-        const node = await Node.get(tunnel.state().node);
-        if (node == undefined) {
-            return undefined;
-        }
-        return {
-            host: node.address,
-            port: node.port,
-        }
+        return this.tunnelService.lookup(tunnelId);
     }
 
     _clientIp(req) {
@@ -121,7 +89,14 @@ class HttpIngress {
         });
 
         agent.createConnection = (opts, callback) => {
-            return this.tunnelService.createConnection(tunnelId, opts, callback);
+            const ctx = {
+                ingress: {
+                    tls: false,
+                    port: this.httpListener.getPort(),
+                },
+                opts,
+            };
+            return this.tunnelService.createConnection(tunnelId, ctx, callback);
         };
 
         logger.isDebugEnabled() &&
@@ -142,10 +117,25 @@ class HttpIngress {
 
     _requestHeaders(req, tunnel) {
         const headers = { ... req.headers };
-        const host = headers['host'];
         delete headers['connection'];
         headers['x-forwarded-for'] = this._clientIp(req);
         headers['x-real-ip'] = headers['x-forwarded-for'];
+
+        if (headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA]) {
+            headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] = `${Node.identifier},${headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] }`;
+        } else {
+            headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] = Node.identifier;
+        }
+
+        if (this.tunnelService.isLocalConnected(tunnel.id)) {
+            this._rewriteHeaders(headers, tunnel);
+        }
+
+        return headers;
+    }
+
+    _rewriteHeaders(headers, tunnel) {
+        const host = headers['host'];
 
         let upstream;
         if (tunnel.upstream.url) {
@@ -177,8 +167,6 @@ class HttpIngress {
                 }
             });
         }
-
-        return headers;
     }
 
     async handleRequest(req, res) {
@@ -215,16 +203,8 @@ class HttpIngress {
             keepAlive: true,
         };
 
-        const proxy = await this._getProxy(tunnel);
-        if (!proxy) {
-            opt.agent = this._getAgent(tunnel.id);
-            opt.headers = this._requestHeaders(req, tunnel);
-        } else {
-            opt.host = proxy.host;
-            opt.port = proxy.port;
-            opt.headers = req.headers;
-        }
-        opt.headers['exposr-node'] = Node.identifier;
+        opt.agent = this._getAgent(tunnel.id);
+        opt.headers = this._requestHeaders(req, tunnel);
 
         const logRequest = (fields) => {
             logger.isTraceEnabled() &&
@@ -246,7 +226,6 @@ class HttpIngress {
                     msg: 'socket error',
                     err,
                 });
-                this.tunnelService.disconnect(tunnelId);
             });
             logRequest({
                 response: {
@@ -316,26 +295,43 @@ class HttpIngress {
             return true;
         }
 
-        logger.isTraceEnabled() &&
-            logger.withContext('tunnel', tunnel.id).trace({
-                method: req.method,
-                path: req.url,
-                headers: req.headers,
-            });
+        const headers = this._requestHeaders(req, tunnel);
 
-        const upstream = this.tunnelService.createConnection();
+        const logRequest = (fields) => {
+            const onNode = this.tunnelService.isLocalConnected(tunnelId);
+            logger.isTraceEnabled() &&
+                logger
+                    .withContext('tunnel', tunnel.id)
+                    .trace({
+                        request: {
+                            method: req.method,
+                            path: req.path,
+                            headers: headers,
+                        },
+                        redirect: !onNode,
+                        ...fields,
+                    });
+        };
+
+        const ctx = {
+            ingress: {
+                tls: false,
+                port: this.httpListener.getPort(),
+            }
+        };
+        const upstream = this.tunnelService.createConnection(tunnel.id, ctx);
         if (upstream === undefined) {
             sock.end();
             return true;
         }
 
         upstream.on('error', (err) => {
-            logger.withContext("tunnel", tunnel.id).debug(err);
+            logRequest(err)
             sock.end();
         });
 
-        const headers = this._requestHeaders(req, tunnel);
         upstream.on('connect', () => {
+            logRequest();
             upstream.pipe(sock);
             sock.pipe(upstream);
 

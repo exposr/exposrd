@@ -4,24 +4,62 @@ import EventBus from '../eventbus/index.js';
 import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';
-import Serializer from '../storage/serializer.js';
 import Node from '../utils/node.js';
 import Tunnel from './tunnel.js';
 import TunnelState from './tunnel-state.js';
+import NodeCache from 'node-cache';
+import { Socket } from 'net';
 
 const logger = Logger("tunnel-service");
 
 class TunnelService {
-    constructor() {
+    constructor(callback) {
         if (TunnelService.instance !== undefined) {
+            if (TunnelService._readyCallback) {
+                TunnelService._readyCallback.push(callback);
+            } else {
+                callback && process.nextTick(callback);
+            }
             return TunnelService.instance
         }
         TunnelService.instance = this;
+        TunnelService._readyCallback = [callback];
 
         this.db = new Storage("tunnel");
-        this.db_state = new Storage("tunnel-state");
+        this.db_state = new Storage("tunnel-state", {
+            callback: async () => {
+                await this._populateNodeCache();
+                TunnelService._readyCallback.forEach((cb) => {
+                    typeof cb === 'function' && cb();
+                });
+                delete TunnelService._readyCallback;
+            }
+        });
         this.eventBus = new EventBus();
         this.connectedTunnels = {};
+
+        this._nextNodeCache = new NodeCache({
+            useClones: false,
+            deleteOnExpire: true,
+        });
+        this._lookupCache = new NodeCache({
+            useClones: false,
+            deleteOnExpire: true,
+        });
+
+        const updateCacheFn = (data) => {
+            if (!data?.tunnelId || !data?.node) {
+                return;
+            }
+            this._nextNodeCache.set(data.tunnelId, data.node, 60);
+        };
+        this.eventBus.on('connected', updateCacheFn);
+        this.eventBus.on('keepalive', updateCacheFn);
+
+        this.eventBus.on('disconnected', (data) => {
+            this._lookupCache.ttl(data?.tunnelId, 0);
+            this._nextNodeCache.ttl(data?.tunnelId, 0);
+        });
 
         this.eventBus.on('disconnect', (message) => {
             setImmediate(async () => {
@@ -41,7 +79,7 @@ class TunnelService {
                     tunnelState.node = undefined;
                     tunnelState.disconnected_at = new Date().toISOString();
                 });
-                // The folloing causes tunnel endpoint access tokens to be refreshed
+                // The following causes tunnel endpoint access tokens to be refreshed
                 const tunnelUpdate = this.update(tunnelId, undefined, (tunnel) => {});
 
                 await Promise.allSettled([stateUpdate, tunnelUpdate]);
@@ -51,6 +89,27 @@ class TunnelService {
                 });
             });
         });
+    }
+
+    // We need to pre-populate the next node cache for active tunnels,
+    // otherwise createConnection will fail until next keepAlive message.
+    // Would be better if it was possible for createConnection to be async.
+    async _populateNodeCache() {
+        let cursor = 0;
+        do {
+            const res = await this.db_state.list(cursor, 100);
+            const states = await Promise.all(res.data.map((tunnelId) => this.db_state.read(tunnelId, TunnelState)));
+            const nodes = await Promise.all(states.map((state) => state.connected ? Node.get(state.node) : undefined));
+
+            res.data.forEach((tunnelId, index) => {
+                const node = nodes[index];
+                if (!node) {
+                    return;
+                }
+                this._nextNodeCache.set(tunnelId, node, 60);
+            });
+            cursor = res.cursor;
+        } while (cursor != 0);
     }
 
     _isPermitted(tunnel, accountId) {
@@ -83,6 +142,17 @@ class TunnelService {
             tunnel: tunnel.id,
             account: tunnel.account,
         });
+        return tunnel;
+    }
+
+    async lookup(tunnelId, accountId = undefined) {
+        let tunnel = this._lookupCache.get(tunnelId);
+        if (tunnel === undefined) {
+            tunnel = await this.get(tunnelId, accountId);
+            if (tunnel && tunnel.state().connected) {
+                this._lookupCache.set(tunnelId, tunnel, 60);
+            }
+        }
         return tunnel;
     }
 
@@ -174,8 +244,10 @@ class TunnelService {
         }
 
         const keepaliveFun = async () => {
+            const node = await Node.get();
             this.eventBus.publish('keepalive', {
                 tunnelId,
+                node,
             });
             const updated = await this.db_state.update(tunnelId, TunnelState, (tunnelState) => {
                 tunnelState.connected = true;
@@ -211,7 +283,7 @@ class TunnelService {
 
         this.eventBus.publish('connected', {
             tunnelId,
-            state: Serializer.serialize(tunnelState),
+            node: await Node.get(),
         });
 
         logger
@@ -270,12 +342,38 @@ class TunnelService {
         }
     }
 
-    createConnection(tunnelId, opts, callback) {
+    isLocalConnected(tunnelId) {
+        return this.connectedTunnels[tunnelId] != undefined;
+    }
+
+    // This function can not be async as it's used within agent.createConnection
+    createConnection(tunnelId, ctx, callback) {
         const connectedTunnel = this.connectedTunnels[tunnelId];
-        if (!connectedTunnel?.transport) {
-            return undefined;
+        if (connectedTunnel?.transport) {
+            return connectedTunnel.transport.createConnection(ctx.opts, callback);
         }
-        return connectedTunnel.transport.createConnection(opts, callback);
+
+        const sock = new Socket();
+        const nextNode = this._nextNodeCache.get(tunnelId);
+        if (!nextNode || !nextNode?.id || !nextNode?.host) {
+            // Return a dummy socket that always will fail
+            sock.connect({
+                host: '0.0.0.0',
+                port: 0,
+            });
+            return sock;
+        }
+        sock.connect({
+            host: nextNode.address,
+            port: ctx.ingress.port,
+            setDefaultEncoding: 'binary'
+        }, callback);
+
+        logger.debug({
+            operation: 'connection-redirect',
+            next: nextNode,
+        });
+        return sock;
     }
 
     async destroy() {

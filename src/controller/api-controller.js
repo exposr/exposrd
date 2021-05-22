@@ -319,9 +319,13 @@ class ApiController {
     }
 
     _initializeServer() {
-        const appCallback = this.appCallback;
+        const baseUrl = this.opts.baseUrl.host.toLowerCase();
         this.httpListener.use('request', async (ctx, next) => {
-            appCallback(ctx.req, ctx.res);
+            const host = ctx?.req?.headers?.host;
+            if (typeof host !== 'string' || host.toLowerCase() !== baseUrl) {
+                return next();
+            }
+            this.appCallback(ctx.req, ctx.res);
         });
     }
 

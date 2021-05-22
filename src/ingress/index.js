@@ -5,14 +5,20 @@ class Ingress {
         if (Ingress.instance !== undefined) {
             return Ingress.instance
         }
+        Ingress.instance = this;
         this.opts = opts;
+
+        const readyCallback = () => {
+            typeof opts.callback === 'function' && opts.callback();
+        };
 
         this.ingress = {};
         if (opts.http && opts.http.enabled == true) {
-            this.ingress.http = new HttpIngress(opts.http);
+            this.ingress.http = new HttpIngress({
+                ...opts.http,
+                callback: readyCallback,
+            });
         }
-
-        Ingress.instance = this;
     }
 
     async destroy() {
