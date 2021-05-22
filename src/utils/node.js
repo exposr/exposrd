@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import NodeCache from 'node-cache';
 import os from 'os';
 import Config from '../config.js';
 import Storage from '../storage/index.js';
@@ -64,6 +65,11 @@ class Node {
         }
     });
 
+    static peerCache = new NodeCache({
+        useClones: false,
+        deleteOnExpire: true,
+    });
+
     static async get(id) {
         if (id == undefined) {
             return {
@@ -74,7 +80,15 @@ class Node {
             }
         }
 
-        return Node.storage.get(id);
+        let peer;
+        peer = Node.peerCache.get(id);
+        if (peer == undefined) {
+            peer = await Node.storage.get(id);
+            if (peer) {
+                Node.peerCache.set(id, peer, 60);
+            }
+        }
+        return peer;
     }
 
     static async reportNode() {
