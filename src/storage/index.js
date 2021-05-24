@@ -104,6 +104,14 @@ class Storage {
         assert(key !== undefined);
         this.storage.delete(this._key(key));
     };
+
+    async list(cursor = 0, count = 10) {
+        const res = await this.storage.list(`${this.ns}:`, cursor, count);
+        return {
+            cursor: res.cursor,
+            data: res.data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1)),
+        }
+    }
 }
 
 export default Storage;

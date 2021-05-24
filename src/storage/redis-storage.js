@@ -153,6 +153,41 @@ class RedisStorage {
             });
         });
     }
+
+    list(ns, cursor, count = 10) {
+        if (this.destroyed) {
+            return {
+                cursor: 0,
+                data: [],
+            };
+        }
+
+        return new Promise((resolve) => {
+            this._client.scan(cursor, 'MATCH', `${ns}*`, 'COUNT', count, (err, res) => {
+                let nextCursor;
+                let keys;
+                if (!err) {
+                    nextCursor = Number.parseInt(res[0]);
+                    keys = res[1];
+                }
+                this.logger.isTraceEnabled() && this.logger.trace({
+                    operation: 'list',
+                    count,
+                    cursor,
+                    nextCursor,
+                    numResult: keys.length,
+                    err,
+                });
+                if (err) {
+                    return resolve(undefined);
+                }
+                resolve({
+                    cursor: nextCursor,
+                    data: keys,
+                })
+            })
+        });
+    }
 }
 
 export default RedisStorage;

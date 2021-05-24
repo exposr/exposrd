@@ -63,6 +63,15 @@ class InMemoryStorage {
         delete this.db[key];
     };
 
+    async list(ns, cursor, count = 10) {
+        const keys = Object.keys(this.db).filter((k) => k.startsWith(ns));
+        const data = keys.slice(cursor, cursor + count);
+        return {
+            cursor: data.length > 0 ? cursor + data.length : 0,
+            data,
+        }
+    }
+
 }
 
 export default InMemoryStorage;
