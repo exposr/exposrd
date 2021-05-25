@@ -320,7 +320,7 @@ class HttpIngress {
         const headers = this._requestHeaders(req, tunnel);
 
         const logRequest = (fields) => {
-            const onNode = this.tunnelService.isLocalConnected(tunnelId);
+            const onNode = this.tunnelService.isLocalConnected(tunnel.id);
             logger.isTraceEnabled() &&
                 logger
                     .withContext('tunnel', tunnel.id)
