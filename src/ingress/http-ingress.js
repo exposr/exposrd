@@ -169,6 +169,11 @@ class HttpIngress {
         }
     }
 
+    _loopDetected(req) {
+        const via = (req.headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] || '').split(',');
+        return via.map((v) => v.trim()).includes(Node.identifier);
+    }
+
     async handleRequest(req, res) {
         const tunnel = await this._getTunnel(req);
         if (tunnel === undefined) {
@@ -193,6 +198,14 @@ class HttpIngress {
             res.statusCode = 403;
             res.end(JSON.stringify({
                 error: 'http ingress not enabled'
+            }));
+            return true;
+        }
+
+        if (this._loopDetected(req)) {
+            res.statusCode = 508;
+            res.end(JSON.stringify({
+                error: 'request loop'
             }));
             return true;
         }
@@ -291,6 +304,15 @@ class HttpIngress {
                 status: 502,
                 statusLine: 'Bad Gateway',
                 body: JSON.stringify({error: 'not connected'}),
+            });
+            return true;
+        }
+
+        if (this._loopDetected(req)) {
+            _rawHttpResponse(sock, req, {
+                status: 508,
+                statusLine: 'Loop Detected',
+                body: JSON.stringify({error: 'request loop'}),
             });
             return true;
         }
