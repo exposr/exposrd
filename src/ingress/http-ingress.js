@@ -278,7 +278,7 @@ class HttpIngress {
 
     async handleUpgradeRequest(req, sock, head) {
 
-        const _rawHttpResponse = (sock, request, response) => {
+        const _canonicalHttpResponse = (sock, request, response) => {
             sock.write(`HTTP/${request.httpVersion} ${response.status} ${response.statusLine}\r\n`);
             sock.write('\r\n');
             response.body && sock.write(response.body);
@@ -291,7 +291,7 @@ class HttpIngress {
         if (tunnel === undefined) {
             return false;
         } else if (tunnel === false) {
-            _rawHttpResponse(sock, req, {
+            _canonicalHttpResponse(sock, req, {
                 status: 404,
                 statusLine: 'Not Found',
                 body: JSON.stringify({error: 'not configured'}),
@@ -300,7 +300,7 @@ class HttpIngress {
         }
 
         if (!tunnel.state().connected) {
-            _rawHttpResponse(sock, req, {
+            _canonicalHttpResponse(sock, req, {
                 status: 502,
                 statusLine: 'Bad Gateway',
                 body: JSON.stringify({error: 'not connected'}),
@@ -309,7 +309,7 @@ class HttpIngress {
         }
 
         if (this._loopDetected(req)) {
-            _rawHttpResponse(sock, req, {
+            _canonicalHttpResponse(sock, req, {
                 status: 508,
                 statusLine: 'Loop Detected',
                 body: JSON.stringify({error: 'request loop'}),
