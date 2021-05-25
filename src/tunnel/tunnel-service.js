@@ -8,7 +8,7 @@ import Node from '../utils/node.js';
 import Tunnel from './tunnel.js';
 import TunnelState from './tunnel-state.js';
 import NodeCache from 'node-cache';
-import { Socket } from 'net';
+import NodeSocket from '../transport/node-socket.js';
 
 const logger = Logger("tunnel-service");
 
@@ -25,40 +25,25 @@ class TunnelService {
         TunnelService.instance = this;
         TunnelService._readyCallback = [callback];
 
-        this.db = new Storage("tunnel");
-        this.db_state = new Storage("tunnel-state", {
-            callback: async () => {
-                await this._populateNodeCache();
-                TunnelService._readyCallback.forEach((cb) => {
-                    typeof cb === 'function' && cb();
-                });
-                delete TunnelService._readyCallback;
-            }
-        });
+        const readyCallback = async () => {
+            TunnelService._readyCallback.forEach((cb) => {
+                typeof cb === 'function' && cb();
+            });
+            delete TunnelService._readyCallback;
+        };
+
+        this.db = new Storage("tunnel", { callback: readyCallback });
+        this.db_state = new Storage("tunnel-state");
         this.eventBus = new EventBus();
         this.connectedTunnels = {};
 
-        this._nextNodeCache = new NodeCache({
-            useClones: false,
-            deleteOnExpire: true,
-        });
         this._lookupCache = new NodeCache({
             useClones: false,
             deleteOnExpire: true,
         });
 
-        const updateCacheFn = (data) => {
-            if (!data?.tunnelId || !data?.node) {
-                return;
-            }
-            this._nextNodeCache.set(data.tunnelId, data.node, 60);
-        };
-        this.eventBus.on('connected', updateCacheFn);
-        this.eventBus.on('keepalive', updateCacheFn);
-
         this.eventBus.on('disconnected', (data) => {
             this._lookupCache.ttl(data?.tunnelId, 0);
-            this._nextNodeCache.ttl(data?.tunnelId, 0);
         });
 
         this.eventBus.on('disconnect', (message) => {
@@ -89,27 +74,6 @@ class TunnelService {
                 });
             });
         });
-    }
-
-    // We need to pre-populate the next node cache for active tunnels,
-    // otherwise createConnection will fail until next keepAlive message.
-    // Would be better if it was possible for createConnection to be async.
-    async _populateNodeCache() {
-        let cursor = 0;
-        do {
-            const res = await this.db_state.list(cursor, 100);
-            const states = await Promise.all(res.data.map((tunnelId) => this.db_state.read(tunnelId, TunnelState)));
-            const nodes = await Promise.all(states.map((state) => state.connected ? Node.get(state.node) : undefined));
-
-            res.data.forEach((tunnelId, index) => {
-                const node = nodes[index];
-                if (!node) {
-                    return;
-                }
-                this._nextNodeCache.set(tunnelId, node, 60);
-            });
-            cursor = res.cursor;
-        } while (cursor != 0);
     }
 
     _isPermitted(tunnel, accountId) {
@@ -263,7 +227,6 @@ class TunnelService {
             this.disconnect(tunnelId);
         });
 
-
         const tunnelState = new TunnelState();
         tunnelState.connected = true;
         tunnelState.peer = opts.peer;
@@ -346,34 +309,17 @@ class TunnelService {
         return this.connectedTunnels[tunnelId] != undefined;
     }
 
-    // This function can not be async as it's used within agent.createConnection
     createConnection(tunnelId, ctx, callback) {
         const connectedTunnel = this.connectedTunnels[tunnelId];
         if (connectedTunnel?.transport) {
             return connectedTunnel.transport.createConnection(ctx.opts, callback);
         }
 
-        const sock = new Socket();
-        const nextNode = this._nextNodeCache.get(tunnelId);
-        if (!nextNode || !nextNode?.id || !nextNode?.host) {
-            // Return a dummy socket that always will fail
-            sock.connect({
-                host: '0.0.0.0',
-                port: 0,
-            });
-            return sock;
-        }
-        sock.connect({
-            host: nextNode.address,
+        return NodeSocket.createConnection({
+            tunnelId,
+            tunnelService: this,
             port: ctx.ingress.port,
-            setDefaultEncoding: 'binary'
         }, callback);
-
-        logger.debug({
-            operation: 'connection-redirect',
-            next: nextNode,
-        });
-        return sock;
     }
 
     async destroy() {
