@@ -3,11 +3,31 @@
 exposr is a self-hosted tunnel server that allows you to securely expose devices and services
 behind NATs or firewalls to the Internet through public URLs.
 
-Exposr can for example be used for development and previews or for exposing services behind NAT/firewalls
+exposr can for example be used for development and previews or for exposing services behind NAT/firewalls
 to the Internet without port-forwarding and risk of exposing your IP address.
 
-exposr-server is the server component and is designed to run as a container, scales
-horizontally with persistance support through Redis.
+Why another "localhost reverse proxy"? exposr takes a slightly different approach than other servers
+of the same type. exposr is designed to run as a container with horizontal elastic scaling properties,
+and is well suited to run in container-orchestration systems like Kubernetes.
+
+## Features
+
+* Scales horizontally - more nodes can be added to increase capacity.
+* No configuration files! - All configuration can be done as environment variables or command line options.
+* Designed to run behind a load balancer (HTTP/TCP) (ex. nginx or HAProxy) - only one port required to be exposed.
+* Suitable to run in container-orchestration systems such as Kubernetes.
+* Client does not need root privileges and can establish tunnels as long as it can make outbound HTTP(s) connections.
+* Client can forward traffic to any host - not just localhost!
+* Tunnel configuration through restful APIs.
+* No passwords or e-mails - but still secure. An account number together with the tunnel identifier serves as credentials.
+
+What it does *not* do
+* Certificate provisioning.
+* DNS provisioning.
+
+This is on purpose as the server is designed to be stateless and to have elastic scaling
+properties. Meaning these are more suitable to handle in other parts of the deployment stack, for
+example at the load balancer. 
 
 # Architecture
 exposr have three core concepts, transports, endpoints and ingress.
@@ -52,11 +72,12 @@ is bound for.
 
 ## Persistence
 The default persistence mode is in-memory meaning all tunnel configurations are lost
-when the server is restarted.
+when the server is restarted. Since tunnels (and accounts) are created by the client
+on-the-fly this works good enough for small single-node setups.
 
-For real persistance, Redis is supported.
+Redis is supported for multi-node support or if long-term persistance is required.
 ## Horizontal scaling
-exposr can be run in a clustered setup, connections are re-routed to the node
+exposr can be run in a clustered setup, ingress connections are re-routed to the node
 that have the tunnel established. This allows load balancing in round-robin
 fashion without need for sticky sessions.
 
