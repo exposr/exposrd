@@ -85,19 +85,6 @@ class WebSocketTransport extends EventEmitter {
         return {header, data};
     }
 
-    _encodeMessage(type, channel, data) {
-        const header = Buffer.alloc(12);
-        header.writeUInt16BE(1, 0)
-        header.writeUInt16BE(type, 2);
-        header.writeUInt32BE(channel, 4);
-        header.writeUInt32BE(data !== undefined ? data.length : 0, 8);
-        if (data != undefined) {
-            return Buffer.concat([header, data]);
-        } else {
-            return header;
-        }
-    }
-
     _parseMessage(header, data) {
         if (header.type === WebSocketTransport.MESSAGE_DATA) {
             this._channelData(header.channel, data, header.length);
@@ -121,12 +108,28 @@ class WebSocketTransport extends EventEmitter {
         if (this._socket.readyState !== WebSocket.OPEN) {
             return callback(new CustomError(EPIPE, `websocket transport closed fd=${channel}`));
         }
-
-        const message = this._encodeMessage(type, channel, data);
+        const header = Buffer.allocUnsafe(12);
+        header.writeUInt16BE(1, 0)
+        header.writeUInt16BE(type, 2);
+        header.writeUInt32BE(channel, 4);
+        header.writeUInt32BE(data !== undefined ? data.length : 0, 8);
 
         try {
             this._packetTrace('>', channel, type, data != undefined ? data.length : 0);
-            this._socket.send(message, callback);
+            this._socket.send(header, {
+                binary: true,
+                compress: false,
+                fin: data == undefined,
+            });
+            if (data != undefined) {
+                this._socket.send(data, {
+                    binary: true,
+                    compress: false,
+                    fin: true,
+                }, callback)
+            } else {
+                callback();
+            }
             return true;
         } catch (err) {
             callback(err);
@@ -530,9 +533,8 @@ class WebSocketTransportSocket extends Duplex {
     }
 
     _write(data, encoding, callback) {
-        const buffer = Buffer.from(data, encoding);
         this.bytesWritten += data.length;
-        return this.remote.send(this, buffer, callback);
+        return this.remote.send(this, data, callback);
     }
 
     _writev(chunks, callback) {
