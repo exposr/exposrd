@@ -1,11 +1,19 @@
 import http, { Agent } from 'http';
 import net from 'net';
+import NodeCache from 'node-cache';
 import EventBus from '../eventbus/index.js';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
+import { ERROR_TUNNEL_NOT_FOUND,
+         ERROR_TUNNEL_NOT_CONNECTED,
+         ERROR_TUNNEL_HTTP_INGRESS_DISABLED,
+         ERROR_HTTP_INGRESS_REQUEST_LOOP,
+         ERROR_TUNNEL_TRANSPORT_REQUEST_LIMIT,
+         ERROR_TUNNEL_UPSTREAM_CON_REFUSED,
+         ERROR_TUNNEL_UPSTREAM_CON_FAILED,
+       } from '../utils/errors.js';
 import Node from '../utils/node.js';
-import NodeCache from 'node-cache';
 
 const logger = Logger("http-ingress");
 class HttpIngress {
@@ -181,7 +189,7 @@ class HttpIngress {
         } else if (tunnel === false) {
             res.statusCode = 404;
             res.end(JSON.stringify({
-                error: 'not configured'
+                error: ERROR_TUNNEL_NOT_FOUND,
             }));
             return true;
         }
@@ -189,7 +197,7 @@ class HttpIngress {
         if (!tunnel.state().connected) {
             res.statusCode = 502;
             res.end(JSON.stringify({
-                error: 'not connected'
+                error: ERROR_TUNNEL_NOT_CONNECTED,
             }));
             return true;
         }
@@ -197,7 +205,7 @@ class HttpIngress {
         if (!tunnel.ingress?.http?.enabled) {
             res.statusCode = 403;
             res.end(JSON.stringify({
-                error: 'http ingress not enabled'
+                error: ERROR_TUNNEL_HTTP_INGRESS_DISABLED,
             }));
             return true;
         }
@@ -205,7 +213,7 @@ class HttpIngress {
         if (this._loopDetected(req)) {
             res.statusCode = 508;
             res.end(JSON.stringify({
-                error: 'request loop'
+                error: ERROR_HTTP_INGRESS_REQUEST_LOOP,
             }));
             return true;
         }
@@ -255,13 +263,13 @@ class HttpIngress {
             let msg;
             if (err.code === 'EMFILE') {
                 res.statusCode = 429;
-                msg = 'concurrent request limit';
+                msg = ERROR_TUNNEL_TRANSPORT_REQUEST_LIMIT;
             } else if (err.code == 'ECONNRESET') {
                 res.statusCode = 503;
-                msg = 'upstream connection refused';
+                msg = ERROR_TUNNEL_UPSTREAM_CON_REFUSED;
             } else {
                 res.statusCode = 503;
-                msg = 'upstream request failed';
+                msg = ERROR_TUNNEL_UPSTREAM_CON_FAILED;
             }
             logRequest({
                 response: {
@@ -294,7 +302,7 @@ class HttpIngress {
             _canonicalHttpResponse(sock, req, {
                 status: 404,
                 statusLine: 'Not Found',
-                body: JSON.stringify({error: 'not configured'}),
+                body: JSON.stringify({error: ERROR_TUNNEL_NOT_FOUND}),
             });
             return true;
         }
@@ -303,7 +311,7 @@ class HttpIngress {
             _canonicalHttpResponse(sock, req, {
                 status: 502,
                 statusLine: 'Bad Gateway',
-                body: JSON.stringify({error: 'not connected'}),
+                body: JSON.stringify({error: ERROR_TUNNEL_NOT_CONNECTED}),
             });
             return true;
         }
@@ -312,7 +320,7 @@ class HttpIngress {
             _canonicalHttpResponse(sock, req, {
                 status: 508,
                 statusLine: 'Loop Detected',
-                body: JSON.stringify({error: 'request loop'}),
+                body: JSON.stringify({error: ERROR_HTTP_INGRESS_REQUEST_LOOP}),
             });
             return true;
         }

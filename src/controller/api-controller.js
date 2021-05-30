@@ -5,6 +5,11 @@ import Account from '../account/account.js';
 import Config from '../config.js';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
+import { ERROR_AUTH_NO_ACCESS_TOKEN,
+         ERROR_AUTH_PERMISSION_DENIED,
+         ERROR_BAD_INPUT,
+         ERROR_TUNNEL_NOT_FOUND,
+       } from '../utils/errors.js';
 
 const logger = Logger("api");
 
@@ -37,22 +42,25 @@ class ApiController {
             if (ctx.invalid.type) {
                 ctx.status = 400;
                 ctx.body = {
-                    error:  `content-type: ${ctx.invalid.type.msg}`,
+                    error: ERROR_BAD_INPUT,
+                    field:  `content-type: ${ctx.invalid.type.msg}`,
                 }
             } else if (ctx.invalid.params) {
                 ctx.status = parseInt(ctx.invalid.params.status) || 400;
                 ctx.body = {
-                    error: ctx.invalid.params.msg
+                    error: ERROR_BAD_INPUT,
+                    field: ctx.invalid.params.msg
                 }
             } else if (ctx.invalid.body) {
                 ctx.status = parseInt(ctx.invalid.body.status) || 400;
                 ctx.body = {
-                    error: ctx.invalid.body.msg
+                   error: ERROR_BAD_INPUT,
+                   field: ctx.invalid.body.msg
                 }
             } else {
                 ctx.status = 400;
                 ctx.body = {
-                    error: 'unable to determine error'
+                    error: ERROR_BAD_INPUT,
                 }
             }
         };
@@ -62,14 +70,14 @@ class ApiController {
             const accountId = token ? Buffer.from(token, 'base64').toString('utf-8') : undefined;
             if (!token || !accountId) {
                 ctx.status = 401;
-                ctx.body = {error: 'no access token'}
+                ctx.body = {error: ERROR_AUTH_NO_ACCESS_TOKEN}
                 return;
             }
 
             const account = await this.accountService.get(accountId);
             if (account instanceof Account == false) {
                 ctx.status = 401;
-                ctx.body = {error: 'permission denied'}
+                ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED}
                 return;
             }
 
@@ -162,6 +170,7 @@ class ApiController {
                 const created = await account.createTunnel(tunnelId);
                 if (created == false) {
                     ctx.status = 403;
+                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED}
                     return;
                 }
 
@@ -175,6 +184,7 @@ class ApiController {
                     ctx.status = 200;
                 } else {
                     ctx.status = 403;
+                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED}
                 }
             }]
         });
@@ -196,7 +206,7 @@ class ApiController {
                 if (result === false) {
                     ctx.status = 404;
                     ctx.body = {
-                        error: 'no such tunnel'
+                        error: ERROR_TUNNEL_NOT_FOUND,
                     }
                 } else {
                     ctx.status = 204;
@@ -221,7 +231,7 @@ class ApiController {
                 if (!tunnel) {
                     ctx.status = 404;
                     ctx.body = {
-                        error: 'no such tunnel'
+                        error: ERROR_TUNNEL_NOT_FOUND,
                     }
                 } else {
                     ctx.status = 200;
@@ -247,7 +257,7 @@ class ApiController {
                 if (result == undefined) {
                     ctx.status = 404;
                     ctx.body = {
-                        error: 'no such tunnel'
+                        error: ERROR_TUNNEL_NOT_FOUND,
                     };
                 } else {
                     ctx.status = 200;
@@ -303,7 +313,10 @@ class ApiController {
             handler: [handleError, async (ctx, next) => {
                 const account = await this.accountService.get(ctx.params.account_id);
                 if (!account) {
-                    ctx.status = 404;
+                    ctx.status = 403;
+                    ctx.body = {
+                        error: ERROR_AUTH_PERMISSION_DENIED,
+                    };
                     return;
                 }
                 const {accountId, _} = account.getId();

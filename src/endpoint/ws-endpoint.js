@@ -4,6 +4,9 @@ import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
 import Transport from '../transport/index.js';
 import TunnelService from '../tunnel/tunnel-service.js';
+import { ERROR_TUNNEL_TRANSPORT_CON_TIMEOUT,
+         ERROR_TUNNEL_ALREADY_CONNECTED,
+       } from '../utils/errors.js';
 
 const logger = Logger("ws-endpoint");
 
@@ -119,7 +122,7 @@ class WebSocketEndpoint {
             return this._rawHttpResponse(sock, req, {
                 status: 503,
                 statusLine: 'Service unavailable',
-                body: JSON.stringify({error: 'tunnel already connected'}),
+                body: JSON.stringify({error: ERROR_TUNNEL_ALREADY_CONNECTED}),
             });
         }
 
@@ -128,7 +131,7 @@ class WebSocketEndpoint {
             this._rawHttpResponse(sock, req, {
                 status: 504,
                 statusLine: 'Timeout',
-                body: JSON.stringify({error: 'websocket upgrade timeout'}),
+                body: JSON.stringify({error: ERROR_TUNNEL_TRANSPORT_CON_TIMEOUT}),
             });
         }, this.UPGRADE_TIMEOUT);
 

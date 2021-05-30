@@ -3,6 +3,7 @@ import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import Config from '../config.js';
 import { Logger } from '../logger.js';
+import { ERROR_BAD_INPUT } from '../utils/errors.js';
 
 const logger = Logger("admin");
 
@@ -55,22 +56,26 @@ class AdminServer {
             if (ctx.invalid.type) {
                 ctx.status = 400;
                 ctx.body = {
-                    error:  `content-type: ${ctx.invalid.type.msg}`,
+                    error: ERROR_BAD_INPUT,
+                    field:  `content-type: ${ctx.invalid.type.msg}`,
                 }
             } else if (ctx.invalid.params) {
                 ctx.status = parseInt(ctx.invalid.params.status) || 400;
                 ctx.body = {
-                    error: ctx.invalid.params.msg
+                    error: ERROR_BAD_INPUT,
+                    field: ctx.invalid.params.msg
                 }
             } else if (ctx.invalid.body) {
                 ctx.status = parseInt(ctx.invalid.body.status) || 400;
                 ctx.body = {
-                    error: ctx.invalid.body.msg
+                    error: ERROR_BAD_INPUT,
+                    field: ctx.invalid.body.msg
                 }
             } else {
                 ctx.status = 400;
                 ctx.body = {
-                    error: 'unable to determine error'
+                    error: ERROR_BAD_INPUT,
+                    field: 'unable to determine error'
                 }
             }
         };
