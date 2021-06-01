@@ -12,22 +12,31 @@ class HttpListener {
         };
 
         const handleRequest = async (event, ctx) => {
+            let next;
             for (const cb of this.callbacks[event]) {
-                let next = false;
+                next = false;
                 await cb(ctx, () => { next = true });
                 if (!next) {
                     break;
                 }
             }
+            return !next;
         }
 
         const server = this.server = http.createServer();
         server.on('request', async (req, res) => {
-            handleRequest('request', {req, res});
+            if (!await handleRequest('request', {req, res})) {
+                res.statusCode = 404;
+                res.end();
+            }
         });
 
         server.on('upgrade', async (req, sock, head) => {
-            handleRequest('upgrade', {req, sock, head})
+            if (!await handleRequest('upgrade', {req, sock, head})) {
+                sock.write(`HTTP/${req.httpVersion} 404 Not found\r\n`);
+                sock.end();
+                sock.destroy();
+            }
         });
     }
 
