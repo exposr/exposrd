@@ -273,6 +273,19 @@ class TunnelService {
             return true;
         }
 
+        // Check for stale state
+        const connectedNode = await this.get(tunnel.state().node);
+        if (!connectedNode) {
+            logger
+                .withContext('tunnel', tunnelId)
+                .warn({
+                    operation: 'disconnect_tunnel',
+                    msg: 'tunnel connected to non-existing node, resetting tunnel state',
+                });
+            await this.db_state.delete(tunnelId);
+            return true;
+        }
+
         setImmediate(() => {
             this.eventBus.publish('disconnect', {
                 tunnelId
