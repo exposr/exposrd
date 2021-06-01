@@ -66,21 +66,29 @@ class HttpIngress {
         });
     }
 
-    _getTunnelId(hostname) {
+    _getTunnelId(req) {
+        const hostname = req.headers.host;
+        if (hostname === undefined) {
+            return undefined;
+        }
+
         const host = hostname.toLowerCase().split(":")[0];
-        const tunnelId = host.substr(0, host.indexOf(this.opts.subdomainUrl.hostname) - 1);
-        return tunnelId !== '' ? tunnelId : undefined;
+        if (host === undefined) {
+            return undefined;
+        }
+
+        const tunnelId = host.split('.', 1)[0];
+        const parentDomain = host.slice(tunnelId.length + 1);
+        if (parentDomain != this.opts.subdomainUrl.hostname) {
+            return undefined;
+        }
+        return tunnelId;
     }
 
     async _getTunnel(req) {
-        const hostname = req.headers.host;
-        if (hostname === undefined) {
-            return;
-        }
-
-        const tunnelId = this._getTunnelId(hostname);
-        if (tunnelId === undefined) {
-            return;
+        const tunnelId = this._getTunnelId(req);
+        if (!tunnelId) {
+            return tunnelId;
         }
 
         return this.tunnelService.lookup(tunnelId);
