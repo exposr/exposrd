@@ -237,7 +237,7 @@ class TunnelService {
         tunnelState.node = Node.identifier;
         tunnelState.connected_at = new Date().toISOString();
         tunnelState.alive_at = tunnelState.connected_at;
-        if (!await this.db_state.create(tunnelId, tunnelState, { NX: false })) {
+        if (!await this.db_state.create(tunnelId, tunnelState, { NX: false, TTL: 60 })) {
             logger
                 .withContext("tunnel", tunnelId)
                 .error({
