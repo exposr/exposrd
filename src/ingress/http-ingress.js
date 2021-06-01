@@ -19,6 +19,9 @@ const logger = Logger("http-ingress");
 class HttpIngress {
 
     static HTTP_HEADER_EXPOSR_VIA = 'exposr-via';
+    static HTTP_HEADER_X_FORWARDED_FOR = 'x-forwarded-for';
+    static HTTP_HEADER_X_REAL_IP = 'x-real-ip';
+    static HTTP_HEADER_CONNECTION = 'connection';
 
     constructor(opts) {
         this.opts = opts;
@@ -85,8 +88,8 @@ class HttpIngress {
 
     _clientIp(req) {
         let ip;
-        if (req.headers['x-forwarded-for']) {
-            ip = req.headers['x-forwarded-for'].split(/\s*,\s*/)[0];
+        if (req.headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR]) {
+            ip = req.headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR].split(/\s*,\s*/)[0];
         }
         return net.isIP(ip) ? ip : req.socket.remoteAddress;
     }
@@ -125,9 +128,9 @@ class HttpIngress {
 
     _requestHeaders(req, tunnel) {
         const headers = { ... req.headers };
-        delete headers['connection'];
-        headers['x-forwarded-for'] = this._clientIp(req);
-        headers['x-real-ip'] = headers['x-forwarded-for'];
+        delete headers[HttpIngress.HTTP_HEADER_CONNECTION];
+        headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR] = this._clientIp(req);
+        headers[HttpIngress.HTTP_HEADER_X_REAL_IP] = headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR];
 
         if (headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA]) {
             headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] = `${Node.identifier},${headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] }`;
