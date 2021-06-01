@@ -345,7 +345,7 @@ class TunnelService {
         tunnels.forEach((tunnelId) => {
             arr.push(this.disconnect(tunnelId));
         });
-        await Promise.all(arr);
+        await Promise.allSettled(arr);
         await this.db.destroy();
         this.destroyed = true;
     }
