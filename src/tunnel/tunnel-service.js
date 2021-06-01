@@ -279,13 +279,13 @@ class TunnelService {
             });
         });
         try {
-            await this.eventBus.waitFor('disconnected', (msg) => msg?.tunnelId == tunnelId, 10000);
+            await this.eventBus.waitFor('disconnected', (msg) => msg?.tunnelId == tunnelId, 4500);
         } catch (timeout) {
             logger
                 .withContext('tunnel', tunnelId)
                 .warn({
                     operation: 'disconnect_tunnel',
-                    msg: 'no disconnected event after 10s',
+                    msg: 'no disconnected event received',
                 });
         }
 
