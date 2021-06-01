@@ -171,7 +171,11 @@ class TunnelService {
                 })
             return false;
         };
-        await this.db.delete(tunnelId);
+
+        await Promise.allSettled([
+            this.db.delete(tunnelId),
+            this.db_state.delete(tunnelId),
+        ]);
 
         logger.isDebugEnabled() && logger.debug({
             operation: 'delete_tunnel',
