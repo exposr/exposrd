@@ -4,7 +4,34 @@ import Storage from '../storage/index.js';
 import Account from './account.js';
 
 const logger = Logger("account-service");
+
 class AccountService {
+    static ACCOUNT_ID_ALPHABET = 'CDEFHJKMNPRTVWXY2345689';
+    static ACCOUNT_ID_LENGTH = 16;
+    static ACCOUNT_ID_REGEX = new RegExp(`^[${AccountService.ACCOUNT_ID_ALPHABET}]{${AccountService.ACCOUNT_ID_LENGTH}}$`);
+
+    static generateId() {
+        return [...Array(AccountService.ACCOUNT_ID_LENGTH)]
+            .map(() => {
+                const randomPos = Math.floor(Math.random() * AccountService.ACCOUNT_ID_ALPHABET.length);
+                return AccountService.ACCOUNT_ID_ALPHABET[randomPos];
+            })
+            .join('');
+    }
+
+    static normalizeId(accountId) {
+        const normalized = accountId.replace(/ /g, '').toUpperCase();
+        if (AccountService.ACCOUNT_ID_REGEX.test(normalized)) {
+            return normalized;
+        } else {
+            return undefined;
+        }
+    }
+
+    static formatId(accountId) {
+        return accountId.replace(/.{1,4}(?=(.{4})+$)/g, '$& ');
+    }
+
     constructor() {
         this._db = new Storage("account");
     }
@@ -15,7 +42,7 @@ class AccountService {
 
     async get(accountId) {
         assert(accountId != undefined);
-        const normalizedId = Account.normalizeId(accountId);
+        const normalizedId = AccountService.normalizeId(accountId);
         if (normalizedId == undefined) {
             return undefined;
         }
@@ -29,9 +56,10 @@ class AccountService {
         let created;
         let account;
         do {
-            account = new Account();
-            created = await this._db.create(account.accountId, account);
-        } while (!created && accountId === undefined && maxTries-- > 0);
+            account = new Account(AccountService.generateId());
+            account.created_at = new Date().toISOString();
+            created = await this._db.create(account.id, account);
+        } while (!created && maxTries-- > 0);
 
         if (!created) {
             return undefined;

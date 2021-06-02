@@ -33,9 +33,13 @@ class Serializer {
             return target;
         }
 
-        return Object.assign(new clazz(), {
+        const canonicalObj = Object.assign(new clazz(), {
             ...merge(new clazz(), obj)
         });
+        // Run migration hooks
+        typeof canonicalObj._deserialization_hook === 'function' &&
+            canonicalObj._deserialization_hook();
+        return canonicalObj;
     }
 
 }
