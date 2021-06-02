@@ -23,7 +23,9 @@ class Serializer {
 
         const merge = (target, source) => {
             for (const key of Object.keys(target)) {
-                if (target[key] instanceof Object && source[key] instanceof Object) {
+                if (target[key] instanceof Array && source[key] instanceof Array) {
+                    target[key] = source[key];
+                } else if (target[key] instanceof Object && source[key] instanceof Object) {
                     Object.assign(target[key], merge(target[key], source[key]));
                 } else if (source[key] != undefined) {
                     target[key] = source[key];
