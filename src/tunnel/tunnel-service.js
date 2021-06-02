@@ -110,12 +110,25 @@ class TunnelService {
     }
 
     async lookup(tunnelId, accountId = undefined) {
-        let tunnel = this._lookupCache.get(tunnelId);
-        if (tunnel === undefined) {
-            tunnel = await this.get(tunnelId, accountId);
+        const getTunnel = async () => {
+            const tunnel = await this.get(tunnelId, accountId);
             if (tunnel && tunnel.state().connected) {
                 this._lookupCache.set(tunnelId, tunnel, 60);
             }
+            return tunnel;
+        }
+
+        let tunnel = this._lookupCache.get(tunnelId);
+        if (tunnel === undefined) {
+            tunnel = getTunnel();
+        } else {
+            // Preemptively refresh cache if object is about to expire
+            setImmediate(async () => {
+                const ttl = this._lookupCache.getTtl(tunnelId);
+                if (ttl < 10) {
+                    getTunnel();
+                }
+            });
         }
         return tunnel;
     }
