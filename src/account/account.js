@@ -7,6 +7,7 @@ class Account {
         this.accountId = accountId;
         this.id = accountId;
         this.created_at = undefined;
+        this.updated_at = undefined;
         this.tunnels = [];
 
         this._tunnelService = new TunnelService();
@@ -16,6 +17,7 @@ class Account {
         this.id ??= this.accountId;
         delete this.accountId;
         this.created_at ??= new Date().toISOString();
+        this.updated_at ??= new Date().toISOString();
     }
 
     getId() {

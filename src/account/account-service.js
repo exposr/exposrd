@@ -58,6 +58,7 @@ class AccountService {
         do {
             account = new Account(AccountService.generateId());
             account.created_at = new Date().toISOString();
+            account.updated_at = account.created_at;
             created = await this._db.create(account.id, account);
         } while (!created && maxTries-- > 0);
 
@@ -87,6 +88,7 @@ class AccountService {
         }
         return this._db.update(AccountService.normalizeId(normalizedId), Account, (account) => {
             callback(account);
+            account.updated_at = new Date().toISOString();
         });
     }
 
