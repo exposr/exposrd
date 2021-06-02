@@ -79,6 +79,17 @@ class AccountService {
         }
     }
 
+    async update(accountId, callback) {
+        assert(accountId != undefined);
+        const normalizedId = AccountService.normalizeId(accountId);
+        if (normalizedId == undefined) {
+            return undefined;
+        }
+        return this._db.update(AccountService.normalizeId(normalizedId), Account, (account) => {
+            callback(account);
+        });
+    }
+
 }
 
 export default AccountService;

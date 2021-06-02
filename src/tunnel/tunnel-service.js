@@ -9,6 +9,7 @@ import Tunnel from './tunnel.js';
 import TunnelState from './tunnel-state.js';
 import NodeCache from 'node-cache';
 import NodeSocket from '../transport/node-socket.js';
+import AccountService from '../account/account-service.js';
 
 const logger = Logger("tunnel-service");
 
@@ -32,6 +33,7 @@ class TunnelService {
             delete TunnelService._readyCallback;
         };
 
+        this.accountService = new AccountService();
         this.db = new Storage("tunnel", { callback: readyCallback });
         this.db_state = new Storage("tunnel-state");
         this.eventBus = new EventBus();
@@ -144,6 +146,12 @@ class TunnelService {
             return false;
         }
 
+        await this.accountService.update(accountId, (account) => {
+            if (!account.tunnels.includes(tunnelId)) {
+                account.tunnels.push(tunnelId);
+            }
+        });
+
         logger.isDebugEnabled() && logger.debug({
             operation: 'create_tunnel',
             tunnel: tunnel.id,
@@ -185,9 +193,17 @@ class TunnelService {
             return false;
         };
 
+        const updateAccount = this.accountService.update(accountId, (account) => {
+            const pos = account.tunnels.indexOf(tunnelId);
+            if (pos >= 0) {
+                account.tunnels.splice(pos, 1);
+            }
+        });
+
         await Promise.allSettled([
             this.db.delete(tunnelId),
             this.db_state.delete(tunnelId),
+            updateAccount,
         ]);
 
         logger.isDebugEnabled() && logger.debug({

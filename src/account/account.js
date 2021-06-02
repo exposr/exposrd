@@ -7,6 +7,7 @@ class Account {
         this.accountId = accountId;
         this.id = accountId;
         this.created_at = undefined;
+        this.tunnels = [];
 
         this._tunnelService = new TunnelService();
     }
