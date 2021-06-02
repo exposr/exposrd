@@ -21,6 +21,7 @@ class Tunnel {
             url: undefined,
         };
         this.created_at = undefined;
+        this.updated_at = undefined;
         this._state = new TunnelState();
     }
 

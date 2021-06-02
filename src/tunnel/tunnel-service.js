@@ -141,6 +141,7 @@ class TunnelService {
 
         const tunnel = new Tunnel(tunnelId, accountId);
         tunnel.created_at = new Date().toISOString();
+        tunnel.updated_at = tunnel.created_at;
         const created = await this.db.create(tunnelId, tunnel);
         if (!created) {
             return false;
@@ -174,6 +175,8 @@ class TunnelService {
 
             const ingress = new Ingress().getIngress(tunnel);
             tunnel.ingress.http.url = ingress?.http?.url;
+
+            tunnel.updated_at = new Date().toISOString();
         });
     }
 
