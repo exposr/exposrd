@@ -150,7 +150,7 @@ class HttpIngress {
 
     _requestHeaders(req, tunnel) {
         const headers = { ... req.headers };
-        delete headers[HttpIngress.HTTP_HEADER_CONNECTION];
+
         headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR] = this._clientIp(req);
         headers[HttpIngress.HTTP_HEADER_X_REAL_IP] = headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR];
 
@@ -161,6 +161,11 @@ class HttpIngress {
         }
 
         if (this.tunnelService.isLocalConnected(tunnel.id)) {
+            // Delete connection header if tunnel is
+            // locally connected and it's not an upgrade request
+            if (!req.upgrade) {
+                delete headers[HttpIngress.HTTP_HEADER_CONNECTION];
+            }
             this._rewriteHeaders(headers, tunnel);
         }
 
