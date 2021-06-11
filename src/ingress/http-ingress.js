@@ -214,38 +214,61 @@ class HttpIngress {
     }
 
     async handleRequest(req, res) {
+
+        const logRequest = (fields, tunnelId) => {
+            logger.isTraceEnabled() &&
+                logger
+                    .withContext('tunnel', tunnelId)
+                    .withContext('type', 'request')
+                    .trace({
+                        request: {
+                            method: req.method,
+                            path: req.url,
+                            headers: req.headers,
+                        },
+                        ...fields,
+                    });
+        };
+
+        const httpResponse = (status, body, tunnelId) => {
+            res.statusCode = status;
+            res.end(JSON.stringify(body));
+            logRequest({
+                response: {
+                    status,
+                    body
+                }
+            }, tunnelId)
+        };
+
         const tunnel = await this._getTunnel(req);
         if (tunnel === undefined) {
             return false;
         } else if (tunnel === false) {
-            res.statusCode = 404;
-            res.end(JSON.stringify({
+            httpResponse(404, {
                 error: ERROR_TUNNEL_NOT_FOUND,
-            }));
+            });
             return true;
         }
 
         if (!tunnel.state().connected) {
-            res.statusCode = 502;
-            res.end(JSON.stringify({
+            httpResponse(502, {
                 error: ERROR_TUNNEL_NOT_CONNECTED,
-            }));
+            }, tunnel?.id);
             return true;
         }
 
         if (!tunnel.ingress?.http?.enabled) {
-            res.statusCode = 403;
-            res.end(JSON.stringify({
+            httpResponse(403, {
                 error: ERROR_TUNNEL_HTTP_INGRESS_DISABLED,
-            }));
+            }, tunnel?.id);
             return true;
         }
 
         if (this._loopDetected(req)) {
-            res.statusCode = 508;
-            res.end(JSON.stringify({
+            httpResponse(508, {
                 error: ERROR_HTTP_INGRESS_REQUEST_LOOP,
-            }));
+            }, tunnel?.id);
             return true;
         }
 
@@ -258,26 +281,9 @@ class HttpIngress {
         opt.agent = this._getAgent(tunnel.id);
         opt.headers = this._requestHeaders(req, tunnel);
 
-        const logRequest = (fields) => {
-            logger.isTraceEnabled() &&
-                logger
-                    .withContext('tunnel', tunnel.id)
-                    .trace({
-                        request: {
-                            method: req.method,
-                            path: req.url,
-                            headers: req.headers,
-                        },
-                        ...fields,
-                    });
-        };
-
         const clientReq = http.request(opt, (clientRes) => {
             clientRes.on('error', (err) => {
-                logger.error({
-                    msg: 'socket error',
-                    err,
-                });
+                logRequest(err);
             });
             logRequest({
                 response: {
@@ -317,7 +323,25 @@ class HttpIngress {
 
     async handleUpgradeRequest(req, sock, head) {
 
+        const logBaseRequest = (fields, tunnelId) => {
+            logger.isTraceEnabled() &&
+                logger
+                    .withContext('tunnel', tunnelId)
+                    .withContext('type', 'upgrade')
+                    .trace({
+                        request: {
+                            method: req.method,
+                            path: req.url,
+                            headers: req.headers,
+                        },
+                        ...fields,
+                    });
+        };
+
         const _canonicalHttpResponse = (sock, request, response) => {
+            logBaseRequest({
+                response
+            });
             sock.write(`HTTP/${request.httpVersion} ${response.status} ${response.statusLine}\r\n`);
             sock.write('\r\n');
             response.body && sock.write(response.body);
@@ -356,24 +380,6 @@ class HttpIngress {
             return true;
         }
 
-        const headers = this._requestHeaders(req, tunnel);
-
-        const logRequest = (fields) => {
-            const onNode = this.tunnelService.isLocalConnected(tunnel.id);
-            logger.isTraceEnabled() &&
-                logger
-                    .withContext('tunnel', tunnel.id)
-                    .trace({
-                        request: {
-                            method: req.method,
-                            path: req.path,
-                            headers: headers,
-                        },
-                        redirect: !onNode,
-                        ...fields,
-                    });
-        };
-
         const ctx = {
             ingress: {
                 tls: false,
@@ -389,6 +395,16 @@ class HttpIngress {
             });
             return true;
         }
+
+        const headers = this._requestHeaders(req, tunnel);
+        const logRequest = (fields) => {
+            const onNode = this.tunnelService.isLocalConnected(tunnel.id);
+            logBaseRequest({
+                ...fields,
+                redirect: !onNode,
+                socket: upstream.toString(),
+            }, tunnel.id);
+        };
 
         upstream.on('error', (err) => {
             logRequest(err)
