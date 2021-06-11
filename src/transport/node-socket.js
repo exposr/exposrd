@@ -27,7 +27,7 @@ class NodeSocket extends Socket {
     }
 
     toString() {
-        return `<${NodeSocket.name} tunnel=${this._opts.tunnelId}>`;
+        return `<${NodeSocket.name} tunnel=${this._opts.tunnelId} target=${this?.nextNode?.id}>`;
     }
 
     async _doConnect(callback) {
@@ -50,6 +50,7 @@ class NodeSocket extends Socket {
             return closeSock();
         }
 
+        this.nextNode = nextNode;
         logger.isDebugEnabled() && logger.withContext('tunnel', this._opts.tunnelId).debug({
             operation: 'connection-redirect',
             next: nextNode,
