@@ -53,8 +53,22 @@ class HttpIngress {
         this._agentCache = new NodeCache({
             useClones: false,
             deleteOnExpire: false,
+            checkperiod: 60,
         });
-        this._agentCache.on('del', (key, agent) => {
+
+        this._agentCache.on('expired', (key, agent) => {
+            const pendingRequests = agent.requests?.length || 0;
+            const activeSockets = (agent.sockets?.length || 0) - (agent.freeSockets?.length || 0);
+            if (pendingRequests > 0 || activeSockets > 0) {
+                logger.withContext("tunnel", key).debug({
+                    message: 'extended http agent cache ttl',
+                    pendingRequests,
+                    activeSockets
+                });
+                this._agentCache.set(key, agent, 65);
+                return;
+            }
+            this._agentCache.del(key);
             agent.destroy();
             logger.isDebugEnabled() &&
                 logger.withContext("tunnel", key).debug("http agent destroyed")
