@@ -12,6 +12,7 @@ import { ERROR_TUNNEL_NOT_FOUND,
          ERROR_TUNNEL_TRANSPORT_REQUEST_LIMIT,
          ERROR_TUNNEL_UPSTREAM_CON_REFUSED,
          ERROR_TUNNEL_UPSTREAM_CON_FAILED,
+         ERROR_UNKNOWN_ERROR,
        } from '../utils/errors.js';
 import Node from '../utils/node.js';
 
@@ -381,7 +382,11 @@ class HttpIngress {
         };
         const upstream = this.tunnelService.createConnection(tunnel.id, ctx);
         if (upstream === undefined) {
-            sock.end();
+            _canonicalHttpResponse(sock, req, {
+                status: 503,
+                statusLine: 'Service Unavailable',
+                body: JSON.stringify({error: ERROR_UNKNOWN_ERROR}),
+            });
             return true;
         }
 
