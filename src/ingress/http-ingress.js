@@ -245,7 +245,7 @@ class HttpIngress {
                     .trace({
                         request: {
                             method: req.method,
-                            path: req.path,
+                            path: req.url,
                             headers: req.headers,
                         },
                         ...fields,
