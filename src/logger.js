@@ -1,4 +1,5 @@
 import Log4js from 'log4js';
+import os from 'os';
 import Config from './config.js';
 
 Log4js.addLayout('json', function(config) {
@@ -13,6 +14,7 @@ Log4js.addLayout('json', function(config) {
             level: logEvent.level.levelStr,
             logger: logEvent.categoryName,
             pid: logEvent.pid,
+            host: os.hostname(),
         }
         return JSON.stringify(logEntry, undefined, 0);
     }
