@@ -34,7 +34,7 @@ class HttpIngress {
         this.destroyed = false;
         this.tunnelService = new TunnelService(opts.callback);
         this.httpListener = new Listener().getListener('http');
-        this.httpListener.use('request', async (ctx, next) => {
+        this.httpListener.use('request', { logger }, async (ctx, next) => {
             if (this.destroyed) {
                 return next();
             }
@@ -42,7 +42,7 @@ class HttpIngress {
                 next();
             }
         });
-        this.httpListener.use('upgrade', async (ctx, next) => {
+        this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
             if (this.destroyed) {
                 return next();
             }
@@ -215,30 +215,10 @@ class HttpIngress {
 
     async handleRequest(req, res) {
 
-        const logRequest = (fields, tunnelId) => {
-            logger.isTraceEnabled() &&
-                logger
-                    .withContext('tunnel', tunnelId)
-                    .withContext('type', 'request')
-                    .trace({
-                        request: {
-                            method: req.method,
-                            path: req.url,
-                            headers: req.headers,
-                        },
-                        ...fields,
-                    });
-        };
-
         const httpResponse = (status, body, tunnelId) => {
+            res.setHeader('Content-Type', 'application/json');
             res.statusCode = status;
             res.end(JSON.stringify(body));
-            logRequest({
-                response: {
-                    status,
-                    body
-                }
-            }, tunnelId)
         };
 
         const tunnel = await this._getTunnel(req);
@@ -282,16 +262,6 @@ class HttpIngress {
         opt.headers = this._requestHeaders(req, tunnel);
 
         const clientReq = http.request(opt, (clientRes) => {
-            clientRes.on('error', (err) => {
-                logRequest(err);
-            });
-            logRequest({
-                response: {
-                    status: clientRes.statusCode,
-                    headers: clientRes.headers,
-                },
-                socket: clientRes.socket.toString(),
-            })
             res.writeHead(clientRes.statusCode, clientRes.headers);
             clientRes.pipe(res);
         });
@@ -308,12 +278,6 @@ class HttpIngress {
                 res.statusCode = 503;
                 msg = ERROR_TUNNEL_UPSTREAM_CON_FAILED;
             }
-            logRequest({
-                response: {
-                    status: res.statusCode,
-                },
-                err,
-            })
             res.end(JSON.stringify({error: msg}));
         });
 
@@ -323,25 +287,7 @@ class HttpIngress {
 
     async handleUpgradeRequest(req, sock, head) {
 
-        const logBaseRequest = (fields, tunnelId) => {
-            logger.isTraceEnabled() &&
-                logger
-                    .withContext('tunnel', tunnelId)
-                    .withContext('type', 'upgrade')
-                    .trace({
-                        request: {
-                            method: req.method,
-                            path: req.url,
-                            headers: req.headers,
-                        },
-                        ...fields,
-                    });
-        };
-
         const _canonicalHttpResponse = (sock, request, response) => {
-            logBaseRequest({
-                response
-            });
             sock.write(`HTTP/${request.httpVersion} ${response.status} ${response.statusLine}\r\n`);
             sock.write('\r\n');
             response.body && sock.write(response.body);
@@ -397,22 +343,11 @@ class HttpIngress {
         }
 
         const headers = this._requestHeaders(req, tunnel);
-        const logRequest = (fields) => {
-            const onNode = this.tunnelService.isLocalConnected(tunnel.id);
-            logBaseRequest({
-                ...fields,
-                redirect: !onNode,
-                socket: upstream.toString(),
-            }, tunnel.id);
-        };
-
         upstream.on('error', (err) => {
-            logRequest(err)
             sock.end();
         });
 
         upstream.on('connect', () => {
-            logRequest();
             upstream.pipe(sock);
             sock.pipe(upstream);
 

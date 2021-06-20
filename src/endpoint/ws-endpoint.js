@@ -23,24 +23,9 @@ class WebSocketEndpoint {
         this.wss = new WebSocket.Server({ noServer: true });
         this.destroyed = false;
 
-        this.httpListener.use('upgrade', async (ctx, next) => {
-            if (this.destroyed) {
+        this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
+            if (this.destroyed || !await this.handleUpgrade(ctx.req, ctx.sock, ctx.head)) {
                 return next();
-            }
-            const response = await this.handleUpgrade(ctx.req, ctx.sock, ctx.head);
-            if (response === undefined) {
-                return next();
-            }
-            logger.info({
-                request: {
-                    path: ctx.req.url,
-                    method: ctx.req.method,
-                    headers: ctx.req.headers,
-                },
-                response
-            });
-            if (!response) {
-                next();
             }
         });
     }

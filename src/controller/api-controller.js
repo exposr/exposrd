@@ -88,23 +88,6 @@ class ApiController {
             return next();
         };
 
-        app.use(async (ctx, next) => {
-            await next();
-            logger.info({
-                request: {
-                    method: ctx.request.method,
-                    path: ctx.request.url,
-                    headers: ctx.request.headers,
-                    body: ctx.request.body
-                },
-                response: {
-                    status: ctx.response.status,
-                    headers: ctx.response.headers,
-                    body: ctx.response.body
-                }
-            });
-        });
-
         const tunnelInfo = (tunnel) => {
             const info = {
                 id: tunnel.id,
@@ -333,7 +316,7 @@ class ApiController {
 
     _initializeServer() {
         const baseUrl = this.opts.baseUrl.host.toLowerCase();
-        this.httpListener.use('request', async (ctx, next) => {
+        this.httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
             const host = ctx?.req?.headers?.host;
             if (typeof host !== 'string' || host.toLowerCase() !== baseUrl) {
                 return next();

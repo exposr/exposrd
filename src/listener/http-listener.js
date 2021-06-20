@@ -1,5 +1,6 @@
 import http from 'http';
 import { Logger } from '../logger.js';
+import HttpCaptor from '../utils/http-captor.js';
 
 const logger = Logger("http-listener");
 
@@ -12,14 +13,48 @@ class HttpListener {
         };
 
         const handleRequest = async (event, ctx) => {
+            const captor = new HttpCaptor({
+                request: ctx.req,
+                response: ctx.res,
+                opts: {
+                    limit: 4*1024,
+                }
+            });
+
             let next;
-            for (const cb of this.callbacks[event]) {
+            let customLogger;
+            const capture = captor.capture();
+
+            for (const obj of this.callbacks[event]) {
+                captor.captureRequestBody = obj.opts?.logBody || false;
+                captor.captureResponseBody = obj.opts?.logBody || false;
                 next = false;
-                await cb(ctx, () => { next = true });
+                await obj.callback(ctx, () => { next = true });
                 if (!next) {
+                    customLogger = obj.opts?.logger;
                     break;
                 }
             }
+
+            customLogger ??= logger;
+            setImmediate(() => {
+                capture.then((res) => {
+                    if (customLogger === false) {
+                        return;
+                    }
+                    const logEntry = {
+                        operation: 'http-request',
+                        request: res.request,
+                        response: res.response,
+                        client: {
+                            ip: res.client.ip,
+                            remote: res.client.remoteAddr,
+                        },
+                        duration: res.duration,
+                    };
+                    customLogger.info(logEntry);
+                });
+            });
             return !next;
         }
 
@@ -44,12 +79,17 @@ class HttpListener {
         return this.opts.port;
     }
 
-    use(event, callback) {
+    use(event, opts, callback) {
+        if (typeof opts === 'function') {
+            callback = opts;
+            opts = {};
+        }
+
         if (this.callbacks[event] === undefined) {
             throw new Error("Unknown event " + event);
         }
 
-        this.callbacks[event].push(callback);
+        this.callbacks[event].push({callback, opts});
     }
 
     async listen() {
