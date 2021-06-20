@@ -14,7 +14,6 @@ Log4js.addLayout('json', function(config) {
             level: logEvent.level.levelStr,
             logger: logEvent.categoryName,
             pid: logEvent.pid,
-            host: os.hostname(),
         }
         return JSON.stringify(logEntry, undefined, 0);
     }
@@ -34,6 +33,7 @@ class LoggerFactory {
         });
 
         logger.level = Config.get("log-level");
+        logger.addContext('host', os.hostname());
 
         logger.withContext = (key, value) => {
             logger.addContext(key, value);
