@@ -1,32 +1,21 @@
 import yargs from 'yargs';
 import Version from './version.js';
 
-const args = yargs
+const version = Version.version;
+let versionStr = `version: ${version.version} (pkg ${version.package})`;
+versionStr += version?.build?.commit ? `\ncommit: ${version?.build?.commit}/${version?.build?.branch}` : '';
+versionStr += version?.build?.date ? `\ntimestamp: ${version.build.date}` : '';
+
+const args = yargs(process.argv.slice(2))
     .env("EXPOSR")
-    .version(false)
-    .option('version', {
-        alias: 'v',
-        describe: 'Show version information',
-        coerce: () => {
-            const version = Version.version;
-            console.log(`version: ${version.version} (pkg ${version.package})`);
-            version?.build?.commit && console.log(`commit: ${version?.build?.commit}/${version?.build?.branch}`);
-            version?.build?.date && console.log(`timestamp: ${version.build.date}`);
-            process.exit(0);
-        }
-    })
+    .version(versionStr)
     .option('api-url', {
         type: 'string',
         describe: 'Base URL for API (ex https://api.example.com)',
         demandOption: true,
         coerce: (url) => {
-            try {
-                return new URL(url);
-            } catch (err) {
-                console.log(err.message);
-                process.exit(-1);
-            }
-        },
+            return typeof url == 'string' ? new URL(url) : url;
+        }
     })
     .option('ingress', {
         type: 'array',
@@ -38,12 +27,7 @@ const args = yargs
         type: 'string',
         describe: 'Wildcard domain for HTTP ingress (ex. https://tun.example.com creates https://<tunnel-id>.tun.example.com ingress points)',
         coerce: (url) => {
-            try {
-                return new URL(url);
-            } catch (err) {
-                console.log(err.message);
-                process.exit(-1);
-            }
+            return typeof url == 'string' ? new URL(url) : url;
         },
     })
     .option('port', {
@@ -80,12 +64,7 @@ const args = yargs
         type: 'string',
         description: 'Redis connection URL, enables Redis persistance layer',
         coerce: (url) => {
-            try {
-                return new URL(url);
-            } catch (err) {
-                console.log(err.message);
-                process.exit(-1);
-            }
+            return typeof url == 'string' ? new URL(url) : url;
         },
     })
     .option('log-level', {
