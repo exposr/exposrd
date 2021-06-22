@@ -9,6 +9,7 @@ versionStr += version?.build?.date ? `\ntimestamp: ${version.build.date}` : '';
 const args = yargs(process.argv.slice(2))
     .env("EXPOSR")
     .version(versionStr)
+    .showHidden('show-hidden', 'Show hidden options')
     .option('api-url', {
         type: 'string',
         describe: 'Base URL for API (ex https://api.example.com)',
@@ -53,6 +54,7 @@ const args = yargs(process.argv.slice(2))
     .option('admin-allow-access-without-api-key', {
         type: 'boolean',
         default: false,
+        hidden: true,
         description: 'Allow access to admin resource without any authentication'
     })
     .option('allow-registration', {
@@ -74,6 +76,7 @@ const args = yargs(process.argv.slice(2))
     })
     .option('log-format', {
         type: 'string',
+        hidden: true,
         default: 'json',
         choices: ['json'],
     })
