@@ -41,11 +41,21 @@ class TunnelService {
 
         this._lookupCache = new NodeCache({
             useClones: false,
-            deleteOnExpire: true,
+            deleteOnExpire: false,
+            checkperiod: 60,
+        });
+
+        this._lookupCache.on('expired', async (tunnelId) => {
+            const tunnel = await this.get(tunnelId);
+            if (tunnel && tunnel.state().connected) {
+                this._lookupCache.set(tunnelId, tunnel, 60);
+            } else {
+                this._lookupCache.del(tunnelId);
+            }
         });
 
         this.eventBus.on('disconnected', (data) => {
-            this._lookupCache.ttl(data?.tunnelId, 0);
+            this._lookupCache.del(data?.tunnelId);
         });
 
         this.eventBus.on('disconnect', (message) => {
@@ -112,25 +122,12 @@ class TunnelService {
     }
 
     async lookup(tunnelId, accountId = undefined) {
-        const getTunnel = async () => {
-            const tunnel = await this.get(tunnelId, accountId);
+        let tunnel = this._lookupCache.get(tunnelId);
+        if (tunnel === undefined) {
+            tunnel = await this.get(tunnelId, accountId);
             if (tunnel && tunnel.state().connected) {
                 this._lookupCache.set(tunnelId, tunnel, 60);
             }
-            return tunnel;
-        }
-
-        let tunnel = this._lookupCache.get(tunnelId);
-        if (tunnel === undefined) {
-            tunnel = getTunnel();
-        } else {
-            // Preemptively refresh cache if object is about to expire
-            setImmediate(async () => {
-                const ttl = this._lookupCache.getTtl(tunnelId);
-                if (ttl < 10) {
-                    getTunnel();
-                }
-            });
         }
         return tunnel;
     }
