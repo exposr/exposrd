@@ -16,8 +16,8 @@
   "dependencies": {
     "content-type": "^1.0.4",
     "koa": "^2.13.0",
-    "koa-joi-router": "^7.0.0",
-    "koa-router": "^9.4.0",
+    "koa-joi-router": "^8.0.0",
+    "koa-router": "^10.0.0",
     "log4js": "^6.3.0",
     "node-cache": "^5.1.2",
     "redis": "^3.1.2",
