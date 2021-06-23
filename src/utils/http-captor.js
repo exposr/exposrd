@@ -245,13 +245,13 @@ class HttpCaptor {
                 },
                 meta: {
                     requestBody: {
-                        length: capturedRequest.length,
-                        capturedLength: capturedRequest.capturedLength,
-                        captured: capturedRequest.captured,
+                        length: capturedRequest?.length || 0,
+                        capturedLength: capturedRequest?.capturedLength || 0,
+                        captured: capturedRequest?.captured || false,
                     },
                     responseBody: {
-                        length: capturedResponse?.length,
-                        capturedLength: capturedResponse?.capturedLength,
+                        length: capturedResponse?.length || 0,
+                        capturedLength: capturedResponse?.capturedLength || 0,
                         captured: capturedResponse?.captured || false,
                     }
                 },
@@ -261,7 +261,7 @@ class HttpCaptor {
                     method: this._request.method,
                     path: this._request.url,
                     headers: this._request.headers,
-                    length: capturedRequest.length,
+                    length: capturedRequest?.length || 0,
                     body: formatBody(capturedRequest, this.captureRequestBody),
                     error: requestError,
                 },
@@ -271,7 +271,7 @@ class HttpCaptor {
                     status: this._response?.statusCode,
                     message: this._response?.statusMessage,
                     headers: capturedResponse?.headers,
-                    length: capturedResponse.length,
+                    length: capturedResponse?.length,
                     body: formatBody(capturedResponse, this.captureResponseBody),
                     error: responseError,
                 }
