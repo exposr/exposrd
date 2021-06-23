@@ -2,6 +2,7 @@ import Koa from 'koa';
 import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import Config from '../config.js';
+import HttpListener from '../listener/http-listener.js';
 import { Logger } from '../logger.js';
 import { ERROR_BAD_INPUT } from '../utils/errors.js';
 
@@ -15,9 +16,13 @@ class AdminServer {
         this.unauthAccess = this.apiKey === undefined && Config.get('admin-allow-access-without-api-key') === true;
         this.accountService = new AccountService();
         const app = this.app = new Koa();
-        const router = this.router = Router();
+        this.router = Router();
         this._initializeRoutes();
-        app.listen(port);
+
+        const httpListener = this.httpListener = new HttpListener({port});
+        httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
+            this.appCallback(ctx.req, ctx.res);
+        });
 
         if (this.apiKey != undefined) {
             logger.info("Admin API resource enabled with API key");
@@ -28,25 +33,12 @@ class AdminServer {
         }
     }
 
+    listen() {
+        return this.httpListener.listen();
+    }
+
     _initializeRoutes() {
         const router = this.router;
-
-        this.app.use(async (ctx, next) => {
-            await next();
-            logger.info({
-                request: {
-                    method: ctx.request.method,
-                    path: ctx.request.url,
-                    headers: ctx.request.headers,
-                    body: ctx.request.body
-                },
-                response: {
-                    status: ctx.response.status,
-                    headers: ctx.response.headers,
-                    body: ctx.response.body
-                }
-            });
-        });
 
         const handleError = async (ctx, next) => {
             if (!ctx.invalid) {
@@ -158,6 +150,7 @@ class AdminServer {
         });
 
         this.app.use(router.middleware());
+        this.appCallback = this.app.callback();
     }
 
     setReady() {
@@ -165,8 +158,11 @@ class AdminServer {
     }
 
     async destroy() {
-        await this.accountService.destroy();
         this.appReady = false;
+        return Promise.allSettled([
+            this.accountService.destroy(),
+            this.httpListener.destroy(),
+        ]);
     }
 }
 

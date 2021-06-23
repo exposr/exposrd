@@ -74,6 +74,7 @@ export default async () => {
             listener.listen(),
             storageReady,
             ingressReady,
+            adminController ? adminController.listen() : new Promise((r) => r())
         ])
         .catch((err) => {
             Logger.error(`Failed to start up: ${err.message}`);
