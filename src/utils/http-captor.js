@@ -116,6 +116,12 @@ class HttpCaptor {
         let length = 0;
         let capturedLength = 0;
 
+        if (!this._response) {
+            return new Promise((resolve, reject) => {
+                resolve({});
+            })
+        }
+
         const getHeaders = () => {
             if (headers) {
                 return headers;
@@ -176,6 +182,7 @@ class HttpCaptor {
                 this._response.end = canonicalEnd;
                 this._response.writeHead = canonicalWriteHead;
                 this._response.off('finish', done);
+                this._response.off('close', done);
                 this._response.off('error', done);
 
                 if (err) {
@@ -194,6 +201,7 @@ class HttpCaptor {
             };
 
             this._response.once('finish', done);
+            this._response.once('close', done);
             this._response.once('error', done);
         });
 
@@ -203,29 +211,16 @@ class HttpCaptor {
         return new Promise(async (resolve, reject) => {
             const startTime = process.hrtime.bigint();
 
-            let capturedRequest, requestError;
-            try {
-                capturedRequest = await this._captureRequest();
-            } catch (e) {
-                if (e instanceof CaptureError) {
-                    requestError = e.message;
-                } else {
-                    throw e;
-                }
-            }
+            const [requestResult, responseResult] = await Promise.allSettled([
+                this._captureRequest(),
+                this._captureResponse()
+            ]);
 
-            let capturedResponse, responseError;
-            try {
-                if (this._response) {
-                    capturedResponse = await this._captureResponse();
-                }
-            } catch (e) {
-                if (e instanceof CaptureError) {
-                    responseError = e.message;
-                } else {
-                    throw e;
-                }
-            }
+            const capturedRequest = requestResult.value;
+            const requestError = requestResult.reason?.message;
+
+            const capturedResponse = responseResult.value;
+            const responseError = responseResult?.reason?.message;
 
             const elapsedMs = Math.round(Number((process.hrtime.bigint() - BigInt(startTime))) / 1e6);
 
