@@ -77,7 +77,7 @@ class HttpIngress {
 
         const eventBus = this.eventBus = new EventBus();
         eventBus.on('disconnected', (data) => {
-            this._agentCache.ttl(data?.tunnelId, 0);
+            this._agentCache.ttl(data?.tunnelId, -1);
         });
     }
 
@@ -139,7 +139,10 @@ class HttpIngress {
     }
 
     _getAgent(tunnelId) {
-        let agent = this._agentCache.get(tunnelId);
+        let agent;
+        try {
+            agent = this._agentCache.get(tunnelId);
+        } catch (e) {}
         if (agent === undefined) {
             agent = this._createAgent(tunnelId);
             this._agentCache.set(tunnelId, agent, 65);
