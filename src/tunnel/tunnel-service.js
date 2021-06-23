@@ -306,7 +306,7 @@ class TunnelService {
         }
 
         // Check for stale state
-        const connectedNode = await this.get(tunnel.state().node);
+        const connectedNode = await Node.get(tunnel.state().node);
         if (!connectedNode) {
             logger
                 .withContext('tunnel', tunnelId)
