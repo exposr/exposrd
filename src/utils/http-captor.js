@@ -227,7 +227,7 @@ class HttpCaptor {
                 }
             }
 
-            const elapsedMs = Number((process.hrtime.bigint() - BigInt(startTime))) / 1e6;
+            const elapsedMs = Math.round(Number((process.hrtime.bigint() - BigInt(startTime))) / 1e6);
 
             const formatBody = (body, shouldCapture) => {
                 let payload;
