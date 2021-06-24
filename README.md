@@ -91,7 +91,7 @@ You can quickly try out exposr without installing anything
 Run the server, the server will listen on port 8080 and the API will be exposed at `http://host.docker.internal:8080`.
 HTTP ingress sub-domains will be allocated from `http://localhost:8080`.
 
-    docker run --rm -ti -p 8080:8080 exposr/exposr-server:unstable --api-url http://host.docker.internal:8080 --allow-registration --http-ingress-domain http://localhost:8080
+    docker run --rm -ti -p 8080:8080 exposr/exposr-server:latest --api-url http://host.docker.internal:8080 --allow-registration --http-ingress-domain http://localhost:8080
 
 Start the client with, this will create a tunnel called `example` and connect it to `http://example.com`.
 The tunnel will be available at `http://example.localhost:8080`.
