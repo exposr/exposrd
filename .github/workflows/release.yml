@@ -1,4 +1,4 @@
-name: master
+name: release
 on:
   push:
     tags:
@@ -28,3 +28,8 @@ jobs:
 
       - name: Publish unstable container
         run: make image.publish.latest
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: ${{ startsWith(github.ref, '/refs/tags/v0') }}
