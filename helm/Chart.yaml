@@ -3,4 +3,4 @@ name: exposr
 description: exposr tunnel server
 type: application
 version: 0.1.0
-appVersion: 0.1.0
+appVersion: v0.1.0
