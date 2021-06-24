@@ -1,0 +1,41 @@
+replicaCount: 1
+
+exposr:
+  log-level: info
+  allow-registration: false
+
+image:
+  repository: docker.io/exposr/exposr-server
+  pullPolicy: Always
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  annotations: {}
+  name:
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 80
+  adminPort: 8081
+
+ingress:
+  enabled: false
+  annotations: {}
+  hosts: []
+  tls: []
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
