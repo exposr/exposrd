@@ -100,11 +100,13 @@ class HttpCaptor {
                 }
             };
 
-            this._request.once('newListener', (event, listener) => {
+            const onListener = (event, listener) => {
                 if (event === 'data') {
+                    this._request.off('newListener', onListener);
                     this._request.on('data', handleData);
                 }
-            });
+            };
+            this._request.on('newListener', onListener);
             this._request.once('end', done);
             this._request.once('error', done);
         });
