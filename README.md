@@ -85,6 +85,10 @@ Redis is required for clustered setup. No other configuration is needed, nodes
 will auto-discover each other.
 
 # Running exposr
+
+## Containers
+
+Latest release is available as `latest`, latest development is available as `unstable`.
 ## Quick start
 You can quickly try out exposr without installing anything
 
