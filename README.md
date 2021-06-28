@@ -105,3 +105,18 @@ The tunnel will be available at `http://example.localhost:8080`.
 Try the tunnel
 
     curl --resolve example.localhost:8080:127.0.0.1 http://example.localhost:8080
+
+## Production deployment
+
+### Kubernetes
+
+exposr can be deployed to kubernetes with helm.
+
+Add the repository
+
+	helm repo add exposr https://exposr.github.io/helm-charts/
+	helm repo update
+
+Deploy with
+
+    helm install my-exposr exposr/exposr
