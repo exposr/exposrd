@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.1](https://github.com/exposr/exposr-server/compare/v0.1.0...v0.1.1) (2021-06-28)
+
+
+### Bug Fixes
+
+* **helm:** add missing end to NOTES.txt ([aa507fa](https://github.com/exposr/exposr-server/commit/aa507fa4efa69e33b0f0f091ce6c2a5f70edc99b))
+* **helm:** fix appVersion tag, should be prefixed with a 'v' ([25ad225](https://github.com/exposr/exposr-server/commit/25ad2250f9aa6ab2ab9040d19713f5d4ddbee167))
+
 ## 0.1.0 (2021-06-24)
 
 
