@@ -8,5 +8,6 @@ module.exports.readVersion = function (contents) {
 module.exports.writeVersion = function (contents, version) {
   const yaml = YAML.parse(contents)
   yaml.appVersion = `v${version}`
+  yaml.version = `${version}`
   return YAML.stringify(yaml)
 }
