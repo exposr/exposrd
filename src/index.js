@@ -15,7 +15,7 @@ export default async () => {
         node_id: Node.identifier,
         host: Node.hostname,
         address: Node.address,
-    })
+    });
 
     let listener;
     let endpoint;
@@ -67,7 +67,7 @@ export default async () => {
         } catch (e) {
             reject(e);
         }
-    })
+    });
 
     const res = await Promise
         .all([

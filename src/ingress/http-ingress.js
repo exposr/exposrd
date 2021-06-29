@@ -285,7 +285,7 @@ class HttpIngress {
         });
 
         req.pipe(clientReq);
-        return true
+        return true;
     }
 
     async handleUpgradeRequest(req, sock, head) {
@@ -362,7 +362,7 @@ class HttpIngress {
             upstream.write(raw);
         });
 
-        return true
+        return true;
     }
 
     async destroy() {

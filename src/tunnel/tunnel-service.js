@@ -21,7 +21,7 @@ class TunnelService {
             } else {
                 callback && process.nextTick(callback);
             }
-            return TunnelService.instance
+            return TunnelService.instance;
         }
         TunnelService.instance = this;
         TunnelService._readyCallback = [callback];
@@ -255,7 +255,7 @@ class TunnelService {
         this.connectedTunnels[tunnelId] = {
             keepaliveTimer: setInterval(keepaliveFun, 30 * 1000),
             transport
-        }
+        };
         transport.once('close', () => {
             this.disconnect(tunnelId);
         });

@@ -55,7 +55,7 @@ class Storage {
             return false;
         }
         const serialized = Serializer.serialize(obj);
-        await this._set(key, serialized, opts)
+        await this._set(key, serialized, opts);
         lock.unlock();
         return obj;
     }

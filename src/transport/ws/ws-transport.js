@@ -43,7 +43,7 @@ class WebSocketTransport extends EventEmitter {
 
         this.openSockets = {};
         this._eventBus = new EventEmitter();
-        this.logger = Logger("ws-transport")
+        this.logger = Logger("ws-transport");
         this.logger.addContext("tunnel", this._tunnelId);
 
         this._socketStream.on('data', (chunk) => {
@@ -383,7 +383,7 @@ class WebSocketTransportSocket extends Duplex {
             send: opts.send,
             pause: opts.pause,
             resume: opts.resume
-        }
+        };
         this.logger = opts.logger;
         this.fd = opts.fd;
         this.state = undefined;
