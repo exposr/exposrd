@@ -15,7 +15,7 @@ class AdminServer {
             Config.get('admin-api-key')?.length > 0 ? Config.get('admin-api-key') : undefined;
         this.unauthAccess = this.apiKey === undefined && Config.get('admin-allow-access-without-api-key') === true;
         this.accountService = new AccountService();
-        const app = this.app = new Koa();
+        this.app = new Koa();
         this.router = Router();
         this._initializeRoutes();
 
