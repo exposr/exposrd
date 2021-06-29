@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.3](https://github.com/exposr/exposr-server/compare/v0.1.2...v0.1.3) (2021-06-29)
+
+
+### Bug Fixes
+
+* run with --no-deprecation in container ([1c47ef8](https://github.com/exposr/exposr-server/commit/1c47ef82eaba6cd2ac15394e663fecac3fcdeafa))
+* **http-captor:** remove unused variable ([9930975](https://github.com/exposr/exposr-server/commit/9930975b59ca71c2c79387a3c143198a401c56bb))
+* add missing semicolons ([4f5e021](https://github.com/exposr/exposr-server/commit/4f5e02100d199aa97f7ba7bee9a52c9a307d10e8))
+* **account-service:** remove unused logger ([c7877f3](https://github.com/exposr/exposr-server/commit/c7877f3b8b04c14adbe64f1e95c8b6455ca5cedf))
+* **admin-server:** remove unused variable ([1b8c6d8](https://github.com/exposr/exposr-server/commit/1b8c6d8e4beb7a593c82489e18651b1f62fe5f58))
+* **ws-endpoint:** add missing await ([a2f0eee](https://github.com/exposr/exposr-server/commit/a2f0eee75fb8047bd3703b74beeb06add3f59153))
+
 ### [0.1.2](https://github.com/exposr/exposr-server/compare/v0.1.1...v0.1.2) (2021-06-28)
 
 ### [0.1.1](https://github.com/exposr/exposr-server/compare/v0.1.0...v0.1.1) (2021-06-28)
