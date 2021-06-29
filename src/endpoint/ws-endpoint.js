@@ -120,7 +120,7 @@ class WebSocketEndpoint {
             });
         }, this.UPGRADE_TIMEOUT);
 
-        this.wss.handleUpgrade(req, sock, head, (ws) => {
+        this.wss.handleUpgrade(req, sock, head, async (ws) => {
             clearTimeout(timeout);
             const transport = Transport.createTransport({
                 method: 'WS',
@@ -129,7 +129,7 @@ class WebSocketEndpoint {
                     socket: ws
                 }
             });
-            const res = this.tunnelService.connect(tunnelId, transport, {
+            const res = await this.tunnelService.connect(tunnelId, transport, {
                 peer: this._getRequestClientIp(req),
             });
             if (!res) {
