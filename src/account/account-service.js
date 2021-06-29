@@ -3,7 +3,6 @@ import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';
 import Account from './account.js';
 
-const logger = Logger("account-service");
 
 class AccountService {
     static ACCOUNT_ID_ALPHABET = 'CDEFHJKMNPRTVWXY2345689';
