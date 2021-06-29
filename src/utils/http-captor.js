@@ -90,7 +90,7 @@ class HttpCaptor {
                 if (err) {
                     reject(new CaptureError(err));
                 } else {
-                    const {type, params} = getContentType();
+                    const {type, _} = getContentType();
                     resolve({
                         length,
                         capturedLength,
@@ -191,7 +191,7 @@ class HttpCaptor {
                     reject(new CaptureError(err));
                 } else {
 
-                    const {type, params} = getContentType();
+                    const {type, _} = getContentType();
                     resolve({
                         length,
                         capturedLength,
