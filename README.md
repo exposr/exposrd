@@ -29,6 +29,10 @@ This is on purpose as the server is designed to be stateless and to have elastic
 properties. Meaning these are more suitable to handle in other parts of the deployment stack, for
 example at the load balancer. 
 
+## Demo
+
+![](https://exposr.github.io/docs/img/demo/exposr-demo-20210629.gif)
+
 # Architecture
 exposr have three core concepts, transports, endpoints and ingress.
 
