@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 ":" //# comment; cd `dirname "$0"`
 ":" //# comment; set -a; test -f build.env && . ./build.env; set +a
-":" //# comment; exec /usr/bin/env node --trace-warnings --input-type=module - "$@" < `basename "$0"`
+":" //# comment; exec /usr/bin/env node ${NODE_ARGS} --input-type=module - "$@" < `basename "$0"`
 import ExposrServer from './src/index.js';
 ExposrServer();

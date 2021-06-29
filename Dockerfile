@@ -13,6 +13,7 @@ COPY ${PACKAGE_NAME} /tmp/${PACKAGE_NAME}
 RUN yarn add --production --frozen-lockfile /tmp/${PACKAGE_NAME} && \
     rm /tmp/${PACKAGE_NAME}
 ENV NODE_ENV=production
+ENV NODE_ARGS=--no-deprecation
 
 USER nobody
 EXPOSE 8080
