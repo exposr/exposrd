@@ -5,6 +5,9 @@
   "type": "module",
   "author": "Fredrik Lindberg <fli@shapeshifter.se>",
   "license": "MIT",
+  "engines": {
+    "node": ">=16"
+  },
   "files": [
     "exposr-server",
     "src",

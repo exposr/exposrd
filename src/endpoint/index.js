@@ -27,7 +27,7 @@ class Endpoint {
         const endpoints = {};
 
         if (this.opts.ws && this.opts.ws.enabled === true) {
-            const token = crypto.randomBytes(64).toString('base64');
+            const token = crypto.randomBytes(64).toString('base64url');
             const url = new URL(this.opts.ws.baseUrl.href);
             url.protocol = this.opts.ws.baseUrl.protocol == 'https:' ? 'wss' : 'ws';
             url.pathname =  `${WebSocketEndpoint.PATH}/${tunnel.id}`;
