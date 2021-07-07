@@ -1,8 +1,6 @@
 import assert from 'assert/strict';
-import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';
 import Account from './account.js';
-
 
 class AccountService {
     static ACCOUNT_ID_ALPHABET = 'CDEFHJKMNPRTVWXY2345689';
