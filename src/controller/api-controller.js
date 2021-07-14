@@ -1,16 +1,17 @@
-import Endpoint from '../endpoint/index.js';
 import Koa from 'koa';
 import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
 import Config from '../config.js';
+import Endpoint from '../endpoint/index.js';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
-import { ERROR_AUTH_NO_ACCESS_TOKEN,
-         ERROR_AUTH_PERMISSION_DENIED,
-         ERROR_BAD_INPUT,
-         ERROR_TUNNEL_NOT_FOUND,
-       } from '../utils/errors.js';
+import {
+    ERROR_AUTH_NO_ACCESS_TOKEN,
+    ERROR_AUTH_PERMISSION_DENIED,
+    ERROR_BAD_INPUT,
+    ERROR_TUNNEL_NOT_FOUND
+} from '../utils/errors.js';
 
 const logger = Logger("api");
 
