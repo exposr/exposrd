@@ -12,8 +12,7 @@ const args = yargs(process.argv.slice(2))
     .showHidden('show-hidden', 'Show hidden options')
     .option('api-url', {
         type: 'string',
-        describe: 'Base URL for API (ex https://api.example.com)',
-        demandOption: true,
+        describe: 'Base URL for API (ex https://api.example.com). The API will only be available through this URL',
         coerce: (url) => {
             return typeof url == 'string' ? new URL(url) : url;
         }

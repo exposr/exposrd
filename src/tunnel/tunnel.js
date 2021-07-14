@@ -5,10 +5,9 @@ class Tunnel {
         this.id = tunnelId;
         this.account = account;
         this.endpoints = {
+            token: undefined,
             ws: {
                 enabled: false,
-                url: undefined,
-                token: undefined,
             },
         };
         this.ingress = {

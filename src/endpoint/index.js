@@ -23,19 +23,18 @@ class Endpoint {
         }
     }
 
-    getEndpoints(tunnel) {
+    static getEndpoints(tunnel, baseUrl) {
         const endpoints = {};
 
-        if (this.opts.ws && this.opts.ws.enabled === true) {
-            const token = crypto.randomBytes(64).toString('base64url');
-            const url = new URL(this.opts.ws.baseUrl.href);
-            url.protocol = this.opts.ws.baseUrl.protocol == 'https:' ? 'wss' : 'ws';
+        if (tunnel.endpoints?.ws?.enabled === true) {
+            const url = new URL(baseUrl);
+            url.protocol = baseUrl.protocol == 'https:' ? 'wss' : 'ws';
             url.pathname =  `${WebSocketEndpoint.PATH}/${tunnel.id}`;
-            url.search = '?' + querystring.encode({token: token});
+            url.search = '?' + querystring.encode({token: tunnel.endpoints.token});
             endpoints.ws = {
+                ...tunnel.endpoints.ws,
                 url: url.href,
-                token,
-            }
+            };
         }
 
         return endpoints;

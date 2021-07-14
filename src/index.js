@@ -40,9 +40,7 @@ export default async () => {
     }
 
     const adminController = Config.get('admin-enable') ? new AdminController(Config.get('admin-port')) : undefined;
-    const apiController = new ApiController({
-        baseUrl: Config.get('api-url')
-    });
+    const apiController = new ApiController();
 
     // Setup tunnel data ingress (incoming tunnel data)
     const ingressReady = new Promise((resolve, reject) => {

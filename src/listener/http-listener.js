@@ -4,12 +4,49 @@ import HttpCaptor from '../utils/http-captor.js';
 
 const logger = Logger("http-listener");
 
+const HTTP_HEADER_X_FORWARDED_PROTO = 'x-forwarded-proto';
+const HTTP_HEADER_X_FORWARDED_PORT = 'x-forwarded-port';
+const HTTP_HEADER_X_SCHEME = 'x-scheme';
+const HTTP_HEADER_FORWARDED = 'forwarded';
+const HTTP_HEADER_HOST = 'host';
 class HttpListener {
     constructor(opts) {
         this.opts = opts;
         const callbacks = this.callbacks = {
             'request': [],
             'upgrade': []
+        };
+
+        const parseForwarded = (forwarded) => {
+            return Object.fromEntries(forwarded
+                .split(';')
+                .map(x => x.trim())
+                .filter(x => x.length > 0)
+                .map(x => x.split('=')
+                             .map(y => y.trim())
+                    )
+                )
+        };
+
+        const getBaseUrl = (req) => {
+            const headers = req.headers || {};
+
+            const forwarded = parseForwarded(headers[HTTP_HEADER_FORWARDED] || '');
+            const proto = forwarded?.proto
+                || headers[HTTP_HEADER_X_FORWARDED_PROTO]
+                || headers[HTTP_HEADER_X_SCHEME]
+                || req.protocol || 'http';
+            const host = (forwarded?.host || headers[HTTP_HEADER_HOST])?.split(':')[0];
+            const port = forwarded?.host?.split(':')[1]
+                || headers[HTTP_HEADER_X_FORWARDED_PORT]
+                || headers[HTTP_HEADER_HOST]?.split(':')[1];
+
+            try {
+                return new URL(`${proto}://${host}${port ? `:${port}` : ''}`);
+            } catch (e) {
+                logger.isTraceEnabled() && logger.trace({e});
+                return undefined;
+            }
         };
 
         const handleRequest = async (event, ctx) => {
@@ -25,15 +62,21 @@ class HttpListener {
             let customLogger;
             const capture = captor.capture();
 
-            for (const obj of this.callbacks[event]) {
-                captor.captureRequestBody = obj.opts?.logBody || false;
-                captor.captureResponseBody = obj.opts?.logBody || false;
-                next = false;
-                await obj.callback(ctx, () => { next = true });
-                if (!next) {
-                    customLogger = obj.opts?.logger;
-                    break;
+            ctx.baseUrl = getBaseUrl(ctx.req);
+            if (ctx.baseUrl !== undefined) {
+                for (const obj of this.callbacks[event]) {
+                    captor.captureRequestBody = obj.opts?.logBody || false;
+                    captor.captureResponseBody = obj.opts?.logBody || false;
+                    next = false;
+                    await obj.callback(ctx, () => { next = true });
+                    if (!next) {
+                        customLogger = obj.opts?.logger;
+                        break;
+                    }
                 }
+            } else {
+                ctx.res.statusCode = 400;
+                ctx.res.end();
             }
 
             customLogger ??= logger;
@@ -89,7 +132,10 @@ class HttpListener {
             throw new Error("Unknown event " + event);
         }
 
-        this.callbacks[event].push({callback, opts});
+        opts.prio ??= 2**32;
+
+        const pos = this.callbacks[event].reduce((pos, x) =>  x.opts.prio <= opts.prio ? pos + 1 : pos, 0);
+        this.callbacks[event].splice(pos, 0, {callback, opts})
     }
 
     async listen() {

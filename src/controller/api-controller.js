@@ -1,3 +1,4 @@
+import Endpoint from '../endpoint/index.js';
 import Koa from 'koa';
 import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
@@ -17,8 +18,7 @@ class ApiController {
 
     static TUNNEL_ID_REGEX = /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/;
 
-    constructor(opts) {
-        this.opts = opts;
+    constructor() {
         this.httpListener = new Listener().getListener('http');
         this.accountService = new AccountService();
         this._initializeRoutes();
@@ -27,6 +27,8 @@ class ApiController {
         if (Config.get('allow-registration')) {
             logger.warn({message: "Public account registration is enabled"});
         }
+
+        this.apiUrl = Config.get('api-url');
     }
 
     _initializeRoutes() {
@@ -88,7 +90,7 @@ class ApiController {
             return next();
         };
 
-        const tunnelInfo = (tunnel) => {
+        const tunnelInfo = (tunnel, baseUrl) => {
             const info = {
                 id: tunnel.id,
                 connection: {
@@ -103,12 +105,7 @@ class ApiController {
                 created_at: tunnel.created_at,
             }
 
-            Object.keys(tunnel.endpoints).forEach((k) => {
-                const endpoint = tunnel.endpoints[k];
-                if (endpoint.enabled) {
-                    info.endpoints[k] = endpoint;
-                }
-            });
+            info.endpoints = Endpoint.getEndpoints(tunnel, baseUrl);
 
             Object.keys(tunnel.ingress).forEach((k) => {
                 const ingress = tunnel.ingress[k];
@@ -163,7 +160,7 @@ class ApiController {
                     tunnel.endpoints.ws.enabled = ctx.request.body?.endpoints?.ws?.enabled || true;
                 });
                 if (updatedTunnel) {
-                    ctx.body = tunnelInfo(updatedTunnel);
+                    ctx.body = tunnelInfo(updatedTunnel, ctx.req._exposrBaseUrl);
                     ctx.status = 200;
                 } else {
                     ctx.status = 403;
@@ -218,7 +215,7 @@ class ApiController {
                     }
                 } else {
                     ctx.status = 200;
-                    ctx.body = tunnelInfo(tunnel);
+                    ctx.body = tunnelInfo(tunnel, ctx.req._exposrBaseUrl);
                 }
             }]
         });
@@ -315,12 +312,20 @@ class ApiController {
     }
 
     _initializeServer() {
-        const baseUrl = this.opts.baseUrl.host.toLowerCase();
-        this.httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
-            const host = ctx?.req?.headers?.host;
-            if (typeof host !== 'string' || host.toLowerCase() !== baseUrl) {
-                return next();
+        this.httpListener.use('request', {
+                logger,
+                logBody: true,
+                prio: 10,
+            }, async (ctx, next) => {
+
+            const baseUrl = this.apiUrl || ctx.baseUrl;
+            if (this.apiUrl) {
+                const host = ctx?.req?.headers?.host?.toLowerCase();
+                if (typeof host !== 'string' || host !== this.apiUrl.host.toLowerCase()) {
+                    return next();
+                }
             }
+            ctx.req._exposrBaseUrl = baseUrl;
             this.appCallback(ctx.req, ctx.res);
         });
     }

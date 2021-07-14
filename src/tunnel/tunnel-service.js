@@ -1,4 +1,5 @@
 import assert from 'assert/strict';
+import crypto from 'crypto';
 import Endpoint from '../endpoint/index.js';
 import EventBus from '../eventbus/index.js';
 import Ingress from '../ingress/index.js';
@@ -166,9 +167,7 @@ class TunnelService {
 
             cb(tunnel);
 
-            const endpoints = new Endpoint().getEndpoints(tunnel);
-            tunnel.endpoints.ws.url = endpoints?.ws?.url;
-            tunnel.endpoints.ws.token = endpoints?.ws?.token;
+            tunnel.endpoints.token = crypto.randomBytes(64).toString('base64url');
 
             const ingress = new Ingress().getIngress(tunnel);
             tunnel.ingress.http.url = ingress?.http?.url;

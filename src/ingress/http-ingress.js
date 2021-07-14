@@ -34,7 +34,7 @@ class HttpIngress {
         this.destroyed = false;
         this.tunnelService = new TunnelService(opts.callback);
         this.httpListener = new Listener().getListener('http');
-        this.httpListener.use('request', { logger }, async (ctx, next) => {
+        this.httpListener.use('request', { logger, prio: 1 }, async (ctx, next) => {
             if (this.destroyed) {
                 return next();
             }
