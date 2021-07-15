@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.4](https://github.com/exposr/exposr-server/compare/v0.1.3...v0.1.4) (2021-07-15)
+
+
+### Features
+
+* **http-ingress:** send forwarded headers to target ([722bd30](https://github.com/exposr/exposr-server/commit/722bd30bbca889028dcba61e8776abc4efcd7e38))
+* don't require api url to be specified ([e70b198](https://github.com/exposr/exposr-server/commit/e70b198873f14507245397cda4859329e0f5f985))
+
+
+### Bug Fixes
+
+* **account-service:** remove unused import ([548e726](https://github.com/exposr/exposr-server/commit/548e7267d841800154b9f6ab843c9bc7e0d92655))
+* **api-controller:** organize imports ([a1fbd8f](https://github.com/exposr/exposr-server/commit/a1fbd8fbea380f1cd3f569972501d87b01d7b22a))
+* **endpoint:** move to base64url ([4b594b6](https://github.com/exposr/exposr-server/commit/4b594b69838c21297bd80b439033297ef227d2b7))
+
 ### [0.1.3](https://github.com/exposr/exposr-server/compare/v0.1.2...v0.1.3) (2021-06-29)
 
 
