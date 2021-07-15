@@ -186,30 +186,31 @@ class HttpIngress {
                 upstream = new URL(tunnel.upstream.url);
             } catch {}
         }
+        if (upstream === undefined || !upstream.protocol.startsWith('http')) {
+            return;
+        }
 
         const rewriteHeaders = ['host', 'referer', 'origin'];
-        if (upstream !== undefined && upstream.protocol.startsWith('http')) {
-            rewriteHeaders.forEach(headerName => {
-                let value = headers[headerName];
-                if (value == undefined) {
-                    return;
-                }
-                if (value.startsWith('http')) {
-                    try {
-                        const url = new URL(value);
-                        if (url.host == host) {
-                            url.protocol = upstream.protocol;
-                            url.host = upstream.host;
-                            url.port = upstream.port;
-                            headers[headerName] = url.href;
-                        }
-                    } catch {
+        rewriteHeaders.forEach(headerName => {
+            let value = headers[headerName];
+            if (value == undefined) {
+                return;
+            }
+            if (value.startsWith('http')) {
+                try {
+                    const url = new URL(value);
+                    if (url.host == host) {
+                        url.protocol = upstream.protocol;
+                        url.host = upstream.host;
+                        url.port = upstream.port;
+                        headers[headerName] = url.href;
                     }
-                } else {
-                    headers[headerName] = upstream.host;
+                } catch {
                 }
-            });
-        }
+            } else {
+                headers[headerName] = upstream.host;
+            }
+        });
     }
 
     _loopDetected(req) {
