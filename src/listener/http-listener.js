@@ -14,7 +14,7 @@ const logger = Logger("http-listener");
 class HttpListener {
     constructor(opts) {
         this.opts = opts;
-        const callbacks = this.callbacks = {
+        this.callbacks = {
             'request': [],
             'upgrade': []
         };
