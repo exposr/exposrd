@@ -17,9 +17,13 @@ import { ERROR_TUNNEL_NOT_FOUND,
 import Node from '../utils/node.js';
 import {
     HTTP_HEADER_EXPOSR_VIA,
+    HTTP_HEADER_X_FORWARDED_HOST,
     HTTP_HEADER_X_FORWARDED_FOR,
     HTTP_HEADER_X_REAL_IP,
-    HTTP_HEADER_CONNECTION
+    HTTP_HEADER_CONNECTION,
+    HTTP_HEADER_X_FORWARDED_PORT,
+    HTTP_HEADER_X_FORWARDED_PROTO,
+    HTTP_HEADER_FORWARDED
 } from '../utils/http-headers.js';
 
 const logger = Logger("http-ingress");
@@ -39,7 +43,7 @@ class HttpIngress {
             if (this.destroyed) {
                 return next();
             }
-            if (!await this.handleRequest(ctx.req, ctx.res)) {
+            if (!await this.handleRequest(ctx.req, ctx.res, ctx.baseUrl)) {
                 next();
             }
         });
@@ -47,7 +51,7 @@ class HttpIngress {
             if (this.destroyed) {
                 return next();
             }
-            if (!await this.handleUpgradeRequest(ctx.req, ctx.sock, ctx.head)) {
+            if (!await this.handleUpgradeRequest(ctx.req, ctx.sock, ctx.head, ctx.baseUrl)) {
                 next();
             }
         });
@@ -153,10 +157,11 @@ class HttpIngress {
         return agent;
     }
 
-    _requestHeaders(req, tunnel) {
+    _requestHeaders(req, tunnel, baseUrl) {
         const headers = { ... req.headers };
+        const clientIp = this._clientIp(req);
 
-        headers[HTTP_HEADER_X_FORWARDED_FOR] = this._clientIp(req);
+        headers[HTTP_HEADER_X_FORWARDED_FOR] = clientIp;
         headers[HTTP_HEADER_X_REAL_IP] = headers[HTTP_HEADER_X_FORWARDED_FOR];
 
         if (headers[HTTP_HEADER_EXPOSR_VIA]) {
@@ -171,6 +176,14 @@ class HttpIngress {
             if (!req.upgrade) {
                 delete headers[HTTP_HEADER_CONNECTION];
             }
+
+            headers[HTTP_HEADER_X_FORWARDED_HOST] = baseUrl.host;
+            if (baseUrl.port) {
+                headers[HTTP_HEADER_X_FORWARDED_PORT] = baseUrl.port;
+            }
+            headers[HTTP_HEADER_X_FORWARDED_PROTO] = baseUrl.protocol.slice(0, -1);
+            headers[HTTP_HEADER_FORWARDED] = `by=_exposr;for=${clientIp};host=${baseUrl.host};proto=${baseUrl.protocol.slice(0, -1)}`;
+
             this._rewriteHeaders(headers, tunnel);
         }
 
@@ -218,7 +231,7 @@ class HttpIngress {
         return via.map((v) => v.trim()).includes(Node.identifier);
     }
 
-    async handleRequest(req, res) {
+    async handleRequest(req, res, baseUrl) {
 
         const httpResponse = (status, body, tunnelId) => {
             res.setHeader('Content-Type', 'application/json');
@@ -264,7 +277,7 @@ class HttpIngress {
         };
 
         opt.agent = this._getAgent(tunnel.id);
-        opt.headers = this._requestHeaders(req, tunnel);
+        opt.headers = this._requestHeaders(req, tunnel, baseUrl);
 
         const clientReq = http.request(opt, (clientRes) => {
             res.writeHead(clientRes.statusCode, clientRes.headers);
@@ -290,7 +303,7 @@ class HttpIngress {
         return true;
     }
 
-    async handleUpgradeRequest(req, sock, head) {
+    async handleUpgradeRequest(req, sock, head, baseUrl) {
 
         const _canonicalHttpResponse = (sock, request, response) => {
             sock.write(`HTTP/${request.httpVersion} ${response.status} ${response.statusLine}\r\n`);
@@ -347,7 +360,7 @@ class HttpIngress {
             return true;
         }
 
-        const headers = this._requestHeaders(req, tunnel);
+        const headers = this._requestHeaders(req, tunnel, baseUrl);
         upstream.on('error', (err) => {
             sock.end();
         });
