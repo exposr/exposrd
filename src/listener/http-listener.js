@@ -1,14 +1,16 @@
 import http from 'http';
 import { Logger } from '../logger.js';
 import HttpCaptor from '../utils/http-captor.js';
+import {
+    HTTP_HEADER_FORWARDED,
+    HTTP_HEADER_HOST,
+    HTTP_HEADER_X_FORWARDED_PORT,
+    HTTP_HEADER_X_FORWARDED_PROTO,
+    HTTP_HEADER_X_SCHEME
+} from '../utils/http-headers.js';
 
 const logger = Logger("http-listener");
 
-const HTTP_HEADER_X_FORWARDED_PROTO = 'x-forwarded-proto';
-const HTTP_HEADER_X_FORWARDED_PORT = 'x-forwarded-port';
-const HTTP_HEADER_X_SCHEME = 'x-scheme';
-const HTTP_HEADER_FORWARDED = 'forwarded';
-const HTTP_HEADER_HOST = 'host';
 class HttpListener {
     constructor(opts) {
         this.opts = opts;

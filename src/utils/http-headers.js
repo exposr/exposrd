@@ -1,0 +1,9 @@
+export const HTTP_HEADER_CONNECTION = 'connection';
+export const HTTP_HEADER_EXPOSR_VIA = 'exposr-via';
+export const HTTP_HEADER_FORWARDED = 'forwarded';
+export const HTTP_HEADER_HOST = 'host';
+export const HTTP_HEADER_X_FORWARDED_FOR = 'x-forwarded-for';
+export const HTTP_HEADER_X_FORWARDED_PORT = 'x-forwarded-port';
+export const HTTP_HEADER_X_FORWARDED_PROTO = 'x-forwarded-proto';
+export const HTTP_HEADER_X_REAL_IP = 'x-real-ip';
+export const HTTP_HEADER_X_SCHEME = 'x-scheme';

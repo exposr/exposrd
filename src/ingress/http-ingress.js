@@ -15,14 +15,15 @@ import { ERROR_TUNNEL_NOT_FOUND,
          ERROR_UNKNOWN_ERROR,
        } from '../utils/errors.js';
 import Node from '../utils/node.js';
+import {
+    HTTP_HEADER_EXPOSR_VIA,
+    HTTP_HEADER_X_FORWARDED_FOR,
+    HTTP_HEADER_X_REAL_IP,
+    HTTP_HEADER_CONNECTION
+} from '../utils/http-headers.js';
 
 const logger = Logger("http-ingress");
 class HttpIngress {
-
-    static HTTP_HEADER_EXPOSR_VIA = 'exposr-via';
-    static HTTP_HEADER_X_FORWARDED_FOR = 'x-forwarded-for';
-    static HTTP_HEADER_X_REAL_IP = 'x-real-ip';
-    static HTTP_HEADER_CONNECTION = 'connection';
 
     constructor(opts) {
         this.opts = opts;
@@ -111,8 +112,8 @@ class HttpIngress {
 
     _clientIp(req) {
         let ip;
-        if (req.headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR]) {
-            ip = req.headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR].split(/\s*,\s*/)[0];
+        if (req.headers[HTTP_HEADER_X_FORWARDED_FOR]) {
+            ip = req.headers[HTTP_HEADER_X_FORWARDED_FOR].split(/\s*,\s*/)[0];
         }
         return net.isIP(ip) ? ip : req.socket.remoteAddress;
     }
@@ -155,20 +156,20 @@ class HttpIngress {
     _requestHeaders(req, tunnel) {
         const headers = { ... req.headers };
 
-        headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR] = this._clientIp(req);
-        headers[HttpIngress.HTTP_HEADER_X_REAL_IP] = headers[HttpIngress.HTTP_HEADER_X_FORWARDED_FOR];
+        headers[HTTP_HEADER_X_FORWARDED_FOR] = this._clientIp(req);
+        headers[HTTP_HEADER_X_REAL_IP] = headers[HTTP_HEADER_X_FORWARDED_FOR];
 
-        if (headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA]) {
-            headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] = `${Node.identifier},${headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] }`;
+        if (headers[HTTP_HEADER_EXPOSR_VIA]) {
+            headers[HTTP_HEADER_EXPOSR_VIA] = `${Node.identifier},${headers[HTTP_HEADER_EXPOSR_VIA] }`;
         } else {
-            headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] = Node.identifier;
+            headers[HTTP_HEADER_EXPOSR_VIA] = Node.identifier;
         }
 
         if (this.tunnelService.isLocalConnected(tunnel.id)) {
             // Delete connection header if tunnel is
             // locally connected and it's not an upgrade request
             if (!req.upgrade) {
-                delete headers[HttpIngress.HTTP_HEADER_CONNECTION];
+                delete headers[HTTP_HEADER_CONNECTION];
             }
             this._rewriteHeaders(headers, tunnel);
         }
@@ -212,7 +213,7 @@ class HttpIngress {
     }
 
     _loopDetected(req) {
-        const via = (req.headers[HttpIngress.HTTP_HEADER_EXPOSR_VIA] || '').split(',');
+        const via = (req.headers[HTTP_HEADER_EXPOSR_VIA] || '').split(',');
         return via.map((v) => v.trim()).includes(Node.identifier);
     }
 
