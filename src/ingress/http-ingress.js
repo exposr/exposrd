@@ -233,7 +233,7 @@ class HttpIngress {
 
     async handleRequest(req, res, baseUrl) {
 
-        const httpResponse = (status, body, tunnelId) => {
+        const httpResponse = (status, body) => {
             res.setHeader('Content-Type', 'application/json');
             res.statusCode = status;
             res.end(JSON.stringify(body));
@@ -252,21 +252,21 @@ class HttpIngress {
         if (!tunnel.state().connected) {
             httpResponse(502, {
                 error: ERROR_TUNNEL_NOT_CONNECTED,
-            }, tunnel?.id);
+            });
             return true;
         }
 
         if (!tunnel.ingress?.http?.enabled) {
             httpResponse(403, {
                 error: ERROR_TUNNEL_HTTP_INGRESS_DISABLED,
-            }, tunnel?.id);
+            });
             return true;
         }
 
         if (this._loopDetected(req)) {
             httpResponse(508, {
                 error: ERROR_HTTP_INGRESS_REQUEST_LOOP,
-            }, tunnel?.id);
+            });
             return true;
         }
 
