@@ -1,6 +1,5 @@
 import assert from 'assert/strict';
 import crypto from 'crypto';
-import Endpoint from '../endpoint/index.js';
 import EventBus from '../eventbus/index.js';
 import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js';
