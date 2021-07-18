@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.5](https://github.com/exposr/exposr-server/compare/v0.1.4...v0.1.5) (2021-07-18)
+
+
+### Bug Fixes
+
+* **helm:** fix container image path ([46dacf4](https://github.com/exposr/exposr-server/commit/46dacf41a69104e1eb61fb54dfd2c1beb5ee5e79))
+
 ### [0.1.4](https://github.com/exposr/exposr-server/compare/v0.1.3...v0.1.4) (2021-07-15)
 
 
