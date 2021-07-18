@@ -9,7 +9,9 @@ data:
   EXPOSR_ADMIN_ENABLE: "true"
   EXPOSR_ADMIN_PORT: "8081"
   EXPOSR_PORT: "8080"
+{{- if index .Values.exposr "api-url" }}
   EXPOSR_API_URL: "{{ index .Values.exposr "api-url" }}"
+{{- end }}
   EXPOSR_INGRESS_0: "http"
   EXPOSR_HTTP_INGRESS_DOMAIN: "{{ index .Values.exposr "http-ingress-domain" }}"
   EXPOSR_ALLOW_REGISTRATION: "{{ index .Values.exposr "allow-registration" }}"
