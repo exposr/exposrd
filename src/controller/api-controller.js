@@ -159,9 +159,12 @@ class ApiController {
                 }
 
                 const updatedTunnel = await account.updateTunnel(tunnelId, (tunnel) => {
-                    tunnel.ingress.http.enabled = ctx.request.body?.ingress?.http?.enabled;
-                    tunnel.upstream.url = ctx.request.body?.upstream?.url;
-                    tunnel.endpoints.ws.enabled = ctx.request.body?.endpoints?.ws?.enabled || true;
+                    tunnel.ingress.http.enabled =
+                        ctx.request.body?.ingress?.http?.enabled ?? tunnel.ingress.http.enabled;
+                    tunnel.upstream.url =
+                        ctx.request.body?.upstream?.url ?? tunnel.upstream.url;
+                    tunnel.endpoints.ws.enabled =
+                        ctx.request.body?.endpoints?.ws?.enabled ?? tunnel.endpoints.ws.enabled;
                 });
                 if (updatedTunnel) {
                     ctx.body = tunnelInfo(updatedTunnel, ctx.req._exposrBaseUrl);
