@@ -103,6 +103,9 @@ class ApiController {
                 },
                 endpoints: {},
                 ingress: {},
+                upstream: {
+                    url: tunnel.upstream.url,
+                },
                 created_at: tunnel.created_at,
             }
 
