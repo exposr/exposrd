@@ -9,6 +9,9 @@ class Tunnel {
             ws: {
                 enabled: false,
             },
+            ssh: {
+                enabled: false,
+            },
         };
         this.ingress = {
             http: {

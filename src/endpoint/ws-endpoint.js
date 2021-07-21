@@ -1,12 +1,14 @@
 import net from 'net';
+import querystring from 'querystring';
 import WebSocket from 'ws';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
 import Transport from '../transport/index.js';
 import TunnelService from '../tunnel/tunnel-service.js';
-import { ERROR_TUNNEL_TRANSPORT_CON_TIMEOUT,
-         ERROR_TUNNEL_ALREADY_CONNECTED,
-       } from '../utils/errors.js';
+import {
+    ERROR_TUNNEL_ALREADY_CONNECTED,
+    ERROR_TUNNEL_TRANSPORT_CON_TIMEOUT
+} from '../utils/errors.js';
 
 const logger = Logger("ws-endpoint");
 
@@ -28,6 +30,16 @@ class WebSocketEndpoint {
                 return next();
             }
         });
+    }
+
+    getEndpoint(tunnel, baseUrl) {
+        const url = new URL(baseUrl);
+        url.protocol = baseUrl.protocol == 'https:' ? 'wss' : 'ws';
+        url.pathname =  `${WebSocketEndpoint.PATH}/${tunnel.id}`;
+        url.search = '?' + querystring.encode({token: tunnel.endpoints.token});
+        return {
+            url: url.href,
+        };
     }
 
     async destroy() {

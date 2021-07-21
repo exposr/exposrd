@@ -22,6 +22,7 @@ class ApiController {
     constructor() {
         this.httpListener = new Listener().getListener('http');
         this.accountService = new AccountService();
+        this.transportEndpoint = new Endpoint();
         this._initializeRoutes();
         this._initializeServer();
 
@@ -109,7 +110,7 @@ class ApiController {
                 created_at: tunnel.created_at,
             }
 
-            info.endpoints = Endpoint.getEndpoints(tunnel, baseUrl);
+            info.endpoints = this.transportEndpoint.getEndpoints(tunnel, baseUrl);
 
             Object.keys(tunnel.ingress).forEach((k) => {
                 const ingress = tunnel.ingress[k];
@@ -144,7 +145,10 @@ class ApiController {
                     endpoints: {
                         ws: {
                             enabled: Router.Joi.boolean(),
-                        }
+                        },
+                        ssh: {
+                            enabled: Router.Joi.boolean(),
+                        },
                     }
                 },
             },
@@ -165,6 +169,8 @@ class ApiController {
                         ctx.request.body?.upstream?.url ?? tunnel.upstream.url;
                     tunnel.endpoints.ws.enabled =
                         ctx.request.body?.endpoints?.ws?.enabled ?? tunnel.endpoints.ws.enabled;
+                    tunnel.endpoints.ssh.enabled =
+                        ctx.request.body?.endpoints?.ssh?.enabled ?? tunnel.endpoints.ssh.enabled;
                 });
                 if (updatedTunnel) {
                     ctx.body = tunnelInfo(updatedTunnel, ctx.req._exposrBaseUrl);

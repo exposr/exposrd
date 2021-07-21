@@ -279,6 +279,13 @@ class HttpIngress {
         opt.agent = this._getAgent(tunnel.id);
         opt.headers = this._requestHeaders(req, tunnel, baseUrl);
 
+        logger.trace({
+            operation: 'tunnel-request',
+            path: opt.path,
+            method: opt.method,
+            headers: opt.headers,
+        });
+
         const clientReq = http.request(opt, (clientRes) => {
             res.writeHead(clientRes.statusCode, clientRes.headers);
             clientRes.pipe(res);

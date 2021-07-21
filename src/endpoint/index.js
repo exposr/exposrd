@@ -1,11 +1,13 @@
-import querystring from 'querystring';
 import WebSocketEndpoint from "./ws-endpoint.js";
+import SSHEndpoint from "./ssh-endpoint.js";
+import { assert } from 'console';
 
 class Endpoint {
     constructor(opts) {
         if (Endpoint.instance !== undefined) {
             return Endpoint.instance
         }
+        assert(opts != undefined);
         this.opts = opts;
 
         this.endpoints = {};
@@ -13,26 +15,33 @@ class Endpoint {
             this.endpoints.ws = new WebSocketEndpoint(opts.ws);
         }
 
+        if (opts?.ssh?.enabled === true) {
+            this.endpoints.ssh = new SSHEndpoint(opts.ssh);
+        }
+
         Endpoint.instance = this;
     }
 
     async destroy() {
-        if (this.endpoints.ws) {
-            await this.endpoints.ws.destroy();
-        }
+        return Promise.allSettled(
+            Object.keys(this.endpoints).map(k => this.endpoints[k].destroy())
+        );
     }
 
-    static getEndpoints(tunnel, baseUrl) {
+    getEndpoints(tunnel, baseUrl) {
         const endpoints = {};
 
-        if (tunnel.endpoints?.ws?.enabled === true) {
-            const url = new URL(baseUrl);
-            url.protocol = baseUrl.protocol == 'https:' ? 'wss' : 'ws';
-            url.pathname =  `${WebSocketEndpoint.PATH}/${tunnel.id}`;
-            url.search = '?' + querystring.encode({token: tunnel.endpoints.token});
+        if (tunnel.endpoints?.ws?.enabled === true && this.endpoints.ws) {
             endpoints.ws = {
                 ...tunnel.endpoints.ws,
-                url: url.href,
+                ...this.endpoints.ws.getEndpoint(tunnel, baseUrl),
+            };
+        }
+
+        if (tunnel.endpoints?.ssh?.enabled === true && this.endpoints.ssh) {
+            endpoints.ssh = {
+                ...tunnel.endpoints.ssh,
+                ...this.endpoints.ssh.getEndpoint(tunnel, baseUrl),
             };
         }
 

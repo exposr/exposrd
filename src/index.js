@@ -27,12 +27,18 @@ export default async () => {
             }
       });
 
-      // Setup tunnel connection endpoints (for clients to establish tunnels)
+      // Setup tunnel transport connection endpoints (for clients to establish tunnels)
       endpoint = new Endpoint({
           ws: {
-            enabled: true,
+            enabled: Config.get('transport').includes('ws'),
             baseUrl: Config.get('api-url')
-          }
+          },
+          ssh: {
+            enabled: Config.get('transport').includes('ssh'),
+            hostKey: Config.get('transport-ssh-key'),
+            host: Config.get('transport-ssh-host'),
+            port: Config.get('transport-ssh-port'),
+          },
       });
     } catch (err) {
         Logger.error(err.message);

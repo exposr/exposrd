@@ -1,4 +1,5 @@
 import yargs from 'yargs';
+import fs from 'fs';
 import Version from './version.js';
 
 const version = Version.version;
@@ -30,11 +31,67 @@ const args = yargs(process.argv.slice(2))
             return typeof url == 'string' ? new URL(url) : url;
         },
     })
+    .option('transport', {
+        type: 'array',
+        describe: 'Tunnel transports to enable',
+        default: ['ws'],
+        choices: ['ws', 'ssh'],
+    })
+    .option('transport-ssh-port', {
+        type: 'integer',
+        describe: 'Port to use for SSH transport connection endpoint',
+        default: 2200,
+        hidden: true,
+    })
+    .option('transport-ssh-host', {
+        type: 'string',
+        describe: 'Hostname to use for SSH transport connection endpoint',
+        hidden: true,
+        coerce: (host) => {
+            if (host == undefined) {
+                return host;
+            }
+
+            try {
+                const url = new URL(`ssh://${host}`);
+                return url.host;
+            } catch (e) {
+                console.log(`Invalid hostname ${host}`);
+                process.exit(-1);
+            }
+        }
+    })
+    .option('transport-ssh-key', {
+        type: 'string',
+        describe: 'Path to, or string containing a SSH private key in PEM encoded OpenSSH format',
+        hidden: true,
+        coerce: (key) => {
+            if (key == undefined) {
+                return key;
+            }
+
+            const isProbablyKey = /BEGIN OPENSSH PRIVATE KEY/i.test(key);
+            let isFile;
+            try {
+                isFile = fs.statSync(key, { throwIfNoEntry: false }) != undefined;
+            } catch (e) {
+                isFile = false;
+            }
+            if (isFile) {
+                return fs.readFileSync(key).toString('utf-8');
+            } else if (isProbablyKey) {
+                return key;
+            } else {
+                console.log(`transport-ssh-key requires either path to key or key content, got ${key}`);
+                process.exit(-1);
+            }
+        }
+    })
     .option('port', {
         alias: 'p',
         type: 'number',
         default: 8080,
-        description: 'Server port to listen on',
+        description: 'Server HTTP port to listen on',
     })
     .option('admin-enable', {
         type: 'boolean',
