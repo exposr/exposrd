@@ -116,6 +116,16 @@ Try the tunnel
 
     curl --resolve example.localhost:8080:127.0.0.1 http://example.localhost:8080
 
+## Using environment variables
+
+Each option can be given as an environment variable instead of command line option. The environment variable
+is named the same as the command line option in upper case with `-` replaced with `_`, and prefixed with `EXPOSR_`.
+
+For example the command line option `--http-ingress-domain example.com` would be specified as `EXPOSR_HTTP_INGRESS_DOMAIN=example.com`.
+
+Multiple value options are specified as multiple variables. For example `--transport ws --transport ssh` would be specified
+as `EXPOSR_TRANSPORT_0=ws` and `EXPOSR_TRANSPORT_1=ssh`.
+
 ## Production deployment
 
 ### Kubernetes
