@@ -20,16 +20,30 @@ const args = yargs(process.argv.slice(2))
     })
     .option('ingress', {
         type: 'array',
-        describe: 'Ingress to enable',
+        describe: 'Ingress methods to enable',
         default: ['http'],
-        choices: ['http']
+        choices: ['http', 'sni']
     })
-    .option('http-ingress-domain', {
+    .option('ingress-http-domain', {
+        alias: 'http-ingress-domain',
         type: 'string',
         describe: 'Wildcard domain for HTTP ingress (ex. https://tun.example.com creates https://<tunnel-id>.tun.example.com ingress points)',
         coerce: (url) => {
             return typeof url == 'string' ? new URL(url) : url;
         },
+    })
+    .option('ingress-sni-port', {
+        type: 'integer',
+        describe: 'Port to use for SNI ingress point',
+        default: 4430,
+    })
+    .option('ingress-sni-cert', {
+        type: 'string',
+        describe: 'Certificate chain in PEM format to use for SNI ingress',
+    })
+    .option('ingress-sni-key', {
+        type: 'string',
+        describe: 'SNI ingress certificate private key in PEM format',
     })
     .option('transport', {
         type: 'array',

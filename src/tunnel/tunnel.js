@@ -17,6 +17,10 @@ class Tunnel {
             http: {
                 enabled: false,
                 url: undefined,
+            },
+            sni: {
+                enabled: false,
+                url: undefined,
             }
         };
         this.upstream = {

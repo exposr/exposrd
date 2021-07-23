@@ -167,10 +167,7 @@ class TunnelService {
             cb(tunnel);
 
             tunnel.endpoints.token = crypto.randomBytes(64).toString('base64url');
-
-            const ingress = new Ingress().getIngress(tunnel);
-            tunnel.ingress.http.url = ingress?.http?.url;
-
+            tunnel.ingress = new Ingress().getIngress(tunnel);
             tunnel.updated_at = new Date().toISOString();
         });
     }

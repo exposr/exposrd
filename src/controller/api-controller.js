@@ -138,6 +138,9 @@ class ApiController {
                         http: {
                             enabled: Router.Joi.boolean(),
                         },
+                        sni: {
+                            enabled: Router.Joi.boolean(),
+                        },
                     },
                     upstream: {
                         url: Router.Joi.string().uri(),
@@ -165,6 +168,8 @@ class ApiController {
                 const updatedTunnel = await account.updateTunnel(tunnelId, (tunnel) => {
                     tunnel.ingress.http.enabled =
                         ctx.request.body?.ingress?.http?.enabled ?? tunnel.ingress.http.enabled;
+                    tunnel.ingress.sni.enabled =
+                        ctx.request.body?.ingress?.sni?.enabled ?? tunnel.ingress.sni.enabled;
                     tunnel.upstream.url =
                         ctx.request.body?.upstream?.url ?? tunnel.upstream.url;
                     tunnel.endpoints.ws.enabled =

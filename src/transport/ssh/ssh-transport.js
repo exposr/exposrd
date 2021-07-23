@@ -25,13 +25,16 @@ class SSHTransport extends EventEmitter {
             session.on('pty', (accept, reject, info) => {
                 accept();
             });
-            session.on('shell', (accept, reject) => {
+            session.on('shell', async (accept, reject) => {
                 const stream = accept();
-                const ingress = new Ingress().getIngress(opts.tunnelId);
+                const tunnel = await TunnelService.lookup(opts.tunnelId);
+                const ingress = new Ingress().getIngress(tunnel);
                 stream.write(`Upstream target: ${this._upstream.href}\r\n`);
-                if (ingress?.http?.url) {
-                    stream.write(`HTTP ingress: ${ingress.http.url}\r\n`);
-                }
+                Object.keys(ingress).forEach((ing) => {
+                    if (ing?.url) {
+                        stream.write(`${ing.toUpperCase()} ingress: ${ing.url}\r\n`);
+                    }
+                });
 
                 stream.on('data', (data) => {
                     if (data[0] == 0x03) {

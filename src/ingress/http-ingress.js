@@ -86,6 +86,14 @@ class HttpIngress {
         });
     }
 
+    getIngress(tunnel) {
+        const url = new URL(this.opts.subdomainUrl.href);
+        url.hostname = `${tunnel.id}.${url.hostname}`;
+        return {
+            url: url.href
+        };
+    }
+
     _getTunnelId(req) {
         const hostname = req.headers.host;
         if (hostname === undefined) {

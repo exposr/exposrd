@@ -1,5 +1,6 @@
-import HttpIngress from './http-ingress.js';
 import assert from 'assert/strict';
+import HttpIngress from './http-ingress.js';
+import SNIIngress from './sni-ingress.js';
 
 class Ingress {
     constructor(opts) {
@@ -9,34 +10,54 @@ class Ingress {
         Ingress.instance = this;
         assert(opts != undefined);
         this.opts = opts;
-
-        const readyCallback = () => {
-            typeof opts.callback === 'function' && opts.callback();
-        };
-
         this.ingress = {};
-        if (opts.http && opts.http.enabled == true) {
-            this.ingress.http = new HttpIngress({
-                ...opts.http,
-                callback: readyCallback,
-            });
+
+        const p = [];
+
+        if (opts.http?.enabled == true) {
+            p.push(new Promise((resolve) => {
+                this.ingress.http = new HttpIngress({
+                    ...opts.http,
+                    callback: resolve,
+                });
+            }));
         }
+
+        if (opts.sni?.enabled == true) {
+            p.push(new Promise((resolve) => {
+                this.ingress.sni = new SNIIngress({
+                    ...opts.sni,
+                    callback: resolve
+                });
+            }));
+        }
+
+        setImmediate(async () => {
+            await Promise.allSettled(p);
+            typeof opts.callback === 'function' && opts.callback();
+        });
     }
 
     async destroy() {
-        this.ingress.http && await this.ingress.http.destroy();
+        return Promise.allSettled(
+            Object.keys(this.ingress).map(k => this.ingress[k].destroy())
+        );
     }
 
     getIngress(tunnel) {
         const ingress = {};
 
-        const tunnelId = (typeof tunnel === 'string') ? tunnel : tunnel.id;
-
-        if (this.opts.http && this.opts.http.enabled == true) {
-            const url = new URL(this.opts.http.subdomainUrl.href);
-            url.hostname = `${tunnelId}.${url.hostname}`;
+        if (this.opts?.http?.enabled == true) {
             ingress.http = {
-                url: url.href
+                ...tunnel.ingress.http,
+                ...this.ingress.http.getIngress(tunnel),
+            }
+        }
+
+        if (this.opts?.sni?.enabled == true) {
+            ingress.sni = {
+                ...tunnel.ingress.sni,
+                ...this.ingress.sni.getIngress(tunnel),
             }
         }
 

@@ -57,7 +57,13 @@ export default async () => {
                 },
                 http: {
                     enabled: Config.get('ingress').includes('http'),
-                    subdomainUrl: Config.get('http-ingress-domain')
+                    subdomainUrl: Config.get('ingress-http-domain')
+                },
+                sni: {
+                    enabled: Config.get('ingress').includes('sni'),
+                    port: Config.get('ingress-sni-port'),
+                    cert: Config.get('ingress-sni-cert'),
+                    key: Config.get('ingress-sni-key'),
                 }
             });
         } catch (e) {
