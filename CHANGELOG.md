@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.2.0](https://github.com/exposr/exposr-server/compare/v0.1.5...v0.2.0) (2021-07-23)
+
+
+### Features
+
+* add SSH as an alternative tunnel transport ([9e9a84e](https://github.com/exposr/exposr-server/commit/9e9a84e2a18efbde2f0304bcdf01ddf9b0a19266))
+* return configured upstream url in tunnel api ([f8b09f7](https://github.com/exposr/exposr-server/commit/f8b09f7ad21a7b59a2a32521e5630a5d793f44e4))
+
+
+### Bug Fixes
+
+* **api-controller:** don't override existing configuration with undefined values ([3222f20](https://github.com/exposr/exposr-server/commit/3222f208f38040710d8b79bd5716391ade228774))
+* **helm:** don't require api-url in helm configuration ([103afbc](https://github.com/exposr/exposr-server/commit/103afbc501e4f75e7c9e2f18263fee63fffde227))
+
 ### [0.1.5](https://github.com/exposr/exposr-server/compare/v0.1.4...v0.1.5) (2021-07-18)
 
 
