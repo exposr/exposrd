@@ -95,12 +95,13 @@ will auto-discover each other.
 
 # Running exposr
 
-## Containers
+## Runtime artifacts
 
-Latest release is available as `latest`, latest development is available as `unstable`.
+Currently, only containers are available as a runtime artifacts.
+Latest release is available with the `latest` tag, latest development is available with the `unstable` tag.
 
 ## Quick start
-You can quickly try out exposr without installing anything
+You can quickly try out exposr without installing anything.
 
 Run the server, the server will listen on port 8080 and the API will be exposed at `http://host.docker.internal:8080`.
 HTTP ingress sub-domains will be allocated from `http://localhost:8080`.
@@ -116,9 +117,10 @@ Try the tunnel
 
     curl --resolve example.localhost:8080:127.0.0.1 http://example.localhost:8080
 
-## Using environment variables
+## Configuration
+### Using environment variables
 
-Each option can be given as an environment variable instead of command line option. The environment variable
+Each option can be given as an environment variable instead of a command line option. The environment variable
 is named the same as the command line option in upper case with `-` replaced with `_`, and prefixed with `EXPOSR_`.
 
 For example the command line option `--http-ingress-domain example.com` would be specified as `EXPOSR_HTTP_INGRESS_DOMAIN=example.com`.
@@ -126,22 +128,7 @@ For example the command line option `--http-ingress-domain example.com` would be
 Multiple value options are specified as multiple variables. For example `--transport ws --transport ssh` would be specified
 as `EXPOSR_TRANSPORT_0=ws` and `EXPOSR_TRANSPORT_1=ssh`.
 
-## Production deployment
-
-### Kubernetes
-
-exposr can be deployed to kubernetes with helm.
-
-Add the repository
-
-	helm repo add exposr https://exposr.github.io/helm-charts/
-	helm repo update
-
-Deploy with
-
-    helm install my-exposr exposr/exposr
-
-## Configuring SSH transport
+### Configuring SSH transport
 
 To enable the SSH transport pass the flag `--transport ssh` to exposr.
 By default it will use port 2200, it can be changed with `--transport-ssh-port`.
@@ -151,7 +138,7 @@ A new SSH host key will be generated at startup. If you run in a clustered setup
 a static key so that clients always receive the same host key. The key can be specified either as a path or string
 containing a SSH private key in PEM encoded OpenSSH format using `--transport-ssh-key`.
 
-### Example
+#### Example
 
 Start the server with SSH transport enabled
 
@@ -188,13 +175,29 @@ has already been configured the left-hand part of -R can be left out, example `-
 
 Note that the connection token is only valid for one connection, and must be re-fetched for each connection.
 
-### Permanent SSH key
+#### Permanent SSH key
 Generate an SSH key with (only the private key is required)
 
     ssh-keygen -b 2048 -t rsa -f sshkey -q -N ""
 
 The content of the file can be passed through environment variables
+
     EXPOSR_TRANSPORT_SSH_KEY=$(<sshkey) exposr-server [...]
 
 You can also specify it as a path
+
     exposr-server [...] --transport-ssh-key /path/to/sshkey
+## Production deployment
+
+### Kubernetes
+
+exposr can be deployed to kubernetes with helm.
+
+Add the repository
+
+	helm repo add exposr https://exposr.github.io/helm-charts/
+	helm repo update
+
+Deploy with
+
+    helm install my-exposr exposr/exposr
