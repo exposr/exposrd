@@ -34,14 +34,30 @@ spec:
             - name: admin
               containerPort: 8081
               protocol: TCP
+{{- if eq .Values.exposr.ingress.sni.enabled true }}
+            - name: ingress-sni
+              containerPort: {{ .Values.exposr.ingress.sni.port }}
+              protocol: TCP
+{{- end }}
+{{- if eq .Values.exposr.transport.ssh.enabled true }}
+            - name: transport-ssh
+              containerPort: {{ .Values.exposr.transport.ssh.port }}
+              protocol: TCP
+{{- end }}
+{{- if .Values.exposr.ingress.sni.cert }}
+          volumeMounts:
+          - name: ingress-sni-cert
+            mountPath: /etc/exposr/ingress/sni/cert
+            readOnly: true
+{{- end }}
           livenessProbe:
             httpGet:
               path: /ping
-              port: admin 
+              port: admin
           readinessProbe:
             httpGet:
               path: /ping
-              port: admin 
+              port: admin
           envFrom:
             - configMapRef:
                 name: {{ include "exposr.fullname" . }}
@@ -51,6 +67,12 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- if .Values.exposr.ingress.sni.cert }}
+      volumes:
+      - name: ingress-sni-cert
+        secret:
+          secretName: {{ .Values.exposr.ingress.sni.cert }}
+{{- end }}
     {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}

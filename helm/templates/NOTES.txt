@@ -1,9 +1,26 @@
-exposr-server deployed
-
-{{- if .Values.ingress.enabled }}
+exposr-server {{ .Chart.AppVersion }} deployed
+{{ if .Values.ingress.enabled }}
+Kubernetes ingress:
 {{- range $host := .Values.ingress.hosts }}
   {{- range .paths }}
   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ . }}
   {{- end }}
 {{- end }}
+{{ end }}
+
+{{- if .Values.ingressAdmin.enabled }}
+Administration API:
+{{- range $host := .Values.ingressAdmin.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingressAdmin.tls }}s{{ end }}://{{ $host.host }}{{ . }}
+  {{- end }}
 {{- end }}
+{{- end }}
+
+exposr ingress:
+  HTTP enabled: {{ .Values.exposr.ingress.http.enabled }}
+  SNI enabled: {{ .Values.exposr.ingress.sni.enabled }}
+
+exposr transport
+  WS enabled: {{ .Values.exposr.transport.ws.enabled }}
+  SSH enabled: {{ .Values.exposr.transport.ssh.enabled }}

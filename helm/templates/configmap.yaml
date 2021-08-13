@@ -5,16 +5,57 @@ metadata:
   labels:
     {{- include "exposr.labels" . | nindent 4 }}
 data:
-  EXPOSR_LOG_LEVEL: "{{ index .Values.exposr "log-level" }}"
+{{- $exposrIngress := list }}
+{{- if eq .Values.exposr.ingress.http.enabled true }}
+{{- $exposrIngress = append $exposrIngress "http" }}
+{{- end }}
+{{- if eq .Values.exposr.ingress.sni.enabled true }}
+{{- $exposrIngress = append $exposrIngress "sni" }}
+{{- end }}
+{{- $exposrTransport := list }}
+{{- if eq .Values.exposr.transport.ws.enabled true }}
+{{- $exposrTransport = append $exposrTransport "ws" }}
+{{- end }}
+{{- if eq .Values.exposr.transport.ssh.enabled true }}
+{{- $exposrTransport = append $exposrTransport "ssh" }}
+{{- end }}
+  EXPOSR_LOG_LEVEL: "{{ .Values.exposr.logLevel }}"
+  EXPOSR_ALLOW_REGISTRATION: "{{ .Values.exposr.allowRegistration }}"
   EXPOSR_ADMIN_ENABLE: "true"
   EXPOSR_ADMIN_PORT: "8081"
-  EXPOSR_PORT: "8080"
-{{- if index .Values.exposr "api-url" }}
-  EXPOSR_API_URL: "{{ index .Values.exposr "api-url" }}"
+{{- if .Values.exposr.adminApiKey }}
+  EXPOSR_ADMIN_API_KEY: "{{ .Values.exposr.adminApiKey }}"
 {{- end }}
-  EXPOSR_INGRESS_0: "http"
-  EXPOSR_HTTP_INGRESS_DOMAIN: "{{ index .Values.exposr "http-ingress-domain" }}"
-  EXPOSR_ALLOW_REGISTRATION: "{{ index .Values.exposr "allow-registration" }}"
-{{- if index .Values.exposr "redis-url" }}
-  EXPOSR_REDIS_URL: "{{ index .Values.exposr "redis-url" }}"
+  EXPOSR_PORT: "8080"
+{{- if .Values.exposr.apiUrl }}
+  EXPOSR_API_URL: "{{ .Values.exposr.apiUrl }}"
+{{- end }}
+{{- if .Values.exposr.redisUrl }}
+  EXPOSR_REDIS_URL: "{{ .Values.exposr.redisUrl }}"
+{{- end }}
+  EXPOSR_INGRESS: "{{ join "," $exposrIngress }}"
+  EXPOSR_TRANSPORT: "{{ join "," $exposrTransport }}"
+{{- if eq .Values.exposr.ingress.http.enabled true }}
+{{- if .Values.exposr.ingress.http.domain }}
+  EXPOSR_INGRESS_HTTP_DOMAIN: "{{ .Values.exposr.ingress.http.domain }}"
+{{- end }}
+{{- end }}
+{{- if eq .Values.exposr.ingress.sni.enabled true }}
+  EXPOSR_INGRESS_SNI_PORT: "{{ .Values.exposr.ingress.sni.port }}"
+{{- if .Values.exposr.ingress.sni.cert }}
+  EXPOSR_INGRESS_SNI_CERT: "/etc/exposr/ingress/sni/cert/tls.crt"
+  EXPOSR_INGRESS_SNI_KEY: "/etc/exposr/ingress/sni/cert/tls.key"
+{{- end }}
+{{- end }}
+{{- if eq .Values.exposr.transport.ssh.enabled true }}
+  EXPOSR_TRANSPORT_SSH_PORT: "{{ .Values.exposr.transport.ssh.port }}"
+{{- if .Values.exposr.transport.ssh.host }}
+  EXPOSR_TRANSPORT_SSH_HOST: "{{ .Values.exposr.transport.ssh.host }}"
+{{- end }}
+{{- if .Values.exposr.transport.ssh.key }}
+  EXPOSR_TRANSPORT_SSH_KEY: "{{ .Values.exposr.transport.ssh.key }}"
+{{- end }}
+{{- end }}
+{{- if .Values.exposr.envs }}
+{{ toYaml .Values.exposr.envs | indent 2 }}
 {{- end }}

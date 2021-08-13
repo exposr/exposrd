@@ -15,5 +15,17 @@ spec:
       targetPort: admin
       protocol: TCP
       name: admin
+{{- if eq .Values.exposr.ingress.sni.enabled true }}
+    - port: {{ .Values.exposr.ingress.sni.servicePort }}
+      targetPort: ingress-sni
+      protocol: TCP
+      name: ingress-sni
+{{- end }}
+{{- if eq .Values.exposr.transport.ssh.enabled true }}
+    - port: {{ .Values.exposr.transport.ssh.servicePort }}
+      targetPort: transport-ssh
+      protocol: TCP
+      name: transport-ssh
+{{- end }}
   selector:
     {{- include "exposr.selectorLabels" . | nindent 4 }}

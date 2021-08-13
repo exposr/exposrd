@@ -1,0 +1,47 @@
+replicaCount: 3
+
+exposr:
+  # adminApiKey: changeMeToAverySecretApiKey
+  ingress:
+    http:
+      enabled: true
+      domain: https://tunnel.example.com
+    sni:
+      enabled: true
+      cert: example-com-cert # Uses the same certificate as the ingress
+  transport:
+    ws:
+      enabled: true
+    ssh:
+      enabled: true
+      # key: "" # Set to Base64 encoded OpenSSH PEM private key for a static host key
+  # logLevel: debug
+  # allowRegistration: true
+  # redisUrl: redis://:secretRedisPassword@redis-master.default.svc.cluster.local
+
+ingress:
+  enabled: true
+  hosts:
+    - host: api.example.com
+      paths: ["/"]
+    - host: "*.tunnel.example.com"
+      paths: ["/"]
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging # cert-manager.io certificate issuer
+  tls:
+    - secretName: example-com-cert
+      hosts:
+        - api.example.com
+        - "*.tunnel.example.com"
+
+ingressAdmin:
+  enabled: true
+  hosts:
+    - host: admin.example.com
+      paths: ["/"]
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging # cert-manager.io certificate issuer
+  tls:
+    - secretName: admin-example-com
+      hosts:
+        - admin-example-com

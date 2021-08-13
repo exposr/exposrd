@@ -1,8 +1,29 @@
 replicaCount: 1
 
+
 exposr:
-  log-level: info
-  allow-registration: false
+  logLevel: info
+  allowRegistration: false
+  adminApiKey: ""
+  transport:
+    ws:
+      enabled: true
+    ssh:
+      enabled: false
+      port: 2200
+      servicePort: 22
+      host: ""
+      key: ""
+  ingress:
+    http:
+      enabled: false
+      domain: ""
+    sni:
+      enabled: false
+      port: 4430
+      servicePort: 443
+      cert: ""
+  envs: {}
 
 image:
   repository: docker.io/exposr/exposr-server
@@ -27,6 +48,12 @@ service:
   adminPort: 8081
 
 ingress:
+  enabled: false
+  annotations: {}
+  hosts: []
+  tls: []
+
+ingressAdmin:
   enabled: false
   annotations: {}
   hosts: []
