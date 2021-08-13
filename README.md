@@ -73,11 +73,12 @@ The Websocket transport endpoint can run behind a HTTP loadbalancer on the same 
 as the API. The SSH transsport endpoint requires a dedicated TCP port and requires
 a TCP loadbalancer.
 
-**Supported ingress types**
+**Supported ingress methods**
 
-| Type         | Method                                | Protocol support      |
-| ------------ | ------------------------------------- | --------------------- |
-| HTTP         | Subdomain (wildcard domain)           | HTTP                  |
+| Type  | Method                   | Protocol support | Requirements                | Load balancer req. |
+| ----- | ------------------------ | ---------------- | --------------------------- | ------------------ |
+| HTTP  | Virtual host (subdomain) | HTTP             | Wildcard domain             | HTTP               |
+| SNI   | SNI                      | TLS              | Wildcard certificate+domain | TCP                |
 
 ## Persistence
 The default persistence mode is in-memory meaning all tunnel configurations are lost
@@ -127,6 +128,30 @@ For example the command line option `--http-ingress-domain example.com` would be
 
 Multiple value options are specified as multiple variables. For example `--transport ws --transport ssh` would be specified
 as `EXPOSR_TRANSPORT_0=ws` and `EXPOSR_TRANSPORT_1=ssh`.
+
+### Configuring SNI ingress
+
+To enable the SNI (Server Name Indication) ingress pass the flag `--ingress sni`.
+The SNI ingress requires a dedicated TCP port, by default it uses 4430. The port can be changed with `--ingress-sni-port`.
+
+The SNI ingress works by utilizing the SNI extension of TLS to get the tunnel from the hostname. Similar to
+the HTTP ingress it requires a wildcard DNS entry (`*.example.com`), but also a wildcard certificate covering
+the same domain name. It's compatible with any protocol that can run over TLS and a client that supports SNI.
+
+exposr will monitor the provided certificate and key for changes and re-load the certificate on-the fly.
+#### Certificate
+
+The certificate must contain one wildcard entry, either as the common name (`CN`) or in the SAN list.
+If there are multiple wildcard entries present, the first one will be used.
+
+For production use, a real certificate should be used. Let's encrypt offers free wildcard certificates.
+For testing a self-signed can be generated with openssl.
+
+    openssl req -x509 -newkey rsa:4096 -keyout private-key.pem -out certificate.pem -days 365 -node
+
+#### Example
+
+    exposr-server --ingress sni --ingress-sni-cert certificate.pem --ingress-sni-key private-key.pem
 
 ### Configuring SSH transport
 
