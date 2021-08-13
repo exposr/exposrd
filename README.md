@@ -126,8 +126,8 @@ is named the same as the command line option in upper case with `-` replaced wit
 
 For example the command line option `--http-ingress-domain example.com` would be specified as `EXPOSR_HTTP_INGRESS_DOMAIN=example.com`.
 
-Multiple value options are specified as multiple variables. For example `--transport ws --transport ssh` would be specified
-as `EXPOSR_TRANSPORT_0=ws` and `EXPOSR_TRANSPORT_1=ssh`.
+Multiple value options are specified as comma separated values.
+For example `--transport ws --transport ssh` would be specifiedas `EXPOSR_TRANSPORT=ws,ssh`
 
 ### Configuring SNI ingress
 

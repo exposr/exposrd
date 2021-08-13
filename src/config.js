@@ -10,6 +10,12 @@ versionStr += version?.build?.date ? `\ntimestamp: ${version.build.date}` : '';
 const args = yargs(process.argv.slice(2))
     .env("EXPOSR")
     .version(versionStr)
+    .middleware([
+        (argv) => {
+            argv.ingress = argv.ingress.flatMap((v) => v.split(','));
+            argv.transport = argv.transport.flatMap((v) => v.split(','));
+        }
+    ], true)
     .showHidden('show-hidden', 'Show hidden options')
     .option('api-url', {
         type: 'string',
@@ -22,7 +28,7 @@ const args = yargs(process.argv.slice(2))
         type: 'array',
         describe: 'Ingress methods to enable',
         default: ['http'],
-        choices: ['http', 'sni']
+        choices: ['http', 'sni'],
     })
     .option('ingress-http-domain', {
         alias: 'http-ingress-domain',
@@ -50,6 +56,9 @@ const args = yargs(process.argv.slice(2))
         describe: 'Tunnel transports to enable',
         default: ['ws'],
         choices: ['ws', 'ssh'],
+        coerce: (v) => {
+            return typeof v === 'string' ? v.split(',') : v;
+        }
     })
     .option('transport-ssh-port', {
         type: 'integer',
