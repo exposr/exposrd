@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.3.0](https://github.com/exposr/exposr-server/compare/v0.2.0...v0.3.0) (2021-08-14)
+
+
+### Features
+
+* **config:** allow ssh host key to be passed base64 encoded ([98ef1d5](https://github.com/exposr/exposr-server/commit/98ef1d561341035cd9bffa23e7c44a9f798a8236))
+* **helm:** update helm chart to support new features ([1110da6](https://github.com/exposr/exposr-server/commit/1110da67b39137dd15b2a685bec056c0addb9e31))
+* **ingress:** add support for SNI ingress ([608ec03](https://github.com/exposr/exposr-server/commit/608ec03f7de8c0de3e8841d1ab36f586b6a6baed))
+
+
+### Bug Fixes
+
+* **config:** allow multi-value options to be passed as comma separated env. variables ([55a98df](https://github.com/exposr/exposr-server/commit/55a98dfeebd4b6ade6490b81d71ae94b2b63cdd0))
+
 ## [0.2.0](https://github.com/exposr/exposr-server/compare/v0.1.5...v0.2.0) (2021-07-23)
 
 
