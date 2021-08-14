@@ -69,9 +69,9 @@ is bound for.
 | Websocket  | Custom multiplex websocket | HTTP       | [`exposr-cli`](https://github.com/exposr/exposr-cli) |
 | SSH        | SSH TCP forwarding         | TCP        | Any SSH client        |
 
-The Websocket transport endpoint can run behind a HTTP loadbalancer on the same port
-as the API. The SSH transsport endpoint requires a dedicated TCP port and requires
-a TCP loadbalancer.
+The Websocket transport endpoint can run behind a HTTP load balancer on the same port
+as the API. The SSH transport endpoint requires a dedicated TCP port and requires
+a TCP load balancer.
 
 **Supported ingress methods**
 
@@ -127,7 +127,7 @@ is named the same as the command line option in upper case with `-` replaced wit
 For example the command line option `--http-ingress-domain example.com` would be specified as `EXPOSR_HTTP_INGRESS_DOMAIN=example.com`.
 
 Multiple value options are specified as comma separated values.
-For example `--transport ws --transport ssh` would be specifiedas `EXPOSR_TRANSPORT=ws,ssh`
+For example `--transport ws --transport ssh` would be specifies `EXPOSR_TRANSPORT=ws,ssh`
 
 ### Configuring SNI ingress
 
@@ -147,7 +147,7 @@ If there are multiple wildcard entries present, the first one will be used.
 For production use, a real certificate should be used. Let's encrypt offers free wildcard certificates.
 For testing a self-signed can be generated with openssl.
 
-    openssl req -x509 -newkey rsa:4096 -keyout private-key.pem -out certificate.pem -days 365 -node
+    openssl req -x509 -newkey rsa:4096 -keyout private-key.pem -out certificate.pem -days 365 -nodes
 
 #### Example
 
@@ -216,7 +216,7 @@ You can also specify it as a path
 
 ### Kubernetes
 
-exposr can be deployed to kubernetes with helm.
+exposr can be deployed to Kubernetes with helm.
 
 Add the repository
 
