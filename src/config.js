@@ -86,28 +86,36 @@ const args = yargs(process.argv.slice(2))
     })
     .option('transport-ssh-key', {
         type: 'string',
-        describe: 'Path to, or string containing a SSH private key in PEM encoded OpenSSH format',
+        describe: 'Path to, or string containing a SSH private key in PEM encoded OpenSSH format (or base64 encoded)',
         hidden: true,
         coerce: (key) => {
             if (key == undefined) {
                 return key;
             }
+            const input = key;
 
-            const isProbablyKey = /BEGIN OPENSSH PRIVATE KEY/i.test(key);
-            let isFile;
+            const isProbablyKey = (k) => {
+                return /BEGIN OPENSSH PRIVATE KEY/i.test(k);
+            };
+
             try {
                 isFile = fs.statSync(key, { throwIfNoEntry: false }) != undefined;
-            } catch (e) {
-                isFile = false;
-            }
-            if (isFile) {
-                return fs.readFileSync(key).toString('utf-8');
-            } else if (isProbablyKey) {
+                if (isFile) {
+                    key = fs.readFileSync(key).toString('utf-8');
+                }
+            } catch (e) {}
+
+            if (isProbablyKey(key)) {
                 return key;
-            } else {
-                console.log(`transport-ssh-key requires either path to key or key content, got ${key}`);
-                process.exit(-1);
             }
+
+            key = Buffer.from(key, 'base64').toString('utf-8');
+            if (isProbablyKey(key)) {
+                return key;
+            }
+
+            console.log(`transport-ssh-key requires either path to key or key content, got ${input}`);
+            process.exit(-1);
         }
     })
     .option('port', {
