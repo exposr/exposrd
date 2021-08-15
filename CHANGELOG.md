@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.3.1](https://github.com/exposr/exposr-server/compare/v0.3.0...v0.3.1) (2021-08-15)
+
+
+### Bug Fixes
+
+* **helm:** add missing template for admin ingress ([e4f1024](https://github.com/exposr/exposr-server/commit/e4f1024719a3a197751a6cc10e0ee98391083e90))
+
 ## [0.3.0](https://github.com/exposr/exposr-server/compare/v0.2.0...v0.3.0) (2021-08-14)
 
 
