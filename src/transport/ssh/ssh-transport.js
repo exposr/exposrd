@@ -2,7 +2,6 @@ import assert from 'assert/strict';
 import { EventEmitter } from 'events';
 import { Duplex } from 'stream';
 import tls from 'tls';
-import Ingress from '../../ingress/index.js';
 import logger from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
 import Hostname from '../../utils/hostname.js';
@@ -28,9 +27,8 @@ class SSHTransport extends EventEmitter {
             session.on('shell', async (accept, reject) => {
                 const stream = accept();
                 const tunnel = await TunnelService.lookup(opts.tunnelId);
-                const ingress = new Ingress().getIngress(tunnel);
                 stream.write(`Upstream target: ${this._upstream.href}\r\n`);
-                Object.keys(ingress).forEach((ing) => {
+                Object.keys(tunnel.ingress).forEach((ing) => {
                     if (ing?.url) {
                         stream.write(`${ing.toUpperCase()} ingress: ${ing.url}\r\n`);
                     }
