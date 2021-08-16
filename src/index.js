@@ -67,6 +67,7 @@ export default async () => {
                 sni: {
                     enabled: Config.get('ingress').includes('sni'),
                     port: Config.get('ingress-sni-port'),
+                    host: Config.get('ingress-sni-host'),
                     cert: Config.get('ingress-sni-cert'),
                     key: Config.get('ingress-sni-key'),
                 }

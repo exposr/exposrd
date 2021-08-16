@@ -23,6 +23,19 @@ class SNIIngress {
 
         this.port = this.opts.port || 4430;
 
+        if (this.opts.host) {
+            try {
+                let host = this.opts.host;
+                if (!host.includes("://")) {
+                    host = `tcps://${host}`;
+                }
+                this.host = new URL(host);
+                if (!this.host.port) {
+                    this.host.port = this.port;
+                }
+            } catch {}
+        }
+
         if (!this._loadCert()) {
             throw new Error("Failed to load certificate");
         }
@@ -50,6 +63,7 @@ class SNIIngress {
             logger.info({
                 msg: "SNI ingress initialized",
                 port: this.port,
+                host: this.host,
             });
             typeof opts.callback === 'function' && opts.callback();
         });
@@ -148,8 +162,13 @@ class SNIIngress {
 
         let sniUrl;
         for (const sub of wildSubs) {
+            const port = this.host?.port || this.port;
+            const host = sub.split('*.')[1];
+            if (this.host != undefined && this.host.hostname != host) {
+                continue;
+            }
             try {
-                sniUrl = new URL(`tcps://${sub.split('*.')[1]}:${this.port}`);
+                sniUrl = new URL(`tcps://${host}:${port}`);
                 break;
             } catch (e) {}
         }

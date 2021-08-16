@@ -43,6 +43,11 @@ const args = yargs(process.argv.slice(2))
         describe: 'Port to use for SNI ingress point',
         default: 4430,
     })
+    .option('ingress-sni-host', {
+        type: 'string',
+        describe: 'Hostname for the SNI ingress point',
+        hidden: true,
+    })
     .option('ingress-sni-cert', {
         type: 'string',
         describe: 'Certificate chain in PEM format to use for SNI ingress',
