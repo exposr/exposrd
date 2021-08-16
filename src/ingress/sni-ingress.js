@@ -36,7 +36,7 @@ class SNIIngress {
         fs.watchFile(opts.cert, certUpdated);
         fs.watchFile(opts.key, certUpdated);
 
-        const server = tls.createServer({
+        const server = this.server = tls.createServer({
             SNICallback: (servername, cb) => {
                 cb(null, this.ctx);
             },
@@ -284,6 +284,13 @@ class SNIIngress {
         socket.pipe(upstream);
     }
 
+    async destroy() {
+        this.destroyed = true;
+        return new Promise((resolve) => {
+            this.server.close();
+            resolve();
+        });
+    }
 }
 
 export default SNIIngress;
