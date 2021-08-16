@@ -75,15 +75,24 @@ class SSHEndpoint {
         const port = this.opts.port;
         const username = tunnel.id;
         const password = tunnel.endpoints.token;
-        const url = `ssh://${username}:${password}@${host}:${port}`;
         const fingerprint = this._fingerprint;
 
+        let url;
+        try {
+            url = new URL(`ssh://${username}:${password}@${host}`);
+            if (!url.port) {
+                url.port = port;
+            }
+        } catch (e) {
+            return {};
+        }
+
         return {
-            host,
-            port,
+            host: url.hostname,
+            post: url.port,
             username,
             password,
-            url,
+            url: url.href,
             fingerprint,
         };
     }
