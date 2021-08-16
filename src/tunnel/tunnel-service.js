@@ -1,15 +1,15 @@
 import assert from 'assert/strict';
 import crypto from 'crypto';
+import NodeCache from 'node-cache';
+import AccountService from '../account/account-service.js';
 import EventBus from '../eventbus/index.js';
 import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';
-import Node from '../utils/node.js';
-import Tunnel from './tunnel.js';
-import TunnelState from './tunnel-state.js';
-import NodeCache from 'node-cache';
 import NodeSocket from '../transport/node-socket.js';
-import AccountService from '../account/account-service.js';
+import Node from '../utils/node.js';
+import TunnelState from './tunnel-state.js';
+import Tunnel from './tunnel.js';
 
 const logger = Logger("tunnel-service");
 
@@ -159,16 +159,33 @@ class TunnelService {
     }
 
     async update(tunnelId, accountId, cb) {
-        return this.db.update(tunnelId, Tunnel, (tunnel) => {
+        return this.db.update(tunnelId, Tunnel, async (tunnel) => {
             if (accountId != undefined && tunnel?.account !== accountId) {
                 return false;
             }
 
+            const orig = Object.assign(new Tunnel(), JSON.parse(JSON.stringify(tunnel)));
+
             cb(tunnel);
 
             tunnel.endpoints.token = crypto.randomBytes(64).toString('base64url');
-            tunnel.ingress = new Ingress().getIngress(tunnel);
+            const updatedIngress = await new Ingress().updateIngress(tunnel, orig);
+            if (updatedIngress instanceof Error) {
+                const err = updatedIngress;
+                logger.isDebugEnabled() &&
+                    logger
+                        .withContext('tunnel', tunnelId)
+                        .debug({
+                            operation: 'update_tunnel',
+                            msg: 'update ingress failed',
+                            err: err.message,
+                        });
+                return err;
+            }
+            tunnel.ingress = updatedIngress;
             tunnel.updated_at = new Date().toISOString();
+
+            return true;
         });
     }
 
@@ -196,6 +213,7 @@ class TunnelService {
         });
 
         await Promise.allSettled([
+            new Ingress().deleteIngress(tunnel),
             this.db.delete(tunnelId),
             this.db_state.delete(tunnelId),
             updateAccount,

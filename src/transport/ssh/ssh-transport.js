@@ -26,12 +26,15 @@ class SSHTransport extends EventEmitter {
             });
             session.on('shell', async (accept, reject) => {
                 const stream = accept();
-                const tunnel = await TunnelService.lookup(opts.tunnelId);
+                const tunnel = await this._tunnelService.lookup(opts.tunnelId);
                 stream.write(`Upstream target: ${this._upstream.href}\r\n`);
                 Object.keys(tunnel.ingress).forEach((ing) => {
-                    if (ing?.url) {
-                        stream.write(`${ing.toUpperCase()} ingress: ${ing.url}\r\n`);
+                    if (!tunnel.ingress[ing].enabled) {
+                        return;
                     }
+                    tunnel.ingress[ing]?.urls?.forEach((url) => {
+                        stream.write(`${ing.toUpperCase()} ingress: ${url}\r\n`);
+                    });
                 });
 
                 stream.on('data', (data) => {

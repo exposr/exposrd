@@ -17,11 +17,14 @@ class Tunnel {
             http: {
                 enabled: false,
                 url: undefined,
+                urls: undefined,
+                alt_names: [],
             },
             sni: {
                 enabled: false,
                 url: undefined,
-            }
+                urls: undefined,
+            },
         };
         this.upstream = {
             url: undefined,

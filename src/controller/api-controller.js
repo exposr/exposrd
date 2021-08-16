@@ -6,6 +6,7 @@ import Config from '../config.js';
 import Endpoint from '../endpoint/index.js';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
+import Tunnel from '../tunnel/tunnel.js';
 import {
     ERROR_AUTH_NO_ACCESS_TOKEN,
     ERROR_AUTH_PERMISSION_DENIED,
@@ -137,6 +138,7 @@ class ApiController {
                     ingress: {
                         http: {
                             enabled: Router.Joi.boolean(),
+                            alt_names: Router.Joi.array().max(10).items(Router.Joi.string().lowercase().domain()),
                         },
                         sni: {
                             enabled: Router.Joi.boolean(),
@@ -165,24 +167,30 @@ class ApiController {
                     return;
                 }
 
+                const body = ctx.request.body;
                 const updatedTunnel = await account.updateTunnel(tunnelId, (tunnel) => {
                     tunnel.ingress.http.enabled =
-                        ctx.request.body?.ingress?.http?.enabled ?? tunnel.ingress.http.enabled;
+                        body?.ingress?.http?.enabled ?? tunnel.ingress.http.enabled;
                     tunnel.ingress.sni.enabled =
-                        ctx.request.body?.ingress?.sni?.enabled ?? tunnel.ingress.sni.enabled;
+                        body?.ingress?.sni?.enabled ?? tunnel.ingress.sni.enabled;
+                    tunnel.ingress.http.alt_names =
+                        body?.ingress?.http?.alt_names ?? tunnel.ingress.http.alt_names;
                     tunnel.upstream.url =
-                        ctx.request.body?.upstream?.url ?? tunnel.upstream.url;
+                        body?.upstream?.url ?? tunnel.upstream.url;
                     tunnel.endpoints.ws.enabled =
-                        ctx.request.body?.endpoints?.ws?.enabled ?? tunnel.endpoints.ws.enabled;
+                        body?.endpoints?.ws?.enabled ?? tunnel.endpoints.ws.enabled;
                     tunnel.endpoints.ssh.enabled =
-                        ctx.request.body?.endpoints?.ssh?.enabled ?? tunnel.endpoints.ssh.enabled;
+                        body?.endpoints?.ssh?.enabled ?? tunnel.endpoints.ssh.enabled;
                 });
-                if (updatedTunnel) {
+                if (updatedTunnel instanceof Tunnel) {
                     ctx.body = tunnelInfo(updatedTunnel, ctx.req._exposrBaseUrl);
                     ctx.status = 200;
+                } else if (updatedTunnel instanceof Error) {
+                    ctx.status = 400;
+                    ctx.body = {error: updatedTunnel.code, details: updatedTunnel.details};
                 } else {
                     ctx.status = 403;
-                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED}
+                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
                 }
             }]
         });

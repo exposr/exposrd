@@ -55,11 +55,21 @@ class SNIIngress {
         });
     }
 
-    getIngress(tunnel) {
+    getBaseUrl(tunnelId = undefined) {
         const url = new URL(this.sniUrl);
-        url.hostname = `${tunnel.id}.${url.hostname}`;
+        if (tunnelId) {
+            url.hostname = `${tunnelId}.${url.hostname}`;
+        }
+        return url;
+    }
+
+    getIngress(tunnel) {
+        const url = this.getBaseUrl(tunnel.id).href;
         return {
-            url: url.href
+            url,
+            urls: [
+                url,
+            ],
         };
     }
 

@@ -3,8 +3,10 @@ import net from 'net';
 import NodeCache from 'node-cache';
 import EventBus from '../eventbus/index.js';
 import Listener from '../listener/index.js';
+import IngressUtils from './utils.js';
 import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
+import AltNameService from './altname-service.js';
 import { ERROR_TUNNEL_NOT_FOUND,
          ERROR_TUNNEL_NOT_CONNECTED,
          ERROR_TUNNEL_HTTP_INGRESS_DISABLED,
@@ -13,7 +15,7 @@ import { ERROR_TUNNEL_NOT_FOUND,
          ERROR_TUNNEL_UPSTREAM_CON_REFUSED,
          ERROR_TUNNEL_UPSTREAM_CON_FAILED,
          ERROR_UNKNOWN_ERROR,
-       } from '../utils/errors.js';
+} from '../utils/errors.js';
 import Node from '../utils/node.js';
 import {
     HTTP_HEADER_EXPOSR_VIA,
@@ -37,6 +39,7 @@ class HttpIngress {
         }
 
         this.destroyed = false;
+        this.altNameService = new AltNameService();
         this.tunnelService = new TunnelService(opts.callback);
         this.httpListener = new Listener().getListener('http');
         this.httpListener.use('request', { logger, prio: 1 }, async (ctx, next) => {
@@ -86,37 +89,43 @@ class HttpIngress {
         });
     }
 
-    getIngress(tunnel) {
+    getBaseUrl(tunnelId = undefined) {
         const url = new URL(this.opts.subdomainUrl.href);
-        url.hostname = `${tunnel.id}.${url.hostname}`;
+        if (tunnelId) {
+            url.hostname = `${tunnelId}.${url.hostname}`;
+        }
+        return url;
+    }
+
+    getIngress(tunnel, altNames = []) {
+        const altUrls = altNames.map((an) => {
+            const url = this.getBaseUrl();
+            url.hostname = an;
+            return url.href;
+        });
+
+        const url = this.getBaseUrl(tunnel.id).href;
         return {
-            url: url.href
+            url,
+            urls: [
+                url,
+                ...altUrls,
+            ]
         };
     }
 
-    _getTunnelId(req) {
-        const hostname = req.headers.host;
-        if (hostname === undefined) {
-            return undefined;
-        }
-
-        const host = hostname.toLowerCase().split(":")[0];
-        if (host === undefined) {
-            return undefined;
-        }
-
-        const tunnelId = host.split('.', 1)[0];
-        const parentDomain = host.slice(tunnelId.length + 1);
-        if (parentDomain != this.opts.subdomainUrl.hostname) {
-            return undefined;
-        }
-        return tunnelId;
-    }
-
     async _getTunnel(req) {
-        const tunnelId = this._getTunnelId(req);
+        const host = (req.headers.host || '').toLowerCase().split(":")[0];
+        if (!host) {
+            return undefined;
+        }
+
+        let tunnelId = IngressUtils.getTunnelId(host, this.opts.subdomainUrl.hostname);
         if (!tunnelId) {
-            return tunnelId;
+            tunnelId = await this.altNameService.get('http', host);
+            if (!tunnelId) {
+                return tunnelId;
+            }
         }
 
         return this.tunnelService.lookup(tunnelId);
