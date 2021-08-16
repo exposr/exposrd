@@ -17,6 +17,11 @@ export default async () => {
         address: Node.address,
     });
 
+    process.on('uncaughtException', (err, origin) => {
+        Logger.error(`uncaughtException: ${err.message}`);
+        process.exit(-1);
+    });
+
     let listener;
     let endpoint;
     try {
