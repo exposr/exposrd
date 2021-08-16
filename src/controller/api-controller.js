@@ -48,25 +48,25 @@ class ApiController {
                 ctx.status = 400;
                 ctx.body = {
                     error: ERROR_BAD_INPUT,
-                    field:  `content-type: ${ctx.invalid.type.msg}`,
-                }
+                    field: `content-type: ${ctx.invalid.type.msg}`,
+                };
             } else if (ctx.invalid.params) {
                 ctx.status = parseInt(ctx.invalid.params.status) || 400;
                 ctx.body = {
                     error: ERROR_BAD_INPUT,
                     field: ctx.invalid.params.msg
-                }
+                };
             } else if (ctx.invalid.body) {
                 ctx.status = parseInt(ctx.invalid.body.status) || 400;
                 ctx.body = {
                    error: ERROR_BAD_INPUT,
                    field: ctx.invalid.body.msg
-                }
+                };
             } else {
                 ctx.status = 400;
                 ctx.body = {
                     error: ERROR_BAD_INPUT,
-                }
+                };
             }
         };
 
@@ -75,14 +75,14 @@ class ApiController {
             const accountId = token ? Buffer.from(token, 'base64').toString('utf-8') : undefined;
             if (!token || !accountId) {
                 ctx.status = 401;
-                ctx.body = {error: ERROR_AUTH_NO_ACCESS_TOKEN}
+                ctx.body = {error: ERROR_AUTH_NO_ACCESS_TOKEN};
                 return;
             }
 
             const account = await this.accountService.get(accountId);
             if (account instanceof Account == false) {
                 ctx.status = 401;
-                ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED}
+                ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
                 return;
             }
 
@@ -109,7 +109,7 @@ class ApiController {
                     url: tunnel.upstream.url,
                 },
                 created_at: tunnel.created_at,
-            }
+            };
 
             info.endpoints = this.transportEndpoint.getEndpoints(tunnel, baseUrl);
 
@@ -163,7 +163,7 @@ class ApiController {
                 const created = await account.createTunnel(tunnelId);
                 if (created == false) {
                     ctx.status = 403;
-                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED}
+                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
                     return;
                 }
 
@@ -213,7 +213,7 @@ class ApiController {
                     ctx.status = 404;
                     ctx.body = {
                         error: ERROR_TUNNEL_NOT_FOUND,
-                    }
+                    };
                 } else {
                     ctx.status = 204;
                 }
@@ -238,7 +238,7 @@ class ApiController {
                     ctx.status = 404;
                     ctx.body = {
                         error: ERROR_TUNNEL_NOT_FOUND,
-                    }
+                    };
                 } else {
                     ctx.status = 200;
                     ctx.body = tunnelInfo(tunnel, ctx.req._exposrBaseUrl);
@@ -269,7 +269,7 @@ class ApiController {
                     ctx.status = 200;
                     ctx.body = {
                         result
-                    }
+                    };
                 }
             }]
         });
@@ -302,7 +302,7 @@ class ApiController {
                     return;
                 }
                 ctx.status = 201;
-                ctx.body = accountProps(account) ;
+                ctx.body = accountProps(account);
             }]
         });
 
@@ -329,7 +329,7 @@ class ApiController {
                 ctx.status = 201;
                 ctx.body = {
                     token: Buffer.from(accountId).toString('base64'),
-                }
+                };
             }]
         });
 
