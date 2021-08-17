@@ -14,9 +14,10 @@ and is well suited to run in container-orchestration systems like Kubernetes.
 
 * Scales horizontally - more nodes can be added to increase capacity.
 * No configuration files! - All configuration can be done as environment variables or command line options.
-* Designed to run behind a load balancer (HTTP/TCP) (ex. nginx or HAProxy) - only one port required to be exposed.
+* Designed to run behind a load balancer (HTTP/TCP) (ex. nginx or HAProxy).
 * Suitable to run in container-orchestration systems such as Kubernetes.
 * Multiple transports - multiplexed websocket with custom client or SSH client forwarding.
+* Multiple ingress methods - HTTP (with custom domain support) or SNI for TLS/TCP protocols.
 * Custom client can forward to any host, does not require root privileges and only requires outbound HTTP(s) connections.
 * Tunnel configuration through restful APIs.
 * No passwords or e-mails - but still secure. An account number together with the tunnel identifier serves as credentials.
@@ -36,7 +37,7 @@ example at the load balancer.
 # Architecture
 exposr have three core concepts, transports, endpoints and ingress.
 
-A tunnel is composed of a transport and an endpoint.
+A tunnel is composed of a transport and a connection endpoint.
 The endpoint is used by the client to establish a tunnel connection.
 The transport of the tunnel is the underlying data stream of the tunnel, it supports
 multiple independent streams over one connection.
@@ -119,16 +120,46 @@ Try the tunnel
     curl --resolve example.localhost:8080:127.0.0.1 http://example.localhost:8080
 
 ## Configuration
-### Using environment variables
 
-Each option can be given as an environment variable instead of a command line option. The environment variable
-is named the same as the command line option in upper case with `-` replaced with `_`, and prefixed with `EXPOSR_`.
+exposr needs to have at least one ingress and one transport method enabled. The default option enables
+the HTTP ingress and the WS transport.
 
-For example the command line option `--http-ingress-domain example.com` would be specified as `EXPOSR_HTTP_INGRESS_DOMAIN=example.com`.
+### Configuring HTTP ingress
+The HTTP ingress can be enabled by passing the flag `--ingress http`.
+It uses the same port as the API port, and fully supports HTTP(s) including upgrade requests (ex. websockets).
 
-Multiple value options are specified as comma separated values.
-For example `--transport ws --transport ssh` would be specifies `EXPOSR_TRANSPORT=ws,ssh`
+The HTTP ingress uses subdomains and virtual hosts to determine the tunnel id and requires a
+wildcard DNS entry to be configured and pointed to your server or load balancer.
 
+    *.example.com  IN A  10.0.0.1
+
+The domain needs to be configured with `--ingress-http-domain`.
+
+    exposr-server --ingress-http --ingress-http-domain http://example.com
+
+Each tunnel will be allocated an subdomain, ex. `http://my-tunnel.example.com`.
+
+If you have a proxy or load balancer in-front of exposr that terminates HTTPS, pass the domain with
+the `https` protocol instead. (`--ingress-http-domain https://example.com).
+#### BYOD (Bring Your Own Domain)
+The HTTP ingress supports custom domain names to be assigned to a tunnel outside of the automatic one
+allocated from the wildcard domain. Assigning a custom domain name to a tunnel will make exposr
+recognize requests for the tunnel using this name.
+
+To configure BYOD (altname) a CNAME for the domain must be created and pointing towards the FQDN
+of the tunnel. For example, to use the name `example.net` for the tunnel `my-tunnel.example.com`
+a CNAME should be configured for `example.net` pointing to `my-tunnel.example.com`.
+
+    example.net  IN CNAME  my-tunnel.example.com
+
+Finally the altname needs to be enabled in exposr, this can be done through the cli.
+
+    exposr configure-tunnel my-tunnel ingress-http-altname example.net
+
+The request will be rejected unless the CNAME is properly configured.
+
+Note that if you have a load balancer or proxy in front of exposr that terminates HTTPS
+you need have a certificate that covers the altname.
 ### Configuring SNI ingress
 
 To enable the SNI (Server Name Indication) ingress pass the flag `--ingress sni`.
@@ -212,6 +243,16 @@ The content of the file can be passed through environment variables
 You can also specify it as a path
 
     exposr-server [...] --transport-ssh-key /path/to/sshkey
+### Using environment variables
+
+Each option can be given as an environment variable instead of a command line option. The environment variable
+is named the same as the command line option in upper case with `-` replaced with `_`, and prefixed with `EXPOSR_`.
+
+For example the command line option `--ingress-http-domain example.com` would be specified as `EXPOSR_INGRESS_HTTP_DOMAIN=example.com`.
+
+Multiple value options are specified as comma separated values.
+For example `--transport ws --transport ssh` would be specifies `EXPOSR_TRANSPORT=ws,ssh`
+
 ## Production deployment
 
 ### Kubernetes
