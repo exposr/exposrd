@@ -27,19 +27,22 @@ class Ingress {
         }
 
         if (opts.sni?.enabled == true) {
-            p.push(new Promise((resolve) => {
+            p.push(new Promise((resolve, reject) => {
                 this.ingress.sni = new SNIIngress({
                     ...opts.sni,
-                    callback: resolve
+                    callback: (e) => {
+                        e ? reject(e) : resolve()
+                    },
                 });
             }));
         }
 
         this.altNameService = new AltNameService();
 
-        setImmediate(async () => {
-            await Promise.allSettled(p);
+        Promise.all(p).then(() => {
             typeof opts.callback === 'function' && opts.callback();
+        }).catch(e => {
+            typeof opts.callback === 'function' && opts.callback(e);
         });
     }
 

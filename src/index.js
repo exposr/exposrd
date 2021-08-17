@@ -57,8 +57,8 @@ export default async () => {
     const ingressReady = new Promise((resolve, reject) => {
         try {
             const ingress = new Ingress({
-                callback: () => {
-                    resolve(ingress);
+                callback: (err) => {
+                    err ? reject(err) : resolve(ingress);
                 },
                 http: {
                     enabled: Config.get('ingress').includes('http'),

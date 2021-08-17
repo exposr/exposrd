@@ -59,12 +59,21 @@ class SNIIngress {
             this._handleConnection(socket);
         });
 
+        const conError = (err) => {
+            typeof opts.callback === 'function' && opts.callback(err);
+            logger.error({
+                message: `Failed to start SNI ingress: ${err.message}`,
+            });
+        };
+        server.once('error', conError);
+
         server.listen(this.port, () => {
             logger.info({
-                msg: "SNI ingress initialized",
+                message: "SNI ingress initialized",
                 port: this.port,
                 host: this.host,
             });
+            server.removeListener('error', conError);
             typeof opts.callback === 'function' && opts.callback();
         });
     }
