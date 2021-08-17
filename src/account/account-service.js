@@ -17,7 +17,7 @@ class AccountService {
     }
 
     static normalizeId(accountId) {
-        const normalized = accountId.replace(/ /g, '').toUpperCase();
+        const normalized = accountId.replace(/[ -]/g, '').toUpperCase();
         if (AccountService.ACCOUNT_ID_REGEX.test(normalized)) {
             return normalized;
         } else {
@@ -26,7 +26,7 @@ class AccountService {
     }
 
     static formatId(accountId) {
-        return accountId.replace(/.{1,4}(?=(.{4})+$)/g, '$& ');
+        return accountId.replace(/.{1,4}(?=(.{4})+$)/g, '$&-');
     }
 
     constructor() {
