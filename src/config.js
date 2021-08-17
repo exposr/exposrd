@@ -17,13 +17,14 @@ const args = yargs(process.argv.slice(2))
         }
     ], true)
     .showHidden('show-hidden', 'Show hidden options')
-    .option('api-url', {
-        type: 'string',
-        describe: 'Base URL for API (ex https://api.example.com). The API will only be available through this URL',
-        coerce: (url) => {
-            return typeof url == 'string' ? new URL(url) : url;
-        }
-    })
+    .group([
+        'ingress',
+        'ingress-http-domain',
+        'ingress-sni-port',
+        'ingress-sni-host',
+        'ingress-sni-cert',
+        'ingress-sni-key',
+    ], 'Ingress configuration')
     .option('ingress', {
         type: 'array',
         describe: 'Ingress methods to enable',
@@ -56,6 +57,12 @@ const args = yargs(process.argv.slice(2))
         type: 'string',
         describe: 'SNI ingress certificate private key in PEM format',
     })
+    .group([
+        'transport',
+        'transport-ssh-port',
+        'transport-ssh-host',
+        'transport-ssh-key',
+    ], 'Transport configuration')
     .option('transport', {
         type: 'array',
         describe: 'Tunnel transports to enable',
@@ -123,12 +130,12 @@ const args = yargs(process.argv.slice(2))
             process.exit(-1);
         }
     })
-    .option('port', {
-        alias: 'p',
-        type: 'number',
-        default: 8080,
-        description: 'Server HTTP port to listen on',
-    })
+    .group([
+        'admin-enable',
+        'admin-port',
+        'admin-api-key',
+        'admin-allow-access-without-api-key',
+    ], 'Admin configuration')
     .option('admin-enable', {
         type: 'boolean',
         default: false,
@@ -149,11 +156,32 @@ const args = yargs(process.argv.slice(2))
         hidden: true,
         description: 'Allow access to admin resource without any authentication'
     })
+    .group([
+        'api-url',
+        'port',
+        'allow-registration',
+    ], 'API configuration')
+    .option('api-url', {
+        type: 'string',
+        describe: 'Base URL for API (ex https://api.example.com). The API will only be available through this URL',
+        coerce: (url) => {
+            return typeof url == 'string' ? new URL(url) : url;
+        }
+    })
+    .option('port', {
+        alias: 'p',
+        type: 'number',
+        default: 8080,
+        description: 'Server HTTP port to listen on',
+    })
     .option('allow-registration', {
         type: 'boolean',
         default: false,
         description: 'Allow public account registration - NB: this allows public tunnel creation!'
     })
+    .group([
+        'redis-url',
+    ], 'Storage configuration')
     .option('redis-url', {
         type: 'string',
         description: 'Redis connection URL, enables Redis persistance layer',
