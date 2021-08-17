@@ -2,7 +2,7 @@ import yargs from 'yargs';
 import fs from 'fs';
 import Version from './version.js';
 
-const parse = (args = {}) => {
+const parse = (callback, args = {}) => {
     const version = Version.version;
     let versionStr = `version: ${version.version} (pkg ${version.package})`;
     versionStr += version?.build?.commit ? `\ncommit: ${version?.build?.commit}/${version?.build?.branch}` : '';
@@ -204,7 +204,7 @@ const parse = (args = {}) => {
             choices: ['json'],
         })
         .scriptName('exposr-server')
-        .parse(process.argv.slice(2));
+        .parse(process.argv.slice(2), callback);
 }
 class Config {
     constructor() {
@@ -212,8 +212,22 @@ class Config {
             return Config.instance;
         }
         Config.instance = this;
-        const args = parse();
-        this._config = parse(args);
+
+        const cb = (err, _, output) => {
+            if (err) {
+                if (process.env.NODE_ENV === 'test') {
+                    return;
+                }
+                console.log(output);
+                process.exit(-1);
+            } else if (output) {
+                console.log(output);
+                process.exit(0);
+            }
+        };
+
+        const args = parse(cb);
+        this._config = parse(cb, args);
     }
 
     get(key) {
