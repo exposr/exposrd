@@ -1,5 +1,6 @@
 {{- if or .Values.ingressAdmin.enabled -}}
-{{- $fullName := include "exposr.fullname" . -}}
+{{- $fullName := list ((include "exposr.fullname" .) | trunc 58) "admin" | join "-" -}}
+{{- $svcName := include "exposr.fullname" . -}}
 {{- $svcPort := .Values.service.adminPort -}}
 {{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
 apiVersion: networking.k8s.io/v1beta1
@@ -34,7 +35,7 @@ spec:
         {{- range .paths }}
           - path: {{ . }}
             backend:
-              serviceName: {{ $fullName }}
+              serviceName: {{ $svcName }}
               servicePort: {{ $svcPort }}
         {{- end }}
   {{- end }}
