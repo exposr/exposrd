@@ -86,6 +86,7 @@ class AccountService {
         return this._db.update(AccountService.normalizeId(normalizedId), Account, (account) => {
             callback(account);
             account.updated_at = new Date().toISOString();
+            return true;
         });
     }
 

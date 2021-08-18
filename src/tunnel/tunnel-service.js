@@ -75,6 +75,7 @@ class TunnelService {
                     tunnelState.peer = undefined;
                     tunnelState.node = undefined;
                     tunnelState.disconnected_at = new Date().toISOString();
+                    return true;
                 });
 
                 // Refresh connection token
@@ -265,6 +266,7 @@ class TunnelService {
             const updated = await this.db_state.update(tunnelId, TunnelState, (tunnelState) => {
                 tunnelState.connected = true;
                 tunnelState.alive_at = new Date().toISOString();
+                return true;
             }, { TTL: 60 });
         };
 
