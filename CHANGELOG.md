@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.4.3](https://github.com/exposr/exposr-server/compare/v0.4.2...v0.4.3) (2021-08-18)
+
+
+### Bug Fixes
+
+* add missing return in storage updates ([7dd04ab](https://github.com/exposr/exposr-server/commit/7dd04abebe6a6ed204f6236090ddbbe1a90b2a9c))
+* **helm:** really fix service name and resource name for admin ingress ([98b8371](https://github.com/exposr/exposr-server/commit/98b83715f6473adb7abb41dce24539c3a8459261))
+
 ### [0.4.2](https://github.com/exposr/exposr-server/compare/v0.4.1...v0.4.2) (2021-08-18)
 
 

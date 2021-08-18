@@ -1,6 +1,6 @@
 {
   "name": "exposr-server",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "main": "src/index.js",
   "type": "module",
   "author": "Fredrik Lindberg <fli@shapeshifter.se>",
