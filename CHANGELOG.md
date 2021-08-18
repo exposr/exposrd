@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.4.1](https://github.com/exposr/exposr-server/compare/v0.4.0...v0.4.1) (2021-08-18)
+
+
+### Bug Fixes
+
+* **helm:** wrong resource kind ([7bc06d9](https://github.com/exposr/exposr-server/commit/7bc06d9f8e9791720f7e7688d215c7f10a443ec3))
+
 ## [0.4.0](https://github.com/exposr/exposr-server/compare/v0.3.1...v0.4.0) (2021-08-18)
 
 
