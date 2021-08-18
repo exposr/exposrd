@@ -1,5 +1,5 @@
 {{- if or .Values.ingressAdmin.enabled -}}
-{{- $fullName := "admin" -}}
+{{- $fullName := include "exposr.fullname" . -}}
 {{- $svcPort := .Values.service.adminPort -}}
 {{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
 apiVersion: networking.k8s.io/v1beta1
