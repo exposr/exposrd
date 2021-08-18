@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.4.2](https://github.com/exposr/exposr-server/compare/v0.4.1...v0.4.2) (2021-08-18)
+
+
+### Bug Fixes
+
+* **helm:** fix service name for admin ingress ([1683730](https://github.com/exposr/exposr-server/commit/1683730d111a1512711f564f962d0694e8817b56))
+
 ### [0.4.1](https://github.com/exposr/exposr-server/compare/v0.4.0...v0.4.1) (2021-08-18)
 
 
