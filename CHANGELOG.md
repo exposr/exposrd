@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.4.0](https://github.com/exposr/exposr-server/compare/v0.3.1...v0.4.0) (2021-08-18)
+
+
+### Features
+
+* use dashes as account number separator ([5b87fce](https://github.com/exposr/exposr-server/commit/5b87fce33ea6d61bced04e2e84eec53ad14eb5b5))
+* **config:** group configuration options ([11a5ea8](https://github.com/exposr/exposr-server/commit/11a5ea891f0e33bc05719175a44278e522041c8e))
+* **config:** smarter config parser ([30bf10e](https://github.com/exposr/exposr-server/commit/30bf10e8c9520497c555013b6fc36e7028882705))
+* **http-ingress:** support for BYOD (bring-your-own-domain) ([5c0c707](https://github.com/exposr/exposr-server/commit/5c0c707c8759e6c3ff49fd97eec5cbfd3012e949))
+* **sni-ingress:** add ingress-sni-host option ([d6bda57](https://github.com/exposr/exposr-server/commit/d6bda57fbd42ec421a1baae592c0197e5ddf5791))
+
+
+### Bug Fixes
+
+* **config:** let tests run without a command line config ([8aa8eff](https://github.com/exposr/exposr-server/commit/8aa8eff439a3c8b0c2e2d4df263fc363477135f5))
+* **tunnel-service:** only refresh connection token on disconnect ([74c1cd9](https://github.com/exposr/exposr-server/commit/74c1cd9ef799c2b73074f062b194560b12f82152))
+* improve error handling during startup ([4360904](https://github.com/exposr/exposr-server/commit/43609047e2fb884a9ad4b75ded10e63a1085b502))
+* **sni-ingress:** add missing destroy() ([fb09ad2](https://github.com/exposr/exposr-server/commit/fb09ad25dacc85d1647b7640326a966aad4845fb))
+* **ssh-endpoint:** use port from ssh-transport-host when constructing endpoint url ([18ad9f2](https://github.com/exposr/exposr-server/commit/18ad9f21238b0dc534e04bfb65dd14e0e5da022d))
+* add a handler the uncaughtException event ([571b8c6](https://github.com/exposr/exposr-server/commit/571b8c6cd7d9637a2da209bf5037de7d705edb95))
+* **ssh-transport:** use existing ingress urls ([cd8ad11](https://github.com/exposr/exposr-server/commit/cd8ad11a680e5c047b7dfb63d0c9d653e1c12269))
+
 ### [0.3.1](https://github.com/exposr/exposr-server/compare/v0.3.0...v0.3.1) (2021-08-15)
 
 
