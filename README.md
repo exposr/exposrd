@@ -10,7 +10,7 @@ Why another "localhost reverse proxy"? exposr takes a slightly different approac
 of the same type. exposr is designed to run as a container with horizontal elastic scaling properties,
 and is well suited to run in container-orchestration systems like Kubernetes.
 
-## Features
+# Features
 
 * Scales horizontally - more nodes can be added to increase capacity.
 * No configuration files! - All configuration can be done as environment variables or command line options.
@@ -32,10 +32,42 @@ example at the load balancer.
 
 ## Demo
 
-![](https://exposr.github.io/docs/img/demo/exposr-demo-20210629.gif)
+![](https://exposr.github.io/docs/img/demo/exposr-demo-20210822.gif)
+
+## Supported transports
+
+| Type       | Method                     | Endpoint   | Client support        |
+| ---------- | -------------------------- |----------- | --------------------- |
+| Websocket  | Custom multiplex websocket | HTTP       | [`exposr-cli`](https://github.com/exposr/exposr-cli) |
+| SSH        | SSH TCP forwarding         | TCP        | Any SSH client        |
+
+The Websocket transport endpoint can run behind a HTTP load balancer on the same port
+as the API. The SSH transport endpoint requires a dedicated TCP port and requires
+a TCP load balancer.
+
+## Supported ingress methods
+
+| Type  | Method                   | Protocol support | Requirements                | Load balancer req. |
+| ----- | ------------------------ | ---------------- | --------------------------- | ------------------ |
+| HTTP  | Virtual host (subdomain) | HTTP             | Wildcard domain             | HTTP               |
+| SNI   | SNI                      | TLS              | Wildcard certificate+domain | TCP                |
+
+## Persistence
+The default persistence mode is in-memory meaning all tunnel configurations are lost
+when the server is restarted. Since tunnels (and accounts) are created by the client
+on-the-fly this works good enough for small single-node setups.
+
+Redis is supported for multi-node support or if long-term persistance is required.
+## Horizontal scaling
+exposr can be run in a multi-node setup, ingress connections are re-routed to the node
+that have the tunnel established. This allows load balancing in round-robin
+fashion without need for sticky sessions.
+
+Redis is required for a multi-node setup. No other configuration is needed, nodes
+will auto-discover each other.
 
 # Architecture
-exposr have three core concepts, transports, endpoints and ingress.
+exposr have three core concepts; transports, endpoints and ingress.
 
 A tunnel is composed of a transport and a connection endpoint.
 The endpoint is used by the client to establish a tunnel connection.
@@ -63,38 +95,31 @@ is bound for.
                              +-----------------+
 ```
 
-**Supported transport**
+# Tunnels and accounts
+A tunnel is identified by a string consisting of alphanumeric `(a-z, 0-9)` characters and dashes `(-)`.
+Minimum 4 characters and maximum 63 characters. The tunnel identifier have to start with a alpha character.
+This is chosen so that the tunnel identifier can be used as a DNS label.
 
-| Type       | Method                     | Endpoint   | Client support        |
-| ---------- | -------------------------- |----------- | --------------------- |
-| Websocket  | Custom multiplex websocket | HTTP       | [`exposr-cli`](https://github.com/exposr/exposr-cli) |
-| SSH        | SSH TCP forwarding         | TCP        | Any SSH client        |
+Example
 
-The Websocket transport endpoint can run behind a HTTP load balancer on the same port
-as the API. The SSH transport endpoint requires a dedicated TCP port and requires
-a TCP load balancer.
+    my-tunnel-identifier-14
 
-**Supported ingress methods**
+An account number is a 16 character string selected from the case-insensitive alphabet `CDEFHJKMNPRTVWXY2345689`.
+The number is formatted into 4 groups of 4 characters separated by a separator.
+Dashes and spaces are accepted as separator, as well as no separator.
 
-| Type  | Method                   | Protocol support | Requirements                | Load balancer req. |
-| ----- | ------------------------ | ---------------- | --------------------------- | ------------------ |
-| HTTP  | Virtual host (subdomain) | HTTP             | Wildcard domain             | HTTP               |
-| SNI   | SNI                      | TLS              | Wildcard certificate+domain | TCP                |
+Example
 
-## Persistence
-The default persistence mode is in-memory meaning all tunnel configurations are lost
-when the server is restarted. Since tunnels (and accounts) are created by the client
-on-the-fly this works good enough for small single-node setups.
+    MNF4-P6Y6-M2MR-RVCT
+    MNF4 P6Y6 M2MR RVCT
+    MNF4P6Y6M2MRRVCT
 
-Redis is supported for multi-node support or if long-term persistance is required.
-## Horizontal scaling
-exposr can be run in a clustered setup, ingress connections are re-routed to the node
-that have the tunnel established. This allows load balancing in round-robin
-fashion without need for sticky sessions.
+A tunnel is owned by one account, one account can have multiple tunnels.
+There is no password or key associated with an account.
 
-Redis is required for clustered setup. No other configuration is needed, nodes
-will auto-discover each other.
-
+It's _not_ possible for a user to list all tunnels belonging to an account.
+This makes it possible to use the account number together with the tunnel identifier as credentials as both
+needs to be known in order to perform privileged operations on a tunnel.
 # Running exposr
 
 ## Runtime artifacts
@@ -123,6 +148,26 @@ Try the tunnel
 
 exposr needs to have at least one ingress and one transport method enabled. The default option enables
 the HTTP ingress and the WS transport.
+
+
+### Account creation
+Account creation is disabled by default and needs to be enabled. It can be enabled in two ways, either through
+the public API or by enabling the administration API. It's recommended to only use the admin API
+for account creation.
+
+To enable it through the public API start exposr with the flag `--allow-registration`.
+
+> ⚠️ Warning: Enabling public account registration will allow anyone to register an account and to create tunnels on your server.
+
+### Administration interface
+The administration interface runs on a separate port from public API. By default it uses `8081`.
+The interface can be enabled by passing the flag `--admin-enable true`.
+
+To further enable the administration API an API key must be configured.
+
+    exposr-server --admin-enable true --admin-api-key <insert key>
+
+> ⚠️ Warning: The API key allows full privileged access to all accounts and tunnels.
 
 ### Configuring HTTP ingress
 The HTTP ingress can be enabled by passing the flag `--ingress http`.
@@ -160,6 +205,7 @@ The request will be rejected unless the CNAME is properly configured.
 
 Note that if you have a load balancer or proxy in front of exposr that terminates HTTPS
 you need have a certificate that covers the altname.
+
 ### Configuring SNI ingress
 
 To enable the SNI (Server Name Indication) ingress pass the flag `--ingress sni`.
@@ -170,6 +216,7 @@ the HTTP ingress it requires a wildcard DNS entry (`*.example.com`), but also a 
 the same domain name. It's compatible with any protocol that can run over TLS and a client that supports SNI.
 
 exposr will monitor the provided certificate and key for changes and re-load the certificate on-the fly.
+
 #### Certificate
 
 The certificate must contain one wildcard entry, either as the common name (`CN`) or in the SAN list.
@@ -203,17 +250,17 @@ Start the server with SSH transport enabled
 Create and account and configure a tunnel
 
     > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ create-account
-    Created account MNF4 P6Y6 M2MR RVCT
+    Created account MNF4-P6Y6-M2MR-RVCT
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a "MNF4 P6Y6 M2MR RVCT" create-tunnel my-tunnel
+    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVCT create-tunnel my-tunnel
     Tunnel my-tunnel created
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a "MNF4 P6Y6 M2MR RVCT" configure-tunnel my-tunnel transport-ssh true
+    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVCT configure-tunnel my-tunnel transport-ssh true
     Setting transport-ssh to true
 
 Fetch the SSH endpoint URL
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a "MNF4 P6Y6 M2MR RVCT" tunnel-info my-tunnel
+    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVC" tunnel-info my-tunnel
     [...]
       Transport endpoints
         SSH: ssh://my-tunnel:kXBnFV6Z1YoZPhoVLmxn9UO-Cp2qh7R19CGRrA_ylYfiiZ32N-CR9LWyHtaHxXn8UXGPNSt5xXUxf-5DlZOvLg@localhost:2200
@@ -243,6 +290,31 @@ The content of the file can be passed through environment variables
 You can also specify it as a path
 
     exposr-server [...] --transport-ssh-key /path/to/sshkey
+
+### Configuring persistance
+exposr supports persistance through Redis. To enable the persistance layer pass a Redis connection string
+using the parameter `--redis-url`.
+
+    exposr --redis-url redis://127.0.0.1:637
+
+### Multi-node setup
+To run exposr in a multi-node setup, the following is required;
+
+* Redis configured on all nodes.
+* IP connectivity between all nodes, no additional ports required.
+* Load balancer in-front of the nodes (ex. K8S, AWS ALB, GCP LB, nginx/haproxy/etc)
+
+No additional configuration is required. All nodes connected to the same Redis cluster will auto-discover
+each other.
+
+#### A note on scalability
+Because of the persistent nature of the tunnel transport connections, the ingress of exposr does not
+scale linear, but rather exhibits a sub-linear scaling.
+When an ingress connection is made to a node that does not have a tunnel connected locally,
+the connection is proxied internally by exposr to the node that have the tunnel connected.
+This means that the ingress traffic will traverse two exposr nodes and with increased number of nodes
+the probability of the ingress connection being mis-routed increases.
+
 ### Using environment variables
 
 Each option can be given as an environment variable instead of a command line option. The environment variable
