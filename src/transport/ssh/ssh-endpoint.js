@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 import ssh from 'ssh2';
 import sshpk from 'sshpk';
-import Config from '../config.js';
-import Transport from '../transport/index.js';
-import TunnelService from '../tunnel/tunnel-service.js';
-import Version from '../version.js';
-import { Logger } from '../logger.js';
+import Config from '../../config.js';
+import { Logger } from '../../logger.js';
+import TunnelService from '../../tunnel/tunnel-service.js';
+import Version from '../../version.js';
+import SSHTransport from './ssh-transport.js';
 
 const logger = Logger("ssh-transport-endpoint");
 
@@ -122,13 +122,10 @@ class SSHEndpoint {
         });
 
         client.on('ready', async (ctx) => {
-            const transport = Transport.createTransport({
-                method: 'SSH',
-                opts: {
-                    tunnelId: tunnel.id,
-                    upstream: tunnel.upstream.url,
-                    client,
-                }
+            const transport = new SSHTransport({
+                tunnelId: tunnel.id,
+                upstream: tunnel.upstream.url,
+                client,
             });
             const res = await this.tunnelService.connect(tunnel.id, transport, {
                 peer: info.ip,

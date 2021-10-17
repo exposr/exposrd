@@ -1,11 +1,11 @@
 import Config from './config.js';
 import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
-import Endpoint from './endpoint/index.js';
 import Ingress from './ingress/index.js';
 import Listener from './listener/index.js';
 import Logger from './logger.js';
 import Storage from './storage/index.js';
+import TransportService from './transport/transport-service.js';
 import Node from './utils/node.js';
 import Version from './version.js';
 
@@ -23,30 +23,31 @@ export default async () => {
     });
 
     let listener;
-    let endpoint;
+    let transport;
     try {
         // Setup listeners
         listener = new Listener({
             http: {
               port: Config.get('port')
             }
-      });
+        });
 
-      // Setup tunnel transport connection endpoints (for clients to establish tunnels)
-      endpoint = new Endpoint({
-          ws: {
-            enabled: Config.get('transport').includes('ws'),
-            baseUrl: Config.get('api-url')
-          },
-          ssh: {
-            enabled: Config.get('transport').includes('ssh'),
-            hostKey: Config.get('transport-ssh-key'),
-            host: Config.get('transport-ssh-host'),
-            port: Config.get('transport-ssh-port'),
-          },
-      });
+        // Setup tunnel transport connection endpoints (for clients to establish tunnels)
+        transport = new TransportService({
+            ws: {
+              enabled: Config.get('transport').includes('ws'),
+              baseUrl: Config.get('api-url')
+            },
+            ssh: {
+              enabled: Config.get('transport').includes('ssh'),
+              hostKey: Config.get('transport-ssh-key'),
+              host: Config.get('transport-ssh-host'),
+              port: Config.get('transport-ssh-port'),
+            },
+        });
     } catch (err) {
         Logger.error(err.message);
+        Logger.debug(err.stack);
         process.exit(-1);
     }
 
@@ -120,7 +121,7 @@ export default async () => {
         Logger.info(`Shutdown initiated, signal=${signal}`)
 
         await listener.destroy();
-        await endpoint.destroy();
+        await transport.destroy();
         await ingress.destroy();
         await apiController.destroy();
         adminController && await adminController.destroy();

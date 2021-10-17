@@ -5,6 +5,7 @@ import { Duplex } from 'stream';
 import WebSocket from 'ws';
 import { Logger } from '../../logger.js';
 import CustomError from '../../utils/errors.js';
+import Transport from '../transport.js';
 
 // Multiplexes multiple streams over one websocket connection
 // Bi-directional channel creation.
@@ -13,7 +14,7 @@ import CustomError from '../../utils/errors.js';
 // 0        2     4        8       12
 // [VERSION][TYPE][CHANNEL][LENGTH][DATA...]
 //
-class WebSocketTransport extends EventEmitter {
+class WebSocketTransport extends Transport {
     static MAX_CHANNELS = 65536;
 
     static MESSAGE_DATA = 1;

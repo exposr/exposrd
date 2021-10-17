@@ -3,9 +3,9 @@ import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
 import Config from '../config.js';
-import Endpoint from '../endpoint/index.js';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
+import TransportService from '../transport/transport-service.js';
 import Tunnel from '../tunnel/tunnel.js';
 import {
     ERROR_AUTH_NO_ACCESS_TOKEN,
@@ -23,7 +23,7 @@ class ApiController {
     constructor() {
         this.httpListener = new Listener().getListener('http');
         this.accountService = new AccountService();
-        this.transportEndpoint = new Endpoint();
+        this.transportService = new TransportService();
         this._initializeRoutes();
         this._initializeServer();
 
@@ -111,7 +111,7 @@ class ApiController {
                 created_at: tunnel.created_at,
             };
 
-            info.endpoints = this.transportEndpoint.getEndpoints(tunnel, baseUrl);
+            info.endpoints = this.transportService.getEndpoints(tunnel, baseUrl);
 
             Object.keys(tunnel.ingress).forEach((k) => {
                 const ingress = tunnel.ingress[k];

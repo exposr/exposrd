@@ -1,12 +1,12 @@
 import assert from 'assert/strict';
-import { EventEmitter } from 'events';
 import { Duplex } from 'stream';
 import tls from 'tls';
 import logger from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
 import Hostname from '../../utils/hostname.js';
+import Transport from '../transport.js';
 
-class SSHTransport extends EventEmitter {
+class SSHTransport extends Transport {
     constructor(opts) {
         super();
 

@@ -1,14 +1,14 @@
 import net from 'net';
 import querystring from 'querystring';
 import WebSocket from 'ws';
-import Listener from '../listener/index.js';
-import { Logger } from '../logger.js';
-import Transport from '../transport/index.js';
-import TunnelService from '../tunnel/tunnel-service.js';
+import Listener from '../../listener/index.js';
+import { Logger } from '../../logger.js';
+import TunnelService from '../../tunnel/tunnel-service.js';
 import {
     ERROR_TUNNEL_ALREADY_CONNECTED,
     ERROR_TUNNEL_TRANSPORT_CON_TIMEOUT
-} from '../utils/errors.js';
+} from '../../utils/errors.js';
+import WebSocketTransport from './ws-transport.js';
 
 const logger = Logger("ws-endpoint");
 
@@ -134,13 +134,10 @@ class WebSocketEndpoint {
 
         this.wss.handleUpgrade(req, sock, head, async (ws) => {
             clearTimeout(timeout);
-            const transport = Transport.createTransport({
-                method: 'WS',
-                opts: {
-                    tunnelId: tunnel.id,
-                    socket: ws
-                }
-            });
+            const transport = new WebSocketTransport({
+                tunnelId: tunnel.id,
+                socket: ws,
+            })
             const res = await this.tunnelService.connect(tunnelId, transport, {
                 peer: this._getRequestClientIp(req),
             });
