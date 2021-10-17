@@ -4,7 +4,7 @@ class Tunnel {
     constructor(tunnelId, account) {
         this.id = tunnelId;
         this.account = account;
-        this.endpoints = {
+        this.transport = {
             token: undefined,
             ws: {
                 enabled: false,
@@ -32,6 +32,13 @@ class Tunnel {
         this.created_at = undefined;
         this.updated_at = undefined;
         this._state = new TunnelState();
+    }
+
+    _deserialization_hook() {
+        if (this.endpoints != undefined) {
+            this.transport = this.endpoints;
+            delete this.endpoints;
+        }
     }
 
     state() {

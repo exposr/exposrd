@@ -74,7 +74,7 @@ class SSHEndpoint {
         const host = this.opts.host ?? baseUrl.hostname;
         const port = this.opts.port;
         const username = tunnel.id;
-        const password = tunnel.endpoints.token;
+        const password = tunnel.transport.token;
         const fingerprint = this._fingerprint;
 
         let url;
@@ -112,7 +112,7 @@ class SSHEndpoint {
             const [tunnelId, token] = ctx.username.split(':');
             tunnel = await this.tunnelService.get(tunnelId);
 
-            if (!SSHEndpoint._safeEqual(token, tunnel.endpoints?.token || '')) {
+            if (!SSHEndpoint._safeEqual(token, tunnel.transport?.token || '')) {
                 ctx.reject();
                 client.end();
                 return;

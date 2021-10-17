@@ -11,41 +11,41 @@ class TransportService {
 
         assert(opts != undefined, "opts is undefined");
 
-        this._endpoints = {};
+        this._transports = {};
         if (opts.ws && opts.ws.enabled === true) {
-            this._endpoints.ws = new WebSocketEndpoint(opts.ws);
+            this._transports.ws = new WebSocketEndpoint(opts.ws);
         }
 
         if (opts?.ssh?.enabled === true) {
-            this._endpoints.ssh = new SSHEndpoint(opts.ssh);
+            this._transports.ssh = new SSHEndpoint(opts.ssh);
         }
     }
 
     async destroy() {
         this.destroyed = true;
         return Promise.allSettled(
-            Object.keys(this._endpoints).map(k => this._endpoints[k].destroy())
+            Object.keys(this._transports).map(k => this._transports[k].destroy())
         );
     }
 
-    getEndpoints(tunnel, baseUrl) {
-        const endpoints = {};
+    getTransports(tunnel, baseUrl) {
+        const transports = {};
 
-        if (tunnel.endpoints?.ws?.enabled === true && this._endpoints.ws) {
-            endpoints.ws = {
-                ...tunnel.endpoints.ws,
-                ...this._endpoints.ws.getEndpoint(tunnel, baseUrl),
+        if (tunnel.transport?.ws?.enabled === true && this._transports.ws) {
+            transports.ws = {
+                ...tunnel.transport.ws,
+                ...this._transports.ws.getEndpoint(tunnel, baseUrl),
             };
         }
 
-        if (tunnel.endpoints?.ssh?.enabled === true && this._endpoints.ssh) {
-            endpoints.ssh = {
-                ...tunnel.endpoints.ssh,
-                ...this._endpoints.ssh.getEndpoint(tunnel, baseUrl),
+        if (tunnel.transport?.ssh?.enabled === true && this._transports.ssh) {
+            transports.ssh = {
+                ...tunnel.transport.ssh,
+                ...this._transports.ssh.getEndpoint(tunnel, baseUrl),
             };
         }
 
-        return endpoints;
+        return transports;
     }
 
 }

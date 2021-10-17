@@ -80,7 +80,7 @@ class TunnelService {
 
                 // Refresh connection token
                 const tunnelUpdate = this.update(tunnelId, undefined, (tunnel) => {
-                    tunnel.endpoints.token = crypto.randomBytes(64).toString('base64url');
+                    tunnel.transport.token = crypto.randomBytes(64).toString('base64url');
                 });
 
                 await Promise.allSettled([stateUpdate, tunnelUpdate]);
@@ -143,7 +143,7 @@ class TunnelService {
         const tunnel = new Tunnel(tunnelId, accountId);
         tunnel.created_at = new Date().toISOString();
         tunnel.updated_at = tunnel.created_at;
-        tunnel.endpoints.token = crypto.randomBytes(64).toString('base64url');
+        tunnel.transport.token = crypto.randomBytes(64).toString('base64url');
         const created = await this.db.create(tunnelId, tunnel);
         if (!created) {
             return false;

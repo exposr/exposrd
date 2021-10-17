@@ -103,7 +103,7 @@ class ApiController {
                     disconnected_at: tunnel.state().disconnected_at,
                     alive_at: tunnel.state().alive_at,
                 },
-                endpoints: {},
+                transport: {},
                 ingress: {},
                 upstream: {
                     url: tunnel.upstream.url,
@@ -111,7 +111,7 @@ class ApiController {
                 created_at: tunnel.created_at,
             };
 
-            info.endpoints = this.transportService.getEndpoints(tunnel, baseUrl);
+            info.transport = this.transportService.getTransports(tunnel, baseUrl);
 
             Object.keys(tunnel.ingress).forEach((k) => {
                 const ingress = tunnel.ingress[k];
@@ -147,7 +147,7 @@ class ApiController {
                     upstream: {
                         url: Router.Joi.string().uri(),
                     },
-                    endpoints: {
+                    transport: {
                         ws: {
                             enabled: Router.Joi.boolean(),
                         },
@@ -177,10 +177,10 @@ class ApiController {
                         body?.ingress?.http?.alt_names ?? tunnel.ingress.http.alt_names;
                     tunnel.upstream.url =
                         body?.upstream?.url ?? tunnel.upstream.url;
-                    tunnel.endpoints.ws.enabled =
-                        body?.endpoints?.ws?.enabled ?? tunnel.endpoints.ws.enabled;
-                    tunnel.endpoints.ssh.enabled =
-                        body?.endpoints?.ssh?.enabled ?? tunnel.endpoints.ssh.enabled;
+                    tunnel.transport.ws.enabled =
+                        body?.transport?.ws?.enabled ?? tunnel.transport.ws.enabled;
+                    tunnel.transport.ssh.enabled =
+                        body?.transport?.ssh?.enabled ?? tunnel.transport.ssh.enabled;
                 });
                 if (updatedTunnel instanceof Tunnel) {
                     ctx.body = tunnelInfo(updatedTunnel, ctx.req._exposrBaseUrl);

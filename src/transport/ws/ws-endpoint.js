@@ -36,7 +36,7 @@ class WebSocketEndpoint {
         const url = new URL(baseUrl);
         url.protocol = baseUrl.protocol == 'https:' ? 'wss' : 'ws';
         url.pathname =  `${WebSocketEndpoint.PATH}/${tunnel.id}`;
-        url.search = '?' + querystring.encode({token: tunnel.endpoints.token});
+        url.search = '?' + querystring.encode({token: tunnel.transport.token});
         return {
             url: url.href,
         };
@@ -111,7 +111,7 @@ class WebSocketEndpoint {
         }
 
         const tunnel = await this.tunnelService.get(tunnelId);
-        if (tunnel?.endpoints?.token !== token) {
+        if (tunnel?.transport?.token !== token) {
             return this._unauthorized(sock, req);
         }
 
