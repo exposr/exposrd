@@ -133,7 +133,7 @@ You can quickly try out exposr without installing anything.
 Run the server, the server will listen on port 8080 and the API will be exposed at `http://host.docker.internal:8080`.
 HTTP ingress sub-domains will be allocated from `http://localhost:8080`.
 
-    docker run --rm -ti -p 8080:8080 exposr/exposr-server:latest --allow-registration --http-ingress-domain http://localhost:8080
+    docker run --rm -ti -p 8080:8080 exposr/exposr-server:latest --allow-registration --ingress-http-domain http://localhost:8080
 
 Start the client with, this will create a tunnel called `example` and connect it to `http://example.com`.
 The tunnel will be available at `http://example.localhost:8080`.
@@ -182,10 +182,10 @@ The domain needs to be configured with `--ingress-http-domain`.
 
     exposr-server --ingress-http --ingress-http-domain http://example.com
 
-Each tunnel will be allocated an subdomain, ex. `http://my-tunnel.example.com`.
+Each tunnel will be allocated a subdomain, ex. `http://my-tunnel.example.com`.
 
 If you have a proxy or load balancer in-front of exposr that terminates HTTPS, pass the domain with
-the `https` protocol instead. (`--ingress-http-domain https://example.com).
+the `https` protocol instead. (`--ingress-http-domain https://example.com`).
 #### BYOD (Bring Your Own Domain)
 The HTTP ingress supports custom domain names to be assigned to a tunnel outside of the automatic one
 allocated from the wildcard domain. Assigning a custom domain name to a tunnel will make exposr
@@ -245,7 +245,7 @@ containing a SSH private key in PEM encoded OpenSSH format using `--transport-ss
 
 Start the server with SSH transport enabled
 
-    > docker run --rm -ti -p 8080:8080 -p 2200:2200 exposr/exposr-server:latest --allow-registration --http-ingress-domain http://localhost:8080 --transport ssh
+    > docker run --rm -ti -p 8080:8080 -p 2200:2200 exposr/exposr-server:latest --allow-registration --ingress-http-domain http://localhost:8080 --transport ssh
 
 Create and account and configure a tunnel
 
