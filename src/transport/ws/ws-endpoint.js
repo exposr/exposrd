@@ -14,7 +14,9 @@ const logger = Logger("ws-endpoint");
 
 class WebSocketEndpoint {
 
-    static PATH = '/v1/endpoint/ws';
+    static BASE_PATH = '/v1/tunnel';
+
+    static PATH_MATCH = new RegExp(`${WebSocketEndpoint.BASE_PATH}\/([^/]+)/ws-endpoint`);
 
     static UPGRADE_TIMEOUT = 5000;
 
@@ -35,8 +37,8 @@ class WebSocketEndpoint {
     getEndpoint(tunnel, baseUrl) {
         const url = new URL(baseUrl);
         url.protocol = baseUrl.protocol == 'https:' ? 'wss' : 'ws';
-        url.pathname =  `${WebSocketEndpoint.PATH}/${tunnel.id}`;
-        url.search = '?' + querystring.encode({token: tunnel.transport.token});
+        url.pathname =  `${WebSocketEndpoint.BASE_PATH}/${tunnel.id}/ws-endpoint`;
+        url.search = '?' + querystring.encode({t: tunnel.transport.token});
         return {
             url: url.href,
         };
@@ -66,12 +68,13 @@ class WebSocketEndpoint {
             return undefined;
         }
 
-        if (!requestUrl.pathname.startsWith(WebSocketEndpoint.PATH)) {
+        const match = requestUrl.pathname.match(WebSocketEndpoint.PATH_MATCH);
+        if (!match) {
             return undefined;
         }
 
-        const tunnelId = requestUrl.pathname.substr(WebSocketEndpoint.PATH.length + 1);
-        const token = requestUrl.searchParams.get('token');
+        const tunnelId = match[1];
+        const token = requestUrl.searchParams.get('t');
         return {
             tunnelId,
             token,
