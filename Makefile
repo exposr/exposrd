@@ -1,5 +1,5 @@
 registry?=exposr
-node_image?=16.6.2-alpine3.13
+node_image?=16.11.1-alpine3.14
 package_name=exposr-server-$(version).tgz
 
 project:=exposr-server
