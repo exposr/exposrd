@@ -21,6 +21,7 @@ const parse = (callback, args = {}) => {
         .group([
             'ingress',
             'ingress-http-domain',
+            'ingress-http-port',
             'ingress-sni-port',
             'ingress-sni-host',
             'ingress-sni-cert',
@@ -40,6 +41,12 @@ const parse = (callback, args = {}) => {
             coerce: (url) => {
                 return typeof url == 'string' ? new URL(url) : url;
             },
+        })
+        .option('ingress-http-port', {
+            type: 'number',
+            describe: 'Port to use for HTTP ingress',
+            default: 8080,
+            hidden: true,
         })
         .option('ingress-sni-port', {
             type: 'integer',
@@ -63,6 +70,7 @@ const parse = (callback, args = {}) => {
         })
         .group([
             'transport',
+            'transport-ws-port',
             'transport-ssh-port',
             'transport-ssh-host',
             'transport-ssh-key',
@@ -147,7 +155,7 @@ const parse = (callback, args = {}) => {
         .option('admin-port', {
             type: 'number',
             default: 8081,
-            description: "Admin port to listen on"
+            description: "Port to use for HTTP admin interface"
         })
         .option('admin-api-key', {
             type: 'string',
@@ -161,7 +169,7 @@ const parse = (callback, args = {}) => {
         })
         .group([
             'api-url',
-            'port',
+            'api-port',
             'allow-registration',
         ], 'API configuration')
         .option('api-url', {
@@ -171,11 +179,11 @@ const parse = (callback, args = {}) => {
                 return typeof url == 'string' ? new URL(url) : url;
             }
         })
-        .option('port', {
+        .option('api-port', {
             alias: 'p',
             type: 'number',
             default: 8080,
-            description: 'Server HTTP port to listen on',
+            description: 'Port to use for HTTP API interface',
         })
         .option('allow-registration', {
             type: 'boolean',

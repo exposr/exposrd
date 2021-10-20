@@ -20,8 +20,8 @@ class ApiController {
 
     static TUNNEL_ID_REGEX = /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/;
 
-    constructor() {
-        this.httpListener = new Listener().getListener('http');
+    constructor(opts) {
+        this.httpListener = new Listener().getListener('http', opts.port);
         this.accountService = new AccountService();
         this.transportService = new TransportService();
         this._initializeRoutes();
@@ -31,7 +31,22 @@ class ApiController {
             logger.warn({message: "Public account registration is enabled"});
         }
 
-        this.apiUrl = Config.get('api-url');
+        this.apiUrl = opts.url;
+
+        this.httpListener.listen()
+            .then(() => {
+                logger.info({
+                    message: `HTTP API listening on port ${opts.port}`,
+                    url: opts.url,
+                });
+                typeof opts.callback === 'function' && opts.callback();
+            })
+            .catch((err) => {
+                logger.error({
+                    message: `Failed to initialize HTTP API: ${err.message}`,
+                });
+                typeof opts.callback === 'function' && opts.callback(err);
+            });
     }
 
     _initializeRoutes() {
@@ -358,6 +373,7 @@ class ApiController {
 
     async destroy() {
         await this.accountService.destroy();
+        await this.httpListener.destroy()
     }
 }
 

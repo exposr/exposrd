@@ -41,7 +41,7 @@ class HttpIngress {
         this.destroyed = false;
         this.altNameService = new AltNameService();
         this.tunnelService = new TunnelService(opts.callback);
-        this.httpListener = new Listener().getListener('http');
+        this.httpListener = new Listener().getListener('http', opts.port);
         this.httpListener.use('request', { logger, prio: 1 }, async (ctx, next) => {
             if (this.destroyed) {
                 return next();
@@ -87,6 +87,21 @@ class HttpIngress {
         eventBus.on('disconnected', (data) => {
             this._agentCache.ttl(data?.tunnelId, -1);
         });
+
+        this.httpListener.listen()
+            .then(() => {
+                logger.info({
+                    message: `HTTP ingress listening on port ${opts.port}`,
+                    url: this.getBaseUrl(),
+                });
+                typeof opts.callback === 'function' && opts.callback();
+            })
+            .catch((err) => {
+                logger.error({
+                    message: `Failed to initialize HTTP ingress: ${err.message}`,
+                });
+                typeof opts.callback === 'function' && opts.callback(err);
+            });
     }
 
     getBaseUrl(tunnelId = undefined) {
@@ -406,6 +421,7 @@ class HttpIngress {
 
     async destroy() {
         await this.tunnelService.destroy();
+        await this.httpListener.destroy()
         this.destroyed = true;
     }
 

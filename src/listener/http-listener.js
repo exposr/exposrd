@@ -1,4 +1,5 @@
 import http from 'http';
+import ListenerInterface  from './listener-interface.js';
 import { Logger } from '../logger.js';
 import HttpCaptor from '../utils/http-captor.js';
 import {
@@ -11,8 +12,9 @@ import {
 
 const logger = Logger("http-listener");
 
-class HttpListener {
+class HttpListener extends ListenerInterface {
     constructor(opts) {
+        super();
         this.opts = opts;
         this.callbacks = {
             'request': [],
@@ -25,7 +27,7 @@ class HttpListener {
                 .map(x => x.trim())
                 .filter(x => x.length > 0)
                 .map(x => x.split('=')
-                             .map(y => y.trim())
+                           .map(y => y.trim())
                     )
                 )
         };
@@ -140,7 +142,7 @@ class HttpListener {
         this.callbacks[event].splice(pos, 0, {callback, opts})
     }
 
-    async listen() {
+    async _listen() {
         const listenError = (err) => {
             logger.error(`Failed to start http listener: ${err.message}`);
         };
@@ -156,7 +158,7 @@ class HttpListener {
         });
     }
 
-    async destroy() {
+    async _destroy() {
         return new Promise((resolve) => {
             this.server.close();
             resolve();

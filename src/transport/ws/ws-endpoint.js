@@ -22,7 +22,7 @@ class WebSocketEndpoint {
 
     constructor(opts) {
         this.opts = opts;
-        this.httpListener = new Listener().getListener('http');
+        this.httpListener = new Listener().getListener('http', opts.port);
         this.tunnelService = new TunnelService();
         this.wss = new WebSocket.Server({ noServer: true });
         this.destroyed = false;
@@ -32,6 +32,17 @@ class WebSocketEndpoint {
                 return next();
             }
         });
+
+        this.httpListener.listen()
+            .then(() => {
+                typeof opts.callback === 'function' && opts.callback();
+            })
+            .catch((err) => {
+                logger.error({
+                    message: `Failed to initialize websocket transport connection endpoint: ${err}`,
+                })
+                typeof opts.callback === 'function' && opts.callback(err);
+            });
     }
 
     getEndpoint(tunnel, baseUrl) {
@@ -50,6 +61,7 @@ class WebSocketEndpoint {
         this.wss.clients.forEach((client) => {
             client.close();
         });
+        await this.httpListener.destroy()
     }
 
     _getRequestClientIp(req) {

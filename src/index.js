@@ -2,7 +2,6 @@ import Config from './config.js';
 import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
 import Ingress from './ingress/index.js';
-import Listener from './listener/index.js';
 import Logger from './logger.js';
 import Storage from './storage/index.js';
 import TransportService from './transport/transport-service.js';
@@ -22,21 +21,14 @@ export default async () => {
         process.exit(-1);
     });
 
-    let listener;
     let transport;
     try {
-        // Setup listeners
-        listener = new Listener({
-            http: {
-              port: Config.get('port')
-            }
-        });
-
         // Setup tunnel transport connection endpoints (for clients to establish tunnels)
         transport = new TransportService({
             ws: {
               enabled: Config.get('transport').includes('ws'),
-              baseUrl: Config.get('api-url')
+              baseUrl: Config.get('api-url'),
+              port: Config.get('api-port'),
             },
             ssh: {
               enabled: Config.get('transport').includes('ssh'),
@@ -52,7 +44,10 @@ export default async () => {
     }
 
     const adminController = Config.get('admin-enable') ? new AdminController(Config.get('admin-port')) : undefined;
-    const apiController = new ApiController();
+    const apiController = new ApiController({
+        port: Config.get('api-port'),
+        url: Config.get('api-url'),
+    });
 
     // Setup tunnel data ingress (incoming tunnel data)
     const ingressReady = new Promise((resolve, reject) => {
@@ -63,6 +58,7 @@ export default async () => {
                 },
                 http: {
                     enabled: Config.get('ingress').includes('http'),
+                    port: Config.get('ingress-http-port'),
                     subdomainUrl: Config.get('ingress-http-domain')
                 },
                 sni: {
@@ -88,7 +84,6 @@ export default async () => {
 
     const res = await Promise
         .all([
-            listener.listen(),
             storageReady,
             ingressReady,
             adminController ? adminController.listen() : new Promise((r) => r())
@@ -98,7 +93,7 @@ export default async () => {
             process.exit(-1);
         });
 
-    const ingress = res[2];
+    const ingress = res[1];
 
     if (adminController) {
         Logger.info({
@@ -110,17 +105,11 @@ export default async () => {
         Logger.info({message: "Admin interface disabled"});
     }
 
-    Logger.info({
-        message: "API endpoint",
-        base_url: Config.get('api-url'),
-        port: Config.get('port')
-    });
     Logger.info("exposr-server ready");
 
     const sigHandler = async (signal) => {
         Logger.info(`Shutdown initiated, signal=${signal}`)
 
-        await listener.destroy();
         await transport.destroy();
         await ingress.destroy();
         await apiController.destroy();
