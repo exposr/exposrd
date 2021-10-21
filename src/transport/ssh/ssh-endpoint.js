@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import ssh from 'ssh2';
 import sshpk from 'sshpk';
-import Config from '../../config.js';
 import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
 import Version from '../../version.js';
@@ -54,7 +53,7 @@ class SSHEndpoint {
             this._handleClient(client, clientInfo);
         });
 
-        server.listen(Config.get('transport-ssh-port'), (err) => {
+        server.listen(opts.port, (err) => {
             if (err) {
                 throw err;
             } else {
