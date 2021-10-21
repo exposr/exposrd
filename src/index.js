@@ -47,6 +47,7 @@ export default async () => {
     const apiController = new ApiController({
         port: Config.get('api-port'),
         url: Config.get('api-url'),
+        allowRegistration: Config.get('allow-registration') || false,
     });
 
     // Setup tunnel data ingress (incoming tunnel data)

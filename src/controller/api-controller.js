@@ -2,7 +2,6 @@ import Koa from 'koa';
 import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
-import Config from '../config.js';
 import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
 import TransportService from '../transport/transport-service.js';
@@ -21,13 +20,14 @@ class ApiController {
     static TUNNEL_ID_REGEX = /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/;
 
     constructor(opts) {
+        this.opts = opts;
         this.httpListener = new Listener().getListener('http', opts.port);
         this.accountService = new AccountService();
         this.transportService = new TransportService();
         this._initializeRoutes();
         this._initializeServer();
 
-        if (Config.get('allow-registration')) {
+        if (opts.allowRegistration) {
             logger.warn({message: "Public account registration is enabled"});
         }
 
@@ -305,8 +305,7 @@ class ApiController {
                 continueOnError: true,
             },
             handler: [handleError, async (ctx, next) => {
-                const allowRegistration = Config.get('allow-registration') || false;
-                if (!allowRegistration) {
+                if (!this.opts.allowRegistration) {
                     ctx.status = 404;
                     return;
                 }
