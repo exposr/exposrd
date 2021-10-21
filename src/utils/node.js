@@ -1,13 +1,12 @@
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
 import os from 'os';
-import Config from '../config.js';
 import Storage from '../storage/index.js';
 
 class Node {
     static hostname = `${process.pid}@${os.hostname}`;
     static identifier = crypto.createHash('sha1').update(Node.hostname).digest('hex');
-    static interface = Node.getNetworkInterface(Config.get('interface'));
+    static interface = Node.getNetworkInterface();
 
     static address4 = Node._getIP(Node.interface, 'IPv4');
     static address6 = Node._getIP(Node.interface, 'IPv6');
@@ -76,7 +75,6 @@ class Node {
                 id: Node.identifier,
                 host: Node.hostname,
                 address: Node.getIP(),
-                port: Config.get('port'),
             }
         }
 
