@@ -43,7 +43,11 @@ export default async () => {
         process.exit(-1);
     }
 
-    const adminController = Config.get('admin-enable') ? new AdminController(Config.get('admin-port')) : undefined;
+    const adminController = Config.get('admin-enable') ? new AdminController({
+        port: Config.get('admin-port'),
+        apiKey: Config.get('admin-api-key'),
+        unauthAccess: Config.get('admin-allow-access-without-api-key'),
+    }) : undefined;
     const apiController = new ApiController({
         port: Config.get('api-port'),
         url: Config.get('api-url'),

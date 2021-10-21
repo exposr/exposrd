@@ -1,7 +1,6 @@
 import Koa from 'koa';
 import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
-import Config from '../config.js';
 import HttpListener from '../listener/http-listener.js';
 import { Logger } from '../logger.js';
 import { ERROR_BAD_INPUT } from '../utils/errors.js';
@@ -9,17 +8,18 @@ import { ERROR_BAD_INPUT } from '../utils/errors.js';
 const logger = Logger("admin");
 
 class AdminServer {
-    constructor(port) {
+    constructor(opts) {
         this.appReady = false;
-        this.apiKey = typeof Config.get('admin-api-key') === 'string' &&
-            Config.get('admin-api-key')?.length > 0 ? Config.get('admin-api-key') : undefined;
-        this.unauthAccess = this.apiKey === undefined && Config.get('admin-allow-access-without-api-key') === true;
+        this.apiKey = typeof opts.apiKey === 'string' &&
+            opts.apiKey?.length > 0 ? opts.apiKey : undefined;
+        this.unauthAccess = this.apiKey === undefined && opts.unauthAccess === true;
+
         this.accountService = new AccountService();
         this.app = new Koa();
         this.router = Router();
         this._initializeRoutes();
 
-        const httpListener = this.httpListener = new HttpListener({port});
+        const httpListener = this.httpListener = new HttpListener({port: opts.port});
         httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
             this.appCallback(ctx.req, ctx.res);
         });
