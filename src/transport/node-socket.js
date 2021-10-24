@@ -2,7 +2,7 @@ import { Socket } from 'net';
 import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
 import Tunnel from '../tunnel/tunnel.js';
-import Node from '../utils/node.js';
+import Node, { NodeService } from '../utils/node.js';
 
 const logger = Logger("tunnel-service");
 
@@ -10,7 +10,7 @@ class NodeSocket extends Socket {
     constructor(opts) {
         super();
         this._opts = opts;
-        this._tunnelService = opts.tunnelService || new TunnelService();
+        this._tunnelService = new TunnelService();
         this._canonicalConnect = this.connect;
         this.connect = (_opt, callback) => {
             this.connecting = true;
@@ -41,7 +41,9 @@ class NodeSocket extends Socket {
             return closeSock();
         }
 
-        const nextNode = await Node.get(tunnel.state().node);
+        const nodeService = new NodeService();
+        const nextNode = await nodeService.get(tunnel.state().node);
+        nodeService.destroy();
         if (!nextNode) {
             return closeSock();
         }

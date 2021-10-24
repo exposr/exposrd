@@ -2,9 +2,9 @@ import assert from 'assert/strict';
 import { Logger } from '../logger.js';
 
 class InMemoryStorage {
-    constructor(callback) {
+    constructor(opts) {
         if (InMemoryStorage.instance instanceof InMemoryStorage) {
-            process.nextTick(callback);
+            typeof opts.callback === 'function' && process.nextTick(opts.callback);
             return InMemoryStorage.instance;
         }
         InMemoryStorage.instance = this;
@@ -12,7 +12,7 @@ class InMemoryStorage {
         this.db = {};
         this.timers = {};
         this._ttl = {};
-        process.nextTick(callback);
+        typeof opts.callback === 'function' && process.nextTick(opts.callback);
     }
 
     async destroy() {

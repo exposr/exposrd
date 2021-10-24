@@ -1,27 +1,75 @@
 import assert from 'assert/strict';
-import Config from '../config.js';
 import LockService from '../lock/index.js';
 import InMemoryStorage from './inmemory-storage.js';
 import RedisStorage from './redis-storage.js';
 import Serializer from './serializer.js';
 
-class Storage {
-    constructor(namespace, opts = {}) {
-        const ready = () => {
-            opts.callback && process.nextTick(opts.callback);
+class StorageService {
+    constructor(type, opts) {
+        if (StorageService.instance instanceof StorageService) {
+            StorageService.ref++;
+            return StorageService.instance;
+        }
+
+        assert(type != undefined, "type not given");
+
+        StorageService.ref = 1;
+        StorageService.instance = this;
+
+        const ready = (err) => {
+            typeof opts.callback === 'function' && opts.callback(err);
         };
 
-        if (Config.get('redis-url') != undefined) {
-            this.storage = new RedisStorage(ready);
-        } else {
-            this.storage = new InMemoryStorage(ready);
+        switch (type) {
+            case 'redis':
+                this._storage = new RedisStorage({
+                    callback: ready,
+                    ...opts,
+                });
+                break;
+            case 'mem':
+                this._storage = new InMemoryStorage({
+                    callback: ready,
+                    ...opts,
+                });
+                break;
+            default:
+                assert.fail(`Unknown storage ${type}`);
         }
-        this.lockService = new LockService();
-        this.ns = namespace;
+
+        this._lockService = new LockService(type, opts);
+    }
+
+    getStorage() {
+        assert(this._storage != undefined, "storage not initialized");
+        return this._storage
     }
 
     async destroy() {
-        await Promise.all([this.storage.destroy(), this.lockService.destroy()]);
+        if (--StorageService.ref == 0) {
+            await Promise.all([this._storage.destroy(), this._lockService.destroy()]);
+            this.destroyed = true;
+            delete this._storage;
+            delete Storage.instance;
+        }
+    }
+}
+
+export { StorageService };
+
+class Storage {
+    constructor(namespace) {
+        this.ns = namespace;
+        this._storageService = new StorageService();
+        this._lockService = new LockService();
+        this._storage = this._storageService.getStorage();
+    }
+
+    async destroy() {
+        return Promise.allSettled[
+            this._storageService.destroy(),
+            this._lockService.destroy()
+        ];
     }
 
     _key(key) {
@@ -38,7 +86,7 @@ class Storage {
     }
 
     async update(key, clazz, cb, opts = {}) {
-        const lock = await this.lockService.lock(this._key(key));
+        const lock = await this._lockService.lock(this._key(key));
         if (!lock) {
             return false;
         }
@@ -79,7 +127,7 @@ class Storage {
     // undefined on not found
     // false on storage error
     async _get(key) {
-        return this.storage.get(this._key(key));
+        return this._storage.get(this._key(key));
     };
 
     async set(key, data, opts = {}) {
@@ -90,7 +138,7 @@ class Storage {
     // String on success
     // false on storage error
     async _set(key, data, opts) {
-        return this.storage.set(this._key(key), data, opts);
+        return this._storage.set(this._key(key), data, opts);
     }
 
     // Returns
@@ -102,11 +150,11 @@ class Storage {
             key = this.key;
         }
         assert(key !== undefined);
-        this.storage.delete(this._key(key));
+        this._storage.delete(this._key(key));
     };
 
     async list(cursor = 0, count = 10) {
-        const res = await this.storage.list(`${this.ns}:`, cursor, count);
+        const res = await this._storage.list(`${this.ns}:`, cursor, count);
         return {
             cursor: res.cursor,
             data: res.data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1)),

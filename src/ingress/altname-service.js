@@ -9,6 +9,10 @@ class AltNameService {
         this.db = new Storage("ingress-altnames");
     }
 
+    async destroy() {
+        return this.db.destroy();
+    }
+
     _key(service, altName) {
         return `${service}-${altName}`.toLowerCase();
     }

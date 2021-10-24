@@ -1,10 +1,9 @@
 import Redis from 'redis';
 import Redlock from 'redlock';
-import Config from '../config.js';
 
 class RedisLock {
-    constructor() {
-        const redisUrl = Config.get('redis-url');
+    constructor(opts) {
+        const redisUrl = opts.redisUrl;
         const redis = this._redisClient = Redis.createClient({
             url: redisUrl.href,
             connect_timeout: 2147483647,

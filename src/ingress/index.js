@@ -47,9 +47,10 @@ class Ingress {
     }
 
     async destroy() {
-        return Promise.allSettled(
-            Object.keys(this.ingress).map(k => this.ingress[k].destroy())
-        );
+        const promises = Object.keys(this.ingress)
+            .map(k => this.ingress[k].destroy())
+            .concat([this.altNameService.destroy()])
+        return Promise.allSettled(promises);
     }
 
     async updateIngress(tunnel, prevTunnel) {

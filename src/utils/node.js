@@ -56,20 +56,46 @@ class Node {
 
         return names[0];
     }
+}
 
-    static storage = new Storage("node", {
-        callback: () => {
-            this.reportNode();
-            setInterval(Node.reportNode, 60000);
+export default Node;
+class NodeService {
+    constructor() {
+        if (NodeService.instance instanceof NodeService) {
+            NodeService.ref++;
+            return NodeService.instance;
         }
-    });
+        NodeService.instance = this;
+        NodeService.ref = 1;
+        this._storage = new Storage("node");
 
-    static peerCache = new NodeCache({
-        useClones: false,
-        deleteOnExpire: true,
-    });
+        const reportNode = async () => {
+            const obj = {
+                ...await this.get(),
+                _ts: new Date().getTime(),
+            }
+            return this._storage.set(Node.identifier, obj, { TTL: 120 });
+        };
 
-    static async get(id) {
+        this._reporter = setInterval(reportNode, 60000);
+        setTimeout(reportNode, 10);
+
+        this._peerCache = new NodeCache({
+            useClones: false,
+            deleteOnExpire: true,
+        });
+    }
+
+    async destroy() {
+        if (--NodeService.ref == 0) {
+            clearInterval(this._reporter);
+            delete this._reporter;
+            delete NodeService.instance;
+            return this._storage.destroy();
+        }
+    }
+
+    async get(id) {
         if (id == undefined) {
             return {
                 id: Node.identifier,
@@ -79,24 +105,15 @@ class Node {
         }
 
         let peer;
-        peer = Node.peerCache.get(id);
+        peer = this._peerCache.get(id);
         if (peer == undefined) {
-            peer = await Node.storage.get(id);
+            peer = await this._storage.get(id);
             if (peer) {
-                Node.peerCache.set(id, peer, 60);
+                this._peerCache.set(id, peer, 60);
             }
         }
         return peer;
     }
-
-    static async reportNode() {
-        const obj = {
-            ...await Node.get(),
-            _ts: new Date().getTime(),
-        }
-
-        return Node.storage.set(Node.identifier, obj, { TTL: 120 });
-    }
 }
 
-export default Node;
+export { NodeService };

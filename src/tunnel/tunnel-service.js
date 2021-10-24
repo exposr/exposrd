@@ -7,7 +7,7 @@ import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';
 import NodeSocket from '../transport/node-socket.js';
-import Node from '../utils/node.js';
+import Node, { NodeService } from '../utils/node.js';
 import TunnelState from './tunnel-state.js';
 import Tunnel from './tunnel.js';
 
@@ -16,27 +16,16 @@ const logger = Logger("tunnel-service");
 class TunnelService {
     constructor(callback) {
         if (TunnelService.instance !== undefined) {
-            if (TunnelService._readyCallback) {
-                TunnelService._readyCallback.push(callback);
-            } else {
-                callback && process.nextTick(callback);
-            }
+            callback && process.nextTick(callback);
             return TunnelService.instance;
         }
         TunnelService.instance = this;
-        TunnelService._readyCallback = [callback];
-
-        const readyCallback = async () => {
-            TunnelService._readyCallback.forEach((cb) => {
-                typeof cb === 'function' && cb();
-            });
-            delete TunnelService._readyCallback;
-        };
 
         this.accountService = new AccountService();
-        this.db = new Storage("tunnel", { callback: readyCallback });
+        this.db = new Storage("tunnel");
         this.db_state = new Storage("tunnel-state");
         this.eventBus = new EventBus();
+        this.nodeService = new NodeService();
         this.connectedTunnels = {};
 
         this._lookupCache = new NodeCache({
@@ -90,6 +79,8 @@ class TunnelService {
                 });
             });
         });
+
+        typeof callback === 'function' && process.nextTick(callback);
     }
 
     _isPermitted(tunnel, accountId) {
@@ -258,7 +249,7 @@ class TunnelService {
         }
 
         const keepaliveFun = async () => {
-            const node = await Node.get();
+            const node = await this.nodeService.get();
             this.eventBus.publish('keepalive', {
                 tunnelId,
                 node,
@@ -297,7 +288,7 @@ class TunnelService {
 
         this.eventBus.publish('connected', {
             tunnelId,
-            node: await Node.get(),
+            node: await this.nodeService.get(),
         });
 
         logger
@@ -321,7 +312,7 @@ class TunnelService {
         }
 
         // Check for stale state
-        const connectedNode = await Node.get(tunnel.state().node);
+        const connectedNode = await this.nodeService.get(tunnel.state().node);
         if (!connectedNode) {
             logger
                 .withContext('tunnel', tunnelId)
@@ -393,7 +384,11 @@ class TunnelService {
             arr.push(this.disconnect(tunnelId));
         });
         await Promise.allSettled(arr);
-        await this.db.destroy();
+        await Promise.allSettled([
+            this.db.destroy(),
+            this.db_state.destroy(),
+            this.nodeService.destroy(),
+        ])
         this.destroyed = true;
     }
 }

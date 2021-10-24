@@ -1,6 +1,5 @@
 import RedisLock from './redis-lock.js';
 import InmemLock from './inmem-lock.js';
-import Config from '../config.js';
 import { Logger } from '../logger.js';
 
 const logger = Logger("lock-service");
@@ -22,21 +21,33 @@ class Lock {
 }
 
 class LockService {
-    constructor() {
+    constructor(type, opts) {
         if (LockService.instance instanceof LockService) {
+            LockService.ref++;
             return LockService.instance;
         }
+        LockService.ref = 1;
         LockService.instance = this;
 
-        if (Config.get('redis-url') != undefined) {
-            this._lock = new RedisLock();
-        } else {
-            this._lock = new InmemLock();
+        switch (type) {
+            case 'redis':
+                this._lock = new RedisLock({
+                    redisUrl: opts.redisUrl
+                });
+                break;
+            case 'mem':
+                this._lock = new InmemLock();
+                break;
+            default:
+                assert.fail(`Unknown lock ${type}`);
         }
     }
 
     async destroy() {
-        return this._lock.destroy();
+        if (--LockService.ref == 0) {
+            delete LockService.instance;
+            return this._lock.destroy();
+        }
     }
 
     async lock(resource, ttl = 5000) {

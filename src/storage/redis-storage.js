@@ -1,22 +1,24 @@
 import assert from 'assert/strict';
 import Redis from 'redis';
-import Config from '../config.js';
 import { Logger } from '../logger.js';
 
 class RedisStorage {
-    constructor(callback) {
+    constructor(opts) {
         if (RedisStorage.instance instanceof RedisStorage) {
             const redis = RedisStorage.instance._client;
             if (redis.server_info?.redis_version != undefined) {
-                process.nextTick(callback);
+                typeof opts.callback === 'function' && process.nextTick(opts.callback);
             } else {
                 redis.once('ready', callback);
             }
             return RedisStorage.instance;
         }
         RedisStorage.instance = this;
+
         this.logger = Logger("redis-storage");
-        const redisUrl = Config.get('redis-url');
+
+        const callback = opts.callback;
+        const redisUrl = opts.redisUrl;
         if (!redisUrl) {
             throw new Error("No Redis connection string provided");
         }
@@ -131,7 +133,7 @@ class RedisStorage {
         });
     };
 
-    destroy() {
+    async destroy() {
         if (this.destroyed) {
             return;
         }

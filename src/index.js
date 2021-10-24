@@ -3,9 +3,9 @@ import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
 import Ingress from './ingress/index.js';
 import Logger from './logger.js';
-import Storage from './storage/index.js';
+import { StorageService } from './storage/index.js';
 import TransportService from './transport/transport-service.js';
-import Node from './utils/node.js';
+import Node, { NodeService } from './utils/node.js';
 import Version from './version.js';
 
 export default async () => {
@@ -18,8 +18,27 @@ export default async () => {
 
     process.on('uncaughtException', (err, origin) => {
         Logger.error(`uncaughtException: ${err.message}`);
+        Logger.debug(err.stack);
         process.exit(-1);
     });
+
+    // Initialize storage
+    const storage = await new Promise((resolve, reject) => {
+        try {
+            const mode = Config.get('redis-url') ? 'redis' : 'mem';
+
+            const storage = new StorageService(mode, {
+                callback: (err) => {
+                    err ? reject(err) : resolve(storage);
+                },
+                redisUrl: Config.get('redis-url'),
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+
+    const nodeService = new NodeService();
 
     let transport;
     try {
@@ -79,17 +98,8 @@ export default async () => {
         }
     });
 
-    const storageReady = new Promise((resolve, reject) => {
-        try {
-            new Storage("default", { callback: resolve });
-        } catch (e) {
-            reject(e);
-        }
-    });
-
     const res = await Promise
         .all([
-            storageReady,
             ingressReady,
             adminController ? adminController.listen() : new Promise((r) => r())
         ])
@@ -98,7 +108,7 @@ export default async () => {
             process.exit(-1);
         });
 
-    const ingress = res[1];
+    const ingress = res[0];
 
     if (adminController) {
         Logger.info({
@@ -115,10 +125,12 @@ export default async () => {
     const sigHandler = async (signal) => {
         Logger.info(`Shutdown initiated, signal=${signal}`)
 
+        await nodeService.destroy();
         await transport.destroy();
         await ingress.destroy();
         await apiController.destroy();
         adminController && await adminController.destroy();
+        await storage.destroy();
         Logger.info(`Shutdown complete`)
         process.exit(0);
     };
