@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 import LockService from '../lock/index.js';
-import InMemoryStorage from './inmemory-storage.js';
-import RedisStorage from './redis-storage.js';
+import MemoryStorageProvider from './memory-storage-provider.js';
+import RedisStorageProvider from './redis-storage-provider.js';
 import Serializer from './serializer.js';
 
 class StorageService {
@@ -22,13 +22,13 @@ class StorageService {
 
         switch (type) {
             case 'redis':
-                this._storage = new RedisStorage({
+                this._storage = new RedisStorageProvider({
                     callback: ready,
                     ...opts,
                 });
                 break;
             case 'mem':
-                this._storage = new InMemoryStorage({
+                this._storage = new MemoryStorageProvider({
                     callback: ready,
                     ...opts,
                 });

@@ -2,7 +2,7 @@ import assert from 'assert/strict';
 import Redis from 'redis';
 import { Logger } from '../logger.js';
 
-class RedisStorage {
+class RedisStorageProvider {
     constructor(opts) {
         this.logger = Logger("redis-storage");
         const callback = opts.callback;
@@ -133,7 +133,7 @@ class RedisStorage {
         });
         return new Promise((resolve) => {
             this._client.quit((res) => {
-                delete RedisStorage.instance;
+                delete RedisStorageProvider.instance;
                 this.logger.trace({
                     operation: 'destroy',
                     message: 'complete',
@@ -180,4 +180,4 @@ class RedisStorage {
     }
 }
 
-export default RedisStorage;
+export default RedisStorageProvider;

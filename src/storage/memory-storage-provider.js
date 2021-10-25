@@ -1,9 +1,9 @@
 import assert from 'assert/strict';
 import { Logger } from '../logger.js';
 
-class InMemoryStorage {
+class MemoryStorageProvider {
     constructor(opts) {
-        this.logger = Logger("in-memory-storage");
+        this.logger = Logger("memory-storage");
         this.db = {};
         this.timers = {};
         this._ttl = {};
@@ -69,4 +69,4 @@ class InMemoryStorage {
 
 }
 
-export default InMemoryStorage;
+export default MemoryStorageProvider;
