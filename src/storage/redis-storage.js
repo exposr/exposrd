@@ -4,19 +4,7 @@ import { Logger } from '../logger.js';
 
 class RedisStorage {
     constructor(opts) {
-        if (RedisStorage.instance instanceof RedisStorage) {
-            const redis = RedisStorage.instance._client;
-            if (redis.server_info?.redis_version != undefined) {
-                typeof opts.callback === 'function' && process.nextTick(opts.callback);
-            } else {
-                redis.once('ready', callback);
-            }
-            return RedisStorage.instance;
-        }
-        RedisStorage.instance = this;
-
         this.logger = Logger("redis-storage");
-
         const callback = opts.callback;
         const redisUrl = opts.redisUrl;
         if (!redisUrl) {

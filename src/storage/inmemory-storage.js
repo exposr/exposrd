@@ -3,11 +3,6 @@ import { Logger } from '../logger.js';
 
 class InMemoryStorage {
     constructor(opts) {
-        if (InMemoryStorage.instance instanceof InMemoryStorage) {
-            typeof opts.callback === 'function' && process.nextTick(opts.callback);
-            return InMemoryStorage.instance;
-        }
-        InMemoryStorage.instance = this;
         this.logger = Logger("in-memory-storage");
         this.db = {};
         this.timers = {};
