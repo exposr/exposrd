@@ -148,12 +148,12 @@ export default async () => {
     const sigHandler = async (signal) => {
         Logger.info(`Shutdown initiated, signal=${signal}`)
 
-        await nodeService.destroy();
-        await transport.destroy();
-        await ingress.destroy();
-        await apiController.destroy();
-        adminController && await adminController.destroy();
         await Promise.allSettled([
+            nodeService.destroy(),
+            transport.destroy(),
+            ingress.destroy(),
+            apiController.destroy(),
+            adminController.destroy(),
             storageService.destroy(),
             eventBusService.destroy()
         ]);
