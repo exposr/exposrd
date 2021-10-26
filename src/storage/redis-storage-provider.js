@@ -133,7 +133,6 @@ class RedisStorageProvider {
         });
         return new Promise((resolve) => {
             this._client.quit((res) => {
-                delete RedisStorageProvider.instance;
                 this.logger.trace({
                     operation: 'destroy',
                     message: 'complete',

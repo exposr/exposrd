@@ -378,18 +378,19 @@ class TunnelService {
     }
 
     async destroy() {
+        this.destroyed = true;
         const tunnels = Object.keys(this.connectedTunnels);
         const arr = []
         tunnels.forEach((tunnelId) => {
             arr.push(this.disconnect(tunnelId));
         });
         await Promise.allSettled(arr);
-        await Promise.allSettled([
+        return Promise.allSettled([
             this.db.destroy(),
             this.db_state.destroy(),
             this.nodeService.destroy(),
-        ])
-        this.destroyed = true;
+            this.eventBus.destroy(),
+        ]);
     }
 }
 

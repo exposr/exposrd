@@ -1,6 +1,7 @@
 import Config from './config.js';
 import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
+import { EventBusService } from './eventbus/index.js';
 import Ingress from './ingress/index.js';
 import Logger from './logger.js';
 import { StorageService } from './storage/index.js';
@@ -22,8 +23,8 @@ export default async () => {
         process.exit(-1);
     });
 
-    // Initialize storage
-    const storage = await new Promise((resolve, reject) => {
+    // Initialize storage and eventbus
+    const storageServiceReady = new Promise((resolve, reject) => {
         try {
             const mode = Config.get('redis-url') ? 'redis' : 'mem';
 
@@ -37,6 +38,31 @@ export default async () => {
             reject(e);
         }
     });
+
+    const eventBusServiceReady = new Promise((resolve, reject) => {
+        try {
+            const mode = Config.get('redis-url') ? 'redis' : 'mem';
+
+            const eventBusService = new EventBusService(mode, {
+                callback: (err) => {
+                    err ? reject(err) : resolve(eventBusService);
+                },
+                redisUrl: Config.get('redis-url'),
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+
+    const [storageService, eventBusService] = await Promise
+        .all([
+            storageServiceReady,
+            eventBusServiceReady
+        ])
+        .catch((err) => {
+            Logger.error(`Failed to start up: ${err.message}`);
+            process.exit(-1);
+        });
 
     const nodeService = new NodeService();
 
@@ -130,7 +156,10 @@ export default async () => {
         await ingress.destroy();
         await apiController.destroy();
         adminController && await adminController.destroy();
-        await storage.destroy();
+        await Promise.allSettled([
+            storageService.destroy(),
+            eventBusService.destroy()
+        ]);
         Logger.info(`Shutdown complete`)
         process.exit(0);
     };

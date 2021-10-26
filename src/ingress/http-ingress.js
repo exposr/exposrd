@@ -420,9 +420,12 @@ class HttpIngress {
     }
 
     async destroy() {
-        await this.tunnelService.destroy();
-        await this.httpListener.destroy()
         this.destroyed = true;
+        return Promise.allSettled([
+            this.eventBus.destroy(),
+            this.tunnelService.destroy(),
+            this.httpListener.destroy(),
+        ]);
     }
 
 }

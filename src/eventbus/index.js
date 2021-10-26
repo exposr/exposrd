@@ -1,24 +1,78 @@
+import assert from 'assert/strict';
 import { EventEmitter } from 'events';
-import Config from '../config.js';
 import { Logger } from '../logger.js';
 import Node from '../utils/node.js';
-import InmemBus from './inmem-bus.js';
-import RedisBus from './redis-bus.js';
+import MemoryEventBus from './memory-eventbus.js';
+import RedisEventBus from './redis-eventbus.js';
+
+class EventBusService {
+    constructor(type, opts) {
+        if (EventBusService.instance instanceof EventBusService) {
+            EventBusService.ref++;
+            return EventBusService.instance;
+        }
+        assert(type != null, "type not given");
+        EventBusService.instance = this;
+        EventBusService.ref = 1;
+
+        this._listeners = [];
+        const onMessage = (event, message) => {
+            this.emit(event, message);
+        };
+
+        const ready = (err) => {
+            typeof opts.callback === 'function' && opts.callback(err);
+        };
+
+        switch (type) {
+            case 'redis':
+                this._bus = new RedisEventBus({
+                    ...opts,
+                    callback: ready,
+                    handler: onMessage,
+                })
+                break;
+            case 'mem':
+                this._bus = new MemoryEventBus({
+                    ...opts,
+                    callback: ready,
+                    handler: onMessage,
+                });
+                break;
+            default:
+                assert.fail(`unknown type ${type}`);
+        }
+    }
+
+    attach(bus) {
+        this._listeners.push(bus);
+    }
+
+    detach(bus) {
+        this._listeners = this._listeners.filter((x) => x != bus);
+    }
+
+    emit(event, message) {
+        this._listeners.forEach((l) => l._emit(event, message));
+    }
+
+    async publish(event, message) {
+        return this._bus.publish(event, message);
+    }
+
+    async destroy() {
+        if (--EventBusService.ref == 0) {
+            return this._bus.destroy();
+        }
+    }
+}
+
+export { EventBusService };
 
 class EventBus extends EventEmitter {
     constructor() {
-        if (EventBus.instance instanceof EventBus) {
-            return EventBus.instance;
-        }
         super();
-        EventBus.instance = this;
         this.logger = Logger("eventbus");
-
-        if (Config.get('redis-url') != undefined) {
-            this.bus = new RedisBus(this);
-        } else {
-            this.bus = new InmemBus(this);
-        }
 
         this.setMaxListeners(1);
         this.on('newListener', () => {
@@ -27,6 +81,15 @@ class EventBus extends EventEmitter {
         this.on('removeListener', () => {
             this.setMaxListeners(this.getMaxListeners() - 1);
         });
+
+        const eventBusService = this.eventBusService = new EventBusService();
+        eventBusService.attach(this);
+    }
+
+    async destroy() {
+        this.removeAllListeners();
+        this.eventBusService.detach(this);
+        return this.eventBusService.destroy();
     }
 
     _emit(event, message) {
@@ -39,8 +102,8 @@ class EventBus extends EventEmitter {
             });
     }
 
-    publish(event, message) {
-        this.bus.publish(event, {
+    async publish(event, message) {
+        return this.eventBusService.publish(event, {
             ...message,
             _node: {
                 id: Node.identifier,
@@ -50,7 +113,7 @@ class EventBus extends EventEmitter {
         });
     }
 
-    waitFor(channel, predicate, timeout = undefined) {
+    async waitFor(channel, predicate, timeout = undefined) {
         return new Promise((resolve, reject) => {
             let timer;
             const fun = (message) => {
