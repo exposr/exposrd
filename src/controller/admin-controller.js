@@ -7,7 +7,7 @@ import { ERROR_BAD_INPUT } from '../utils/errors.js';
 
 const logger = Logger("admin");
 
-class AdminServer {
+class AdminController {
     constructor(opts) {
         this.appReady = false;
         this.apiKey = typeof opts.apiKey === 'string' &&
@@ -19,10 +19,13 @@ class AdminServer {
         this.router = Router();
         this._initializeRoutes();
 
-        const httpListener = this.httpListener = new HttpListener({port: opts.port});
-        httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
-            this.appCallback(ctx.req, ctx.res);
-        });
+        if (!opts.enable) {
+            logger.info({
+                message: `HTTP Admin API disabled`,
+            });
+            typeof opts.callback === 'function' && process.nextTick(opts.callback);
+            return;
+        }
 
         if (this.apiKey != undefined) {
             logger.info("Admin API resource enabled with API key");
@@ -31,10 +34,25 @@ class AdminServer {
         } else {
             logger.warn("Admin API resource disabled - no API key given");
         }
-    }
 
-    listen() {
-        return this.httpListener.listen();
+        const httpListener = this.httpListener = new HttpListener({port: opts.port});
+        httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
+            this.appCallback(ctx.req, ctx.res);
+        });
+
+        this.httpListener.listen()
+        .then(() => {
+            logger.info({
+                message: `HTTP Admin API listening on port ${opts.port}`,
+            });
+            typeof opts.callback === 'function' && opts.callback();
+        })
+        .catch((err) => {
+            logger.error({
+                message: `Failed to initialize HTTP Admin API: ${err.message}`,
+            });
+            typeof opts.callback === 'function' && opts.callback(err);
+        });
     }
 
     _initializeRoutes() {
@@ -161,9 +179,14 @@ class AdminServer {
         this.appReady = false;
         return Promise.allSettled([
             this.accountService.destroy(),
-            this.httpListener.destroy(),
+            new Promise(async (resolve) => {
+                if (this.httpListener) {
+                    await this.httpListener.destroy();
+                }
+                resolve();
+            }),
         ]);
     }
 }
 
-export default AdminServer;
+export default AdminController;

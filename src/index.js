@@ -88,17 +88,6 @@ export default async () => {
         process.exit(-1);
     }
 
-    const adminController = Config.get('admin-enable') ? new AdminController({
-        port: Config.get('admin-port'),
-        apiKey: Config.get('admin-api-key'),
-        unauthAccess: Config.get('admin-allow-access-without-api-key'),
-    }) : undefined;
-    const apiController = new ApiController({
-        port: Config.get('api-port'),
-        url: Config.get('api-url'),
-        allowRegistration: Config.get('allow-registration') || false,
-    });
-
     // Setup tunnel data ingress (incoming tunnel data)
     const ingressReady = new Promise((resolve, reject) => {
         try {
@@ -124,28 +113,36 @@ export default async () => {
         }
     });
 
-    const res = await Promise
+    const adminControllerReady = new Promise((resolve, reject) => {
+        const adminController = new AdminController({
+            enable: Config.get('admin-enable'),
+            port: Config.get('admin-port'),
+            apiKey: Config.get('admin-api-key'),
+            unauthAccess: Config.get('admin-allow-access-without-api-key'),
+            callback: (err) => {
+                err ? reject(err) : resolve(adminController);
+            },
+        });
+    });
+
+    const apiController = new ApiController({
+        port: Config.get('api-port'),
+        url: Config.get('api-url'),
+        allowRegistration: Config.get('allow-registration') || false,
+    });
+
+    const [ingress, adminController] = await Promise
         .all([
             ingressReady,
-            adminController ? adminController.listen() : new Promise((r) => r())
+            adminControllerReady,
         ])
         .catch((err) => {
             Logger.error(`Failed to start up: ${err.message}`);
+            Logger.debug(err.stack);
             process.exit(-1);
         });
 
-    const ingress = res[0];
-
-    if (adminController) {
-        Logger.info({
-            message: "Admin interface enabled",
-            port: Config.get('admin-port')
-        });
-        adminController.setReady();
-    } else {
-        Logger.info({message: "Admin interface disabled"});
-    }
-
+    adminController.setReady();
     Logger.info("exposr-server ready");
 
     const sigHandler = async (signal) => {
