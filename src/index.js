@@ -125,15 +125,21 @@ export default async () => {
         });
     });
 
-    const apiController = new ApiController({
-        port: Config.get('api-port'),
-        url: Config.get('api-url'),
-        allowRegistration: Config.get('allow-registration') || false,
+    const apiControllerReady = new Promise((resolve, reject) => {
+        const apiController = new ApiController({
+            port: Config.get('api-port'),
+            url: Config.get('api-url'),
+            allowRegistration: Config.get('allow-registration') || false,
+            callback: (err) => {
+                err ? reject(err) : resolve(apiController);
+            },
+        });
     });
 
-    const [ingress, adminController] = await Promise
+    const [ingress, apiController, adminController] = await Promise
         .all([
             ingressReady,
+            apiControllerReady,
             adminControllerReady,
         ])
         .catch((err) => {
