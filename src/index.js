@@ -163,11 +163,11 @@ export default async () => {
         Logger.info(`Shutdown initiated, signal=${signal}`)
 
         await Promise.allSettled([
-            nodeService.destroy(),
-            transport.destroy(),
-            ingress.destroy(),
             apiController.destroy(),
             adminController.destroy(),
+            transport.destroy(),
+            ingress.destroy(),
+            nodeService.destroy(),
             storageService.destroy(),
             eventBusService.destroy()
         ]);
