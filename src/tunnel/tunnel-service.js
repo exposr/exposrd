@@ -93,11 +93,11 @@ class TunnelService {
     async get(tunnelId, accountId = undefined) {
         assert(tunnelId != undefined);
 
-        const res = await Promise.all([
+        const [tunnel, tunnelState] = await Promise.all([
             this.db.read(tunnelId, Tunnel),
             this.db_state.read(tunnelId, TunnelState)
         ]);
-        const tunnel = res[0];
+
         if (!tunnel) {
             return false;
         }
@@ -106,7 +106,7 @@ class TunnelService {
             return false;
         }
 
-        tunnel._state = res[1] || new TunnelState();
+        tunnel._state = tunnelState || new TunnelState();
 
         logger.isDebugEnabled() && logger.debug({
             operation: 'get_tunnel',
