@@ -36,23 +36,23 @@ class AdminController {
         }
 
         const httpListener = this.httpListener = new HttpListener({port: opts.port});
-        httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
+        this._requestHandler = httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
             this.appCallback(ctx.req, ctx.res);
         });
 
         this.httpListener.listen()
-        .then(() => {
-            logger.info({
-                message: `HTTP Admin API listening on port ${opts.port}`,
+            .then(() => {
+                logger.info({
+                    message: `HTTP Admin API listening on port ${opts.port}`,
+                });
+                typeof opts.callback === 'function' && opts.callback();
+            })
+            .catch((err) => {
+                logger.error({
+                    message: `Failed to initialize HTTP Admin API: ${err.message}`,
+                });
+                typeof opts.callback === 'function' && opts.callback(err);
             });
-            typeof opts.callback === 'function' && opts.callback();
-        })
-        .catch((err) => {
-            logger.error({
-                message: `Failed to initialize HTTP Admin API: ${err.message}`,
-            });
-            typeof opts.callback === 'function' && opts.callback(err);
-        });
     }
 
     _initializeRoutes() {
@@ -178,13 +178,14 @@ class AdminController {
     async destroy() {
         this.appReady = false;
         return Promise.allSettled([
-            this.accountService.destroy(),
             new Promise(async (resolve) => {
                 if (this.httpListener) {
+                    this.httpListener.removeHandler('request', this._requestHandler);
                     await this.httpListener.destroy();
                 }
                 resolve();
             }),
+            this.accountService.destroy(),
         ]);
     }
 }

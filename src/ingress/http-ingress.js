@@ -42,18 +42,12 @@ class HttpIngress {
         this.altNameService = new AltNameService();
         this.tunnelService = new TunnelService(opts.callback);
         this.httpListener = new Listener().getListener('http', opts.port);
-        this.httpListener.use('request', { logger, prio: 1 }, async (ctx, next) => {
-            if (this.destroyed) {
-                return next();
-            }
+        this._requestHandler = this.httpListener.use('request', { logger, prio: 1 }, async (ctx, next) => {
             if (!await this.handleRequest(ctx.req, ctx.res, ctx.baseUrl)) {
                 next();
             }
         });
-        this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
-            if (this.destroyed) {
-                return next();
-            }
+        this._upgradeHandler = this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
             if (!await this.handleUpgradeRequest(ctx.req, ctx.sock, ctx.head, ctx.baseUrl)) {
                 next();
             }
@@ -421,6 +415,8 @@ class HttpIngress {
 
     async destroy() {
         this.destroyed = true;
+        this.httpListener.removeHandler('request', this._requestHandler);
+        this.httpListener.removeHandler('upgrade', this._upgradeHandler);
         return Promise.allSettled([
             this.eventBus.destroy(),
             this.tunnelService.destroy(),

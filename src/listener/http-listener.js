@@ -106,6 +106,15 @@ class HttpListener extends ListenerInterface {
         }
 
         const server = this.server = http.createServer();
+        this._clients = new Set();
+        server.on('connection', (sock) => {
+            this._clients.add(sock);
+
+            sock.once('close', () => {
+                this._clients.delete(sock);
+            });
+        });
+
         server.on('request', async (req, res) => {
             if (!await handleRequest('request', {req, res})) {
                 res.statusCode = 404;
@@ -140,6 +149,11 @@ class HttpListener extends ListenerInterface {
 
         const pos = this.callbacks[event].reduce((pos, x) =>  x.opts.prio <= opts.prio ? pos + 1 : pos, 0);
         this.callbacks[event].splice(pos, 0, {callback, opts})
+        return callback;
+    }
+
+    removeHandler(event, callback) {
+        this.callbacks[event] = this.callbacks[event].filter(obj => obj.callback != callback);
     }
 
     async _listen() {
@@ -160,8 +174,11 @@ class HttpListener extends ListenerInterface {
 
     async _destroy() {
         return new Promise((resolve) => {
+            this.server.once('close', () => {
+                resolve();
+            });
             this.server.close();
-            resolve();
+            this._clients.forEach((sock) => sock.destroy());
         });
     }
 }

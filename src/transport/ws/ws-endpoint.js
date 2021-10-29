@@ -27,8 +27,8 @@ class WebSocketEndpoint {
         this.wss = new WebSocket.Server({ noServer: true });
         this.destroyed = false;
 
-        this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
-            if (this.destroyed || !await this.handleUpgrade(ctx.req, ctx.sock, ctx.head)) {
+        this._upgradeHandler = this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
+            if (!await this.handleUpgrade(ctx.req, ctx.sock, ctx.head)) {
                 return next();
             }
         });
@@ -57,11 +57,14 @@ class WebSocketEndpoint {
 
     async destroy() {
         this.destroyed = true;
-        await this.tunnelService.destroy();
+        this.httpListener.removeHandler('upgrade', this._upgradeHandler);
         this.wss.clients.forEach((client) => {
             client.close();
         });
-        await this.httpListener.destroy()
+        return Promise.allSettled([
+            this.tunnelService.destroy(),
+            this.httpListener.destroy(),
+        ]);
     }
 
     _getRequestClientIp(req) {

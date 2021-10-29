@@ -352,7 +352,7 @@ class ApiController {
     }
 
     _initializeServer() {
-        this.httpListener.use('request', {
+        this._requestHandler = this.httpListener.use('request', {
                 logger,
                 logBody: true,
                 prio: 10,
@@ -371,8 +371,11 @@ class ApiController {
     }
 
     async destroy() {
-        await this.accountService.destroy();
-        await this.httpListener.destroy()
+        this.httpListener.removeHandler('request', this._requestHandler);
+        return Promise.allSettled([
+            this.accountService.destroy(),
+            this.httpListener.destroy(),
+        ]);
     }
 }
 
