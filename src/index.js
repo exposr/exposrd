@@ -66,27 +66,29 @@ export default async () => {
 
     const nodeService = new NodeService();
 
-    let transport;
-    try {
-        // Setup tunnel transport connection endpoints (for clients to establish tunnels)
-        transport = new TransportService({
-            ws: {
-              enabled: Config.get('transport').includes('ws'),
-              baseUrl: Config.get('api-url'),
-              port: Config.get('api-port'),
-            },
-            ssh: {
-              enabled: Config.get('transport').includes('ssh'),
-              hostKey: Config.get('transport-ssh-key'),
-              host: Config.get('transport-ssh-host'),
-              port: Config.get('transport-ssh-port'),
-            },
-        });
-    } catch (err) {
-        Logger.error(err.message);
-        Logger.debug(err.stack);
-        process.exit(-1);
-    }
+    const transportReady = new Promise((resolve, reject) => {
+        try {
+            // Setup tunnel transport connection endpoints (for clients to establish tunnels)
+            const transport = new TransportService({
+                callback: (err) => {
+                    err ? reject(err) : resolve(transport);
+                },
+                ws: {
+                  enabled: Config.get('transport').includes('ws'),
+                  baseUrl: Config.get('api-url'),
+                  port: Config.get('api-port'),
+                },
+                ssh: {
+                  enabled: Config.get('transport').includes('ssh'),
+                  hostKey: Config.get('transport-ssh-key'),
+                  host: Config.get('transport-ssh-host'),
+                  port: Config.get('transport-ssh-port'),
+                },
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
 
     // Setup tunnel data ingress (incoming tunnel data)
     const ingressReady = new Promise((resolve, reject) => {
@@ -136,9 +138,15 @@ export default async () => {
         });
     });
 
-    const [ingress, apiController, adminController] = await Promise
+    const [
+        ingress,
+        transport,
+        apiController,
+        adminController,
+    ] = await Promise
         .all([
             ingressReady,
+            transportReady,
             apiControllerReady,
             adminControllerReady,
         ])

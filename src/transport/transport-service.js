@@ -12,13 +12,34 @@ class TransportService {
         assert(opts != undefined, "opts is undefined");
 
         this._transports = {};
+        const ready = [];
         if (opts.ws && opts.ws.enabled === true) {
-            this._transports.ws = new WebSocketEndpoint(opts.ws);
+            const promise = new Promise((resolve, reject) => {
+                this._transports.ws = new WebSocketEndpoint({
+                    ...opts.ws,
+                    callback: (err) => err ? reject(err) : resolve(),
+                });
+            });
+            ready.push(promise);
         }
 
         if (opts?.ssh?.enabled === true) {
-            this._transports.ssh = new SSHEndpoint(opts.ssh);
+            const promise = new Promise((resolve, reject) => {
+                this._transports.ssh = new SSHEndpoint({
+                    ...opts.ssh,
+                    callback: (err) => err ? reject(err) : resolve(),
+                });
+            });
+            ready.push(promise);
         }
+
+        Promise.all(ready)
+            .then(() => {
+                typeof opts.callback === 'function' && opts.callback();
+            })
+            .catch((err) => {
+                typeof opts.callback === 'function' && opts.callback(err);
+            });
     }
 
     async destroy() {

@@ -53,15 +53,20 @@ class SSHEndpoint {
             this._handleClient(client, clientInfo);
         });
 
+        const connectionError = (err) => {
+            logger.error({
+                message: `Failed to initialize ssh transport connection endpoint: ${err}`,
+            });
+            typeof opts.callback === 'function' && opts.callback(err);
+        };
+        server.once('error', connectionError);
         server.listen(opts.port, (err) => {
-            if (err) {
-                throw err;
-            } else {
-                logger.info({
-                    msg: 'SSH transport endpoint initialized',
-                    fingerprint: this._fingerprint
-                });
-            }
+            server.removeListener('error', connectionError);
+            logger.info({
+                msg: 'SSH transport endpoint initialized',
+                fingerprint: this._fingerprint
+            });
+            typeof opts.callback === 'function' && opts.callback();
         });
     }
 
