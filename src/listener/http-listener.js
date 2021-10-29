@@ -72,10 +72,16 @@ class HttpListener extends ListenerInterface {
                     captor.captureRequestBody = obj.opts?.logBody || false;
                     captor.captureResponseBody = obj.opts?.logBody || false;
                     next = false;
-                    await obj.callback(ctx, () => { next = true });
-                    if (!next) {
-                        customLogger = obj.opts?.logger;
-                        break;
+                    try {
+                        await obj.callback(ctx, () => { next = true });
+                        if (!next) {
+                            customLogger = obj.opts?.logger;
+                            break;
+                        }
+                    } catch (e) {
+                        logger.error(e);
+                        ctx.res.statusCode = 500;
+                        ctx.res.end();
                     }
                 }
             } else {
