@@ -21,7 +21,7 @@ class EventBusService {
         };
 
         const ready = (err) => {
-            typeof opts.callback === 'function' && opts.callback(err);
+            typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
         };
 
         switch (type) {

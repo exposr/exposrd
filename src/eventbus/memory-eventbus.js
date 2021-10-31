@@ -4,7 +4,7 @@ class MemoryEventBus {
     constructor(opts) {
         this._handler = opts.handler;
         this.logger = Logger("memory-eventbus");
-        typeof opts.callback === 'function' && opts.callback();
+        typeof opts.callback === 'function' && process.nextTick(opts.callback);
     }
 
     async publish(event, message) {
