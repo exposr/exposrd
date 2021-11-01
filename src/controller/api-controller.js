@@ -348,7 +348,16 @@ class ApiController {
         });
 
         app.use(router.middleware());
-        this.appCallback = app.callback();
+        app.use(async (ctx, next) => {
+            ctx.req._unhandled_request = true;
+            return next();
+        });
+        this.appCallback = (req, res) => {
+            app.callback()(req, res);
+            const unhandled = req._unhandled_request;
+            delete req._unhandled_request;
+            return !unhandled;
+        };
     }
 
     _initializeServer() {
@@ -366,7 +375,9 @@ class ApiController {
                 }
             }
             ctx.req._exposrBaseUrl = baseUrl;
-            this.appCallback(ctx.req, ctx.res);
+            if (!this.appCallback(ctx.req, ctx.res)) {
+                return next();
+            }
         });
     }
 

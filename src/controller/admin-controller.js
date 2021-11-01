@@ -1,7 +1,7 @@
 import Koa from 'koa';
 import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
-import HttpListener from '../listener/http-listener.js';
+import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
 import { ERROR_BAD_INPUT } from '../utils/errors.js';
 
@@ -35,9 +35,11 @@ class AdminController {
             logger.warn("Admin API resource disabled - no API key given");
         }
 
-        const httpListener = this.httpListener = new HttpListener({port: opts.port});
+        const httpListener = this.httpListener = new Listener().getListener('http', opts.port);
         this._requestHandler = httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
-            this.appCallback(ctx.req, ctx.res);
+            if (!this.appCallback(ctx.req, ctx.res)) {
+                return next();
+            }
         });
 
         this.httpListener.listen()
@@ -169,6 +171,16 @@ class AdminController {
 
         this.app.use(router.middleware());
         this.appCallback = this.app.callback();
+        this.app.use(async (ctx, next) => {
+            ctx.req._unhandled_request = true;
+            return next();
+        });
+        this.appCallback = (req, res) => {
+            this.app.callback()(req, res);
+            const unhandled = req._unhandled_request;
+            delete req._unhandled_request;
+            return !unhandled;
+        };
     }
 
     setReady() {
