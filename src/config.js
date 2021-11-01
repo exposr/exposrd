@@ -144,28 +144,40 @@ const parse = (callback, args = {}) => {
         .group([
             'admin-enable',
             'admin-port',
+            'admin-api-enable',
+            'admin-api-port',
             'admin-api-key',
-            'admin-allow-access-without-api-key',
+            'admin-api-allow-access-without-key',
         ], 'Admin configuration')
         .option('admin-enable', {
             type: 'boolean',
             default: false,
-            description: "Enable admin interface"
+            description: "Enable admin service interface"
         })
         .option('admin-port', {
             type: 'number',
             default: 8081,
             description: "Port to use for HTTP admin interface"
         })
+        .option('admin-api-enable', {
+            type: 'boolean',
+            default: false,
+            description: "Enable admin API interface"
+        })
+        .option('admin-api-port', {
+            type: 'number',
+            default: 8081,
+            description: "Port to use for HTTP admin API interface"
+        })
         .option('admin-api-key', {
             type: 'string',
             description: 'API key for admin resource access'
         })
-        .option('admin-allow-access-without-api-key', {
+        .option('admin-api-allow-access-without-key', {
             type: 'boolean',
             default: false,
             hidden: true,
-            description: 'Allow access to admin resource without any authentication'
+            description: 'Allow access to admin API resource without any authentication'
         })
         .group([
             'api-url',

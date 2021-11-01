@@ -1,4 +1,5 @@
 import Config from './config.js';
+import AdminApiController from './controller/admin-api-controller.js';
 import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
 import { EventBusService } from './eventbus/index.js';
@@ -119,10 +120,20 @@ export default async () => {
         const adminController = new AdminController({
             enable: Config.get('admin-enable'),
             port: Config.get('admin-port'),
-            apiKey: Config.get('admin-api-key'),
-            unauthAccess: Config.get('admin-allow-access-without-api-key'),
             callback: (err) => {
                 err ? reject(err) : resolve(adminController);
+            },
+        });
+    });
+
+    const adminApiControllerReady = new Promise((resolve, reject) => {
+        const adminApiController = new AdminApiController({
+            enable: Config.get('admin-api-enable'),
+            port: Config.get('admin-api-port'),
+            apiKey: Config.get('admin-api-key'),
+            unauthAccess: Config.get('admin-api-allow-access-without-key'),
+            callback: (err) => {
+                err ? reject(err) : resolve(adminApiController);
             },
         });
     });
@@ -142,12 +153,14 @@ export default async () => {
         ingress,
         transport,
         apiController,
+        adminApiController,
         adminController,
     ] = await Promise
         .all([
             ingressReady,
             transportReady,
             apiControllerReady,
+            adminApiControllerReady,
             adminControllerReady,
         ])
         .catch((err) => {
@@ -164,6 +177,7 @@ export default async () => {
 
         await Promise.allSettled([
             apiController.destroy(),
+            adminApiController.destroy(),
             adminController.destroy(),
             transport.destroy(),
             ingress.destroy(),
