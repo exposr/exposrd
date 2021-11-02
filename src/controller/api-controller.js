@@ -1,8 +1,6 @@
-import Koa from 'koa';
 import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
-import Listener from '../listener/index.js';
 import { Logger } from '../logger.js';
 import TransportService from '../transport/transport-service.js';
 import Tunnel from '../tunnel/tunnel.js';
@@ -12,47 +10,33 @@ import {
     ERROR_BAD_INPUT,
     ERROR_TUNNEL_NOT_FOUND
 } from '../utils/errors.js';
+import KoaController from './koa-controller.js';
 
 const logger = Logger("api");
 
-class ApiController {
+class ApiController extends KoaController {
 
     static TUNNEL_ID_REGEX = /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/;
 
     constructor(opts) {
+        super({
+            port: opts.port,
+            callback: opts.callback,
+            host: opts.url?.host,
+            logger,
+        });
         this.opts = opts;
-        this.httpListener = new Listener().getListener('http', opts.port);
         this.accountService = new AccountService();
         this.transportService = new TransportService();
         this._initializeRoutes();
-        this._initializeServer();
 
         if (opts.allowRegistration) {
             logger.warn({message: "Public account registration is enabled"});
         }
-
-        this.apiUrl = opts.url;
-
-        this.httpListener.listen()
-            .then(() => {
-                logger.info({
-                    message: `HTTP API listening on port ${opts.port}`,
-                    url: opts.url,
-                });
-                typeof opts.callback === 'function' && opts.callback();
-            })
-            .catch((err) => {
-                logger.error({
-                    message: `Failed to initialize HTTP API: ${err.message}`,
-                });
-                typeof opts.callback === 'function' && opts.callback(err);
-            });
     }
 
     _initializeRoutes() {
-
-        const router = this.router = Router();
-        const app = this.app = new Koa();
+        const router = this.router;
 
         const handleError = async (ctx, next) => {
             if (!ctx.invalid) {
@@ -346,46 +330,12 @@ class ApiController {
                 };
             }]
         });
-
-        app.use(router.middleware());
-        app.use(async (ctx, next) => {
-            ctx.req._unhandled_request = true;
-            return next();
-        });
-        this.appCallback = (req, res) => {
-            app.callback()(req, res);
-            const unhandled = req._unhandled_request;
-            delete req._unhandled_request;
-            return !unhandled;
-        };
     }
 
-    _initializeServer() {
-        this._requestHandler = this.httpListener.use('request', {
-                logger,
-                logBody: true,
-                prio: 10,
-            }, async (ctx, next) => {
-
-            const baseUrl = this.apiUrl || ctx.baseUrl;
-            if (this.apiUrl) {
-                const host = ctx?.req?.headers?.host?.toLowerCase();
-                if (typeof host !== 'string' || host !== this.apiUrl.host.toLowerCase()) {
-                    return next();
-                }
-            }
-            ctx.req._exposrBaseUrl = baseUrl;
-            if (!this.appCallback(ctx.req, ctx.res)) {
-                return next();
-            }
-        });
-    }
-
-    async destroy() {
-        this.httpListener.removeHandler('request', this._requestHandler);
+    async _destroy() {
         return Promise.allSettled([
             this.accountService.destroy(),
-            this.httpListener.destroy(),
+            this.transportService.destroy(),
         ]);
     }
 }

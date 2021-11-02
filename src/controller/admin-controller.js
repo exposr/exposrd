@@ -15,7 +15,7 @@ class AdminController extends KoaController {
             return super();
         }
 
-        super(opts.port, opts.callback, logger);
+        super({...opts, logger});
 
         this.appReady = false;
 

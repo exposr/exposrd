@@ -6,16 +6,18 @@ class KoaController {
 
     _name = 'controller'
 
-    constructor(port, callback, logger) {
-        if (port == undefined) {
+    constructor(opts) {
+        if (opts == undefined) {
             return;
         }
+        const {port, callback, logger, host, prio} = opts;
 
         this.app = new Koa();
         this.router = Router();
 
         const httpListener = this.httpListener = new Listener().getListener('http', port);
-        this._requestHandler = httpListener.use('request', { logger, logBody: true }, async (ctx, next) => {
+        this._requestHandler = httpListener.use('request', { host, logger, prio, logBody: true }, async (ctx, next) => {
+            ctx.req._exposrBaseUrl = ctx.baseUrl;
             if (!this.appCallback(ctx.req, ctx.res)) {
                 return next();
             }

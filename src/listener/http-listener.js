@@ -46,7 +46,7 @@ class HttpListener extends ListenerInterface {
                 || headers[HTTP_HEADER_HOST]?.split(':')[1];
 
             try {
-                return new URL(`${proto}://${host}${port ? `:${port}` : ''}`);
+                return new URL(`${proto}://${host.toLowerCase()}${port ? `:${port}` : ''}`);
             } catch (e) {
                 logger.isTraceEnabled() && logger.trace({e});
                 return undefined;
@@ -62,17 +62,21 @@ class HttpListener extends ListenerInterface {
                 }
             });
 
-            let next;
+            let next = true;
             let customLogger;
             const capture = captor.capture();
 
             ctx.baseUrl = getBaseUrl(ctx.req);
             if (ctx.baseUrl !== undefined) {
                 for (const obj of this.callbacks[event]) {
+                    if (obj.opts.host && obj.opts?.host?.toLowerCase() !== ctx.baseUrl.host) {
+                        next = true;
+                        continue;
+                    }
                     captor.captureRequestBody = obj.opts?.logBody || false;
                     captor.captureResponseBody = obj.opts?.logBody || false;
-                    next = false;
                     try {
+                        next = false;
                         await obj.callback(ctx, () => { next = true });
                         if (!next) {
                             customLogger = obj.opts?.logger;

@@ -18,7 +18,7 @@ class AdminApiController extends KoaController {
             return super();
         }
 
-        super(opts.port, opts.callback, logger);
+        super({...opts, logger});
 
         this.apiKey = typeof opts.apiKey === 'string' &&
             opts.apiKey?.length > 0 ? opts.apiKey : undefined;
