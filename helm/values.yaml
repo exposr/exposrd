@@ -4,7 +4,9 @@ replicaCount: 1
 exposr:
   logLevel: info
   allowRegistration: false
-  adminApiKey: ""
+  admin:
+    enabled: false
+    apiKey: ""
   transport:
     ws:
       enabled: true
@@ -45,7 +47,8 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 80
-  adminPort: 8081
+  adminApiPort: 8080
+  adminPort: 9000
 
 ingress:
   enabled: false

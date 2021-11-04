@@ -31,8 +31,13 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
-            - name: admin
+{{- if eq .Values.exposr.admin.enabled true }}
+            - name: admin-api
               containerPort: 8081
+              protocol: TCP
+{{- end }}
+            - name: admin
+              containerPort: 9000
               protocol: TCP
 {{- if eq .Values.exposr.ingress.sni.enabled true }}
             - name: ingress-sni

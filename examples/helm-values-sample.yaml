@@ -1,7 +1,9 @@
 replicaCount: 3
 
 exposr:
-  # adminApiKey: changeMeToAverySecretApiKey
+  admin:
+    enabled: false
+    apiKey: "changeMeToASecretKey"
   ingress:
     http:
       enabled: true
@@ -14,6 +16,7 @@ exposr:
       enabled: true
     ssh:
       enabled: true
+      host: ssh.example.com
       # key: "" # Set to Base64 encoded OpenSSH PEM private key for a static host key
   # logLevel: debug
   # allowRegistration: true
