@@ -38,6 +38,9 @@ class AltNameService {
     }
 
     async update(service, tunnelId, add, remove) {
+        add ??= []
+        remove ??= []
+
         const adds = add.map((an) => this._set(service, an, tunnelId));
         const dels = remove.map((an) => this._del(service, an, tunnelId));
         await Promise.allSettled([...adds, ...dels]);
