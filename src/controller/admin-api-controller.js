@@ -95,6 +95,9 @@ class AdminApiController extends KoaController {
             return {
                 account_id: accountId,
                 account_id_hr: formatted,
+                tunnels: account.tunnels,
+                created_at: account.created_at,
+                updated_at: account.updated_at,
             }
         };
 
@@ -130,7 +133,7 @@ class AdminApiController extends KoaController {
                     return;
                 }
                 ctx.status = 200;
-                ctx.body = accountProps(account) ;
+                ctx.body = accountProps(account);
             }]
         });
 
