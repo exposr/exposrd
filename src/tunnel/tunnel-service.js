@@ -193,10 +193,10 @@ class TunnelService {
         if (!await this.disconnect(tunnelId)) {
             logger
                 .withContext('tunnel', tunnelId)
-                .warn({
+                .error({
                     operation: 'delete_tunnel',
                     msg: 'tunnel still connected'
-                })
+                });
             return false;
         };
 
@@ -207,12 +207,23 @@ class TunnelService {
             }
         });
 
-        await Promise.allSettled([
-            new Ingress().deleteIngress(tunnel),
-            this.db.delete(tunnelId),
-            this.db_state.delete(tunnelId),
-            updateAccount,
-        ]);
+        try {
+            await Promise.all([
+                new Ingress().deleteIngress(tunnel),
+                this.db.delete(tunnelId),
+                this.db_state.delete(tunnelId),
+                updateAccount,
+            ]);
+        } catch (e) {
+            logger
+                .withContext('tunnel', tunnelId)
+                .error({
+                    operation: 'delete_tunnel',
+                    message: `failed to delete tunnel: ${e.message}`,
+                    stack: `${e.stack}`,
+                });
+            return false;
+        }
 
         logger.isDebugEnabled() && logger.debug({
             operation: 'delete_tunnel',

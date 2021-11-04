@@ -138,7 +138,20 @@ class AdminApiController extends KoaController {
             method: 'delete',
             path: '/v1/admin/account/:account_id',
             handler: [handleAdminAuth, async (ctx, next) => {
-                ctx.status = 501;
+                ctx.body = {};
+                const res = await this.accountService.delete(ctx.params.account_id);
+                if (res === undefined) {
+                    ctx.status = 404;
+                    return;
+                }
+
+                if (res === false) {
+                    ctx.status = 500;
+                    return;
+                }
+
+                ctx.status = 204;
+                return;
             }]
         });
     }

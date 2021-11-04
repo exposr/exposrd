@@ -1,6 +1,9 @@
 import assert from 'assert/strict';
 import Storage from '../storage/index.js';
 import Account from './account.js';
+import { Logger } from '../logger.js';
+
+const logger = Logger("account-service");
 
 class AccountService {
     static ACCOUNT_ID_ALPHABET = 'CDEFHJKMNPRTVWXY2345689';
@@ -68,13 +71,25 @@ class AccountService {
 
     async delete(accountId) {
         assert(accountId != undefined);
-        const account = this.get(accountId);
-        if (account instanceof Account) {
-            await this._db.delete(account.accountId);
-            return true;
-        } else {
+        const account = await this.get(accountId);
+        if (!(account instanceof Account)) {
+            return undefined;
+        }
+
+        const tunnels = [...account.tunnels];
+        try {
+            await Promise.all(tunnels.map((tunnelId) => {
+                return account.deleteTunnel(tunnelId);
+            }));
+        } catch (e) {
+            logger.error({
+                message: `Failed to delete account`,
+            });
             return false;
         }
+
+        await this._db.delete(account.id);
+        return true;
     }
 
     async update(accountId, callback) {
