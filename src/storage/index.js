@@ -154,10 +154,17 @@ class Storage {
     };
 
     async list(cursor = 0, count = 10) {
-        const res = await this._storage.list(`${this.ns}:`, cursor, count);
+        const data = [];
+        do {
+            const requested = count - data.length;
+            const res = await this._storage.list(`${this.ns}:`, cursor, requested);
+            cursor = res.cursor;
+            data.push(...res.data);
+        } while (data.length < count && cursor != 0);
+
         return {
-            cursor: res.cursor,
-            data: res.data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1)),
+            cursor: cursor > 0 ? cursor : undefined,
+            data: data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1)),
         }
     }
 }

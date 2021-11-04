@@ -105,6 +105,14 @@ class AccountService {
         });
     }
 
+    async list(cursor = 0, count = 10) {
+        const res = await this._db.list(cursor, count);
+        return {
+            cursor: res.cursor,
+            accounts: res.data,
+        }
+    }
+
 }
 
 export default AccountService;

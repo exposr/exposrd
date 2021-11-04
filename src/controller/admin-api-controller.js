@@ -58,6 +58,12 @@ class AdminApiController extends KoaController {
                     error: ERROR_BAD_INPUT,
                     field: ctx.invalid.params.msg
                 }
+            } else if (ctx.invalid.query) {
+                ctx.status = parseInt(ctx.invalid.query.status) || 400;
+                ctx.body = {
+                    error: ERROR_BAD_INPUT,
+                    field: ctx.invalid.query.msg
+                }
             } else if (ctx.invalid.body) {
                 ctx.status = parseInt(ctx.invalid.body.status) || 400;
                 ctx.body = {
@@ -134,6 +140,27 @@ class AdminApiController extends KoaController {
                 }
                 ctx.status = 200;
                 ctx.body = accountProps(account);
+            }]
+        });
+
+        router.route({
+            method: 'get',
+            path: '/v1/admin/account',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                query: {
+                    cursor: Router.Joi.number().integer().min(0).optional(),
+                    count: Router.Joi.number().integer().min(1).max(100).optional().default(25),
+                }
+            },
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
+                const res = await this.accountService.list(ctx.query.cursor, ctx.query.count);
+                ctx.status = 200;
+                ctx.body = {
+                    cursor: res.cursor,
+                    accounts: res.accounts,
+                };
             }]
         });
 
