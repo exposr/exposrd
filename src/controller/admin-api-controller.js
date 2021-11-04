@@ -100,7 +100,7 @@ class AdminApiController extends KoaController {
 
         router.route({
             method: 'post',
-            path: '/v1/account',
+            path: '/v1/admin/account',
             handler: [handleAdminAuth, async (ctx, next) => {
                 const account = await this.accountService.create();
                 if (account === undefined) {
@@ -114,7 +114,7 @@ class AdminApiController extends KoaController {
 
         router.route({
             method: 'get',
-            path: '/v1/account/:account_id',
+            path: '/v1/admin/account/:account_id',
             validate: {
                 failure: 400,
                 continueOnError: true,
@@ -136,7 +136,7 @@ class AdminApiController extends KoaController {
 
         router.route({
             method: 'delete',
-            path: '/v1/account/:account_id',
+            path: '/v1/admin/account/:account_id',
             handler: [handleAdminAuth, async (ctx, next) => {
                 ctx.status = 501;
             }]
