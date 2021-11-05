@@ -68,6 +68,28 @@ class RedisStorageProvider {
         });
     }
 
+    mget(keys) {
+        assert(keys !== undefined);
+        if (!this.connected) {
+            return false;
+        }
+        return new Promise((resolve, reject) => {
+            this._client.mget(keys, (err, data) => {
+                this.logger.isTraceEnabled() &&
+                    this.logger.trace({
+                        operation: 'mget',
+                        keys,
+                        err,
+                        data,
+                    });
+                if (err) {
+                    return resolve(false);
+                }
+                resolve(data);
+            });
+        });
+    }
+
     set(key, data, opts = {}) {
         assert(key !== undefined);
         assert(data !== undefined);

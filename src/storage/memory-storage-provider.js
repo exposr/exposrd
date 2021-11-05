@@ -25,6 +25,16 @@ class MemoryStorageProvider {
         return this.db[key];
     };
 
+    async mget(keys) {
+        assert(keys !== undefined);
+        this.logger.isTraceEnabled() &&
+            this.logger.trace({
+                operation: 'mget',
+                keys,
+            });
+        return keys.map((k) => { return this.db[k]; });
+    }
+
     async set(key, data, opts = {}) {
         assert(key !== undefined);
         this.logger.isTraceEnabled() &&

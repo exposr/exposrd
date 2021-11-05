@@ -78,11 +78,17 @@ class Storage {
     }
 
     async read(key, clazz) {
-        const str = await this._get(key);
-        if (!str) {
-            return str;
+        const data = await this._get(key);
+        if (!data) {
+            return data;
         }
-        return Serializer.deserialize(str, clazz);
+        if (data instanceof Array) {
+            return data.map((d) => {
+                return Serializer.deserialize(d, clazz);
+            });
+        } else {
+            return Serializer.deserialize(data, clazz);
+        }
     }
 
     async update(key, clazz, cb, opts = {}) {
@@ -119,15 +125,31 @@ class Storage {
         if (!data) {
             return data;
         }
-        return JSON.parse(data);
+        if (data instanceof Array) {
+            return data.map((d) => { return JSON.parse(d); });
+        } else {
+            return JSON.parse(data);
+        }
     };
 
     // Returns
-    // String on success
+    // String(s) on success
     // undefined on not found
     // false on storage error
     async _get(key) {
+        if (key instanceof Array) {
+            return this._get_many(key);
+        } else {
+            return this._get_one(key);
+        }
+    };
+
+    async _get_one(key) {
         return this._storage.get(this._key(key));
+    };
+
+    async _get_many(keys) {
+        return this._storage.mget(keys.map((k) => { return this._key(k); }));
     };
 
     async set(key, data, opts = {}) {
