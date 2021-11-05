@@ -105,11 +105,12 @@ class AccountService {
         });
     }
 
-    async list(cursor = 0, count = 10) {
+    async list(cursor = 0, count = 10, verbose = false) {
         const res = await this._db.list(cursor, count);
+        const data = verbose ? await this._db.read(res.data, Account) : res.data.map((id) => { return {account_id: id}; });
         return {
             cursor: res.cursor,
-            accounts: res.data,
+            accounts: data,
         }
     }
 

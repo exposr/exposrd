@@ -153,14 +153,16 @@ class AdminApiController extends KoaController {
                 query: {
                     cursor: Router.Joi.number().integer().min(0).optional(),
                     count: Router.Joi.number().integer().min(1).max(100).optional().default(25),
+                    verbose: Router.Joi.boolean().default(false),
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const res = await this.accountService.list(ctx.query.cursor, ctx.query.count);
+                const res = await this.accountService.list(ctx.query.cursor, ctx.query.count, ctx.query.verbose);
+
                 ctx.status = 200;
                 ctx.body = {
                     cursor: res.cursor,
-                    accounts: res.accounts,
+                    accounts: res.accounts.map((a) => { return accountProps(a); }),
                 };
             }]
         });
