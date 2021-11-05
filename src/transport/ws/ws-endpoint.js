@@ -4,6 +4,7 @@ import WebSocket from 'ws';
 import Listener from '../../listener/index.js';
 import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
+import Tunnel from '../../tunnel/tunnel.js';
 import {
     ERROR_TUNNEL_ALREADY_CONNECTED,
     ERROR_TUNNEL_TRANSPORT_CON_TIMEOUT
@@ -128,8 +129,26 @@ class WebSocketEndpoint {
             return this._unauthorized(sock, req);
         }
 
-        const tunnel = await this.tunnelService.get(tunnelId);
-        if (tunnel?.transport?.token !== token) {
+        let tunnel;
+        try {
+            tunnel = await this.tunnelService.get(tunnelId);
+            if (!(tunnel instanceof Tunnel)) {
+                return this._unauthorized(sock, req);
+            }
+        } catch (e) {
+            return this._unauthorized(sock, req);
+        }
+
+        const authResult = await tunnel.authorize(token);
+        if (authResult.authorized !== true) {
+            authResult.error &&
+                logger
+                    .withContext("tunnel", tunnelId)
+                    .error({
+                        operation: 'upgrade',
+                        message: authResult.error.message,
+                        stack: authResult.error.stack,
+                    });
             return this._unauthorized(sock, req);
         }
 
@@ -141,6 +160,7 @@ class WebSocketEndpoint {
             });
         }
 
+        const account = authResult.account;
         const timeout = setTimeout(() => {
             logger.withContext("tunnel", tunnelId).debug(`HTTP upgrade on websocket timeout`);
             this._rawHttpResponse(sock, req, {
@@ -156,7 +176,7 @@ class WebSocketEndpoint {
                 tunnelId: tunnel.id,
                 socket: ws,
             })
-            const res = await this.tunnelService.connect(tunnelId, transport, {
+            const res = await account.connectTunnel(tunnel.id, transport, {
                 peer: this._getRequestClientIp(req),
             });
             if (!res) {

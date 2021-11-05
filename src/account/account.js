@@ -9,6 +9,11 @@ class Account {
         this.created_at = undefined;
         this.updated_at = undefined;
         this.tunnels = [];
+        this.status = {
+            disabled: false,
+            disabled_at: undefined,
+            disabled_reason: undefined,
+        };
 
         this._tunnelService = new TunnelService();
     }
@@ -41,6 +46,13 @@ class Account {
 
     async deleteTunnel(tunnelId) {
         return this._tunnelService.delete(tunnelId, this.id);
+    }
+
+    async connectTunnel(tunnelId, transport, opts) {
+        if (this.status.disabled) {
+            return false;
+        }
+        return this._tunnelService.connect(tunnelId, this.id, transport, opts);
     }
 
     async disconnectTunnel(tunnelId) {

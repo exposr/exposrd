@@ -102,6 +102,7 @@ class AdminApiController extends KoaController {
                 account_id: accountId,
                 account_id_hr: formatted,
                 tunnels: account.tunnels,
+                status: account.status,
                 created_at: account.created_at,
                 updated_at: account.updated_at,
             }
@@ -182,6 +183,30 @@ class AdminApiController extends KoaController {
 
                 ctx.status = 204;
                 return;
+            }]
+        });
+
+        router.route({
+            method: 'put',
+            path: '/v1/admin/account/:account_id/disable',
+            validate: {
+                type: 'json',
+                maxBody: '64kb',
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    account_id: Router.Joi.string().required(),
+                },
+                body: {
+                    disable: Router.Joi.boolean().required(),
+                    reason: Router.Joi.string().max(256).optional(),
+                }
+            },
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
+                const account = await this.accountService.disable(ctx.params.account_id, ctx.request.body.disable, ctx.request.body.reason);
+
+                ctx.status = 200;
+                ctx.body = accountProps(account);
             }]
         });
     }

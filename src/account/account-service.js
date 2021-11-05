@@ -113,6 +113,29 @@ class AccountService {
         }
     }
 
+    async disable(accountId, disabled, reason) {
+        assert(accountId != undefined);
+        const account = await this.update(accountId, (account) => {
+            account.status.disabled = disabled;
+            if (account.status.disabled) {
+                account.status.disabled_at = new Date().toISOString();
+                account.status.disabled_reason = reason;
+            } else {
+                account.status.disabled_at = undefined;
+                account.status.disabled_reason = undefined;
+            }
+        });
+
+        const disconnection = [];
+        if (account.status.disabled) {
+            account.tunnels.forEach((tunnelId) => {
+                disconnection.push(account.disconnectTunnel(tunnelId));
+            })
+        }
+        await Promise.allSettled(disconnection);
+        return account;
+    }
+
 }
 
 export default AccountService;

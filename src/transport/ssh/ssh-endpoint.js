@@ -3,6 +3,7 @@ import ssh from 'ssh2';
 import sshpk from 'sshpk';
 import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
+import Tunnel from '../../tunnel/tunnel.js';
 import Version from '../../version.js';
 import SSHTransport from './ssh-transport.js';
 
@@ -101,28 +102,37 @@ class SSHEndpoint {
         };
     }
 
-    static _safeEqual(input, allowed) {
-        const autoReject = (input.length !== allowed.length);
-        if (autoReject) {
-          allowed = input;
-        }
-        const isMatch = crypto.timingSafeEqual(Buffer.from(input), Buffer.from(allowed));
-        return (!autoReject && isMatch);
-    }
-
     _handleClient(client, info) {
         let tunnel;
+        let account;
         client.on('authentication', async (ctx) => {
             const [tunnelId, token] = ctx.username.split(':');
-            tunnel = await this.tunnelService.get(tunnelId);
 
-            if (!SSHEndpoint._safeEqual(token, tunnel.transport?.token || '')) {
+            const reject = () => {
                 ctx.reject();
                 client.end();
-                return;
-            } else {
-                ctx.accept();
+            };
+
+            try {
+                tunnel = await this.tunnelService.get(tunnelId);
+                if (!(tunnel instanceof Tunnel)) {
+                    return reject();
+                }
+            } catch (e) {
+                return reject();
             }
+
+            const authResult = await tunnel.authorize(token);
+            if (authResult.authorized !== true) {
+                return reject();
+            }
+
+            if (tunnel.state().connected) {
+                return reject();
+            }
+
+            account = authResult.account;
+            ctx.accept();
         });
 
         client.on('ready', async (ctx) => {
@@ -131,9 +141,7 @@ class SSHEndpoint {
                 upstream: tunnel.upstream.url,
                 client,
             });
-            const res = await this.tunnelService.connect(tunnel.id, transport, {
-                peer: info.ip,
-            });
+            const res = await account.connectTunnel(tunnel.id, transport, { peer: info.ip });
             if (!res) {
                 logger
                     .withContext("tunnel", tunnel.id)

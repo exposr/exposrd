@@ -233,10 +233,13 @@ class TunnelService {
         return true;
     }
 
-    async connect(tunnelId, transport, opts) {
-        let tunnel = await this.get(tunnelId);
+    async connect(tunnelId, accountId, transport, opts) {
+        let tunnel = await this.get(tunnelId, accountId);
+        if (tunnel instanceof Tunnel == false) {
+            return false;
+        }
         if (tunnel.connected) {
-            if (!await this.disconnect(tunnelId)) {
+            if (!await this.disconnect(tunnelId, accountId)) {
                 logger
                     .withContext('tunnel',tunnelId)
                     .error({
