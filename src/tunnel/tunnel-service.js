@@ -160,8 +160,7 @@ class TunnelService {
                 return false;
             }
 
-            const orig = Object.assign(new Tunnel(), JSON.parse(JSON.stringify(tunnel)));
-
+            const orig = tunnel.clone();
             cb(tunnel);
 
             const updatedIngress = await new Ingress().updateIngress(tunnel, orig);

@@ -77,6 +77,17 @@ class Tunnel {
     async getAccount() {
         return this._accountService.get(this.account);
     }
+
+    clone() {
+        const stringify = (object) => JSON.stringify(object, (key, value) => {
+            if (key[0] == '_') {
+                return undefined;
+            }
+            return value;
+        });
+
+        return Object.assign(new Tunnel(), JSON.parse(stringify(this)));
+    }
 }
 
 export default Tunnel;
