@@ -20,6 +20,11 @@ class NodeSocket extends Socket {
         };
     }
 
+    async destroy() {
+        super.destroy();
+        return this._tunnelService.destroy();
+    }
+
     static createConnection(opts, callback) {
         const sock = new NodeSocket(opts);
         sock.connect({}, callback);
