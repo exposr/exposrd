@@ -16,11 +16,12 @@ import Tunnel from './tunnel.js';
 const logger = Logger("tunnel-service");
 
 class TunnelService {
-    constructor(callback) {
-        if (TunnelService.instance !== undefined) {
-            callback && process.nextTick(callback);
+    constructor() {
+        if (TunnelService.instance instanceof TunnelService) {
+            TunnelService.ref++;
             return TunnelService.instance;
         }
+        TunnelService.ref = 1;
         TunnelService.instance = this;
 
         this.accountService = new AccountService();
@@ -81,8 +82,25 @@ class TunnelService {
                 });
             });
         });
+    }
 
-        typeof callback === 'function' && process.nextTick(callback);
+    async destroy() {
+        if (--TunnelService.ref == 0) {
+            this.destroyed = true;
+            const tunnels = Object.keys(this.connectedTunnels);
+            const arr = []
+            tunnels.forEach((tunnelId) => {
+                arr.push(this.disconnect(tunnelId));
+            });
+            await Promise.allSettled(arr);
+            return Promise.allSettled([
+                this.db.destroy(),
+                this.db_state.destroy(),
+                this.nodeService.destroy(),
+                this.eventBus.destroy(),
+                this.accountService.destroy(),
+            ]);
+        }
     }
 
     _isPermitted(tunnel, accountId) {
@@ -447,21 +465,6 @@ class TunnelService {
         }, callback);
     }
 
-    async destroy() {
-        this.destroyed = true;
-        const tunnels = Object.keys(this.connectedTunnels);
-        const arr = []
-        tunnels.forEach((tunnelId) => {
-            arr.push(this.disconnect(tunnelId));
-        });
-        await Promise.allSettled(arr);
-        return Promise.allSettled([
-            this.db.destroy(),
-            this.db_state.destroy(),
-            this.nodeService.destroy(),
-            this.eventBus.destroy(),
-        ]);
-    }
 }
 
 export default TunnelService;

@@ -40,7 +40,7 @@ class HttpIngress {
 
         this.destroyed = false;
         this.altNameService = new AltNameService();
-        this.tunnelService = new TunnelService(opts.callback);
+        this.tunnelService = new TunnelService();
         this.httpListener = new Listener().getListener('http', opts.port);
         this._requestHandler = this.httpListener.use('request', { logger, prio: 1 }, async (ctx, next) => {
             if (!await this.handleRequest(ctx.req, ctx.res, ctx.baseUrl)) {
