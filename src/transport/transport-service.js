@@ -4,9 +4,11 @@ import { SSHEndpoint } from "./ssh/index.js";
 
 class TransportService {
     constructor(opts) {
-        if (TransportService.instance !== undefined) {
+        if (TransportService.instance instanceof TransportService) {
+            TransportService.ref++;
             return TransportService.instance
         }
+        TransportService.ref = 1;
         TransportService.instance = this;
 
         assert(opts != undefined, "opts is undefined");
@@ -43,10 +45,13 @@ class TransportService {
     }
 
     async destroy() {
-        this.destroyed = true;
-        return Promise.allSettled(
-            Object.keys(this._transports).map(k => this._transports[k].destroy())
-        );
+        if (--TransportService.ref == 0) {
+            delete TransportService.instance;
+            this.destroyed = true;
+            return Promise.allSettled(
+                Object.keys(this._transports).map(k => this._transports[k].destroy())
+            );
+        }
     }
 
     getTransports(tunnel, baseUrl) {
