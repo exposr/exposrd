@@ -3,7 +3,6 @@ import ssh from 'ssh2';
 import sshpk from 'sshpk';
 import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
-import Tunnel from '../../tunnel/tunnel.js';
 import Version from '../../version.js';
 import SSHTransport from './ssh-transport.js';
 
@@ -15,7 +14,7 @@ class SSHEndpoint {
     constructor(opts) {
         this.opts = opts;
         this.tunnelService = new TunnelService();
-        this._clients = [];
+        this._clients = new Set();
 
         const generateHostKey = () => {
             const keys = crypto.generateKeyPairSync('rsa', {
@@ -51,6 +50,11 @@ class SSHEndpoint {
                     ident: clientInfo.identRaw,
                 },
             })
+
+            this._clients.add(client);
+            client.once('close', () => {
+                this._clients.delete(client);
+            });
             this._handleClient(client, clientInfo);
         });
 
@@ -71,8 +75,19 @@ class SSHEndpoint {
         });
     }
 
-    destroy() {
-        this._server.close();
+    async destroy() {
+        if (this.destroyed) {
+            return;
+        }
+        this.destroyed = true;
+        return new Promise((resolve) => {
+            this._server.once('close', async () => {
+                await this.tunnelService.destroy();
+                resolve();
+            });
+            this._server.close();
+            this._clients.forEach((client) => client.destroy());
+        });
     }
 
     getEndpoint(tunnel, baseUrl) {
