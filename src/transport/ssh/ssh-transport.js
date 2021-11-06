@@ -88,13 +88,14 @@ class SSHTransport extends Transport {
         return sock;
     }
 
-    destroy() {
+    async destroy() {
         if (this.destroyed) {
             return;
         }
         this._client.end();
         this.destroyed = true;
         this.emit('close');
+        return this._tunnelService.destroy();
     }
 }
 
