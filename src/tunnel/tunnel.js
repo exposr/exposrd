@@ -1,7 +1,6 @@
-import AccountService from "../account/account-service.js";
 import TunnelState from "./tunnel-state.js";
-import { safeEqual } from "../utils/misc.js";
 
+// ORM object representing a tunnel
 class Tunnel {
     constructor(tunnelId, account) {
         this.id = tunnelId;
@@ -34,8 +33,6 @@ class Tunnel {
         this.created_at = undefined;
         this.updated_at = undefined;
         this._state = new TunnelState();
-
-        this._accountService = new AccountService();
     }
 
     _deserialization_hook() {
@@ -51,31 +48,6 @@ class Tunnel {
 
     isOwner(accountId) {
         return accountId != undefined && accountId === this.account;
-    }
-
-    async authorize(token) {
-        const correctToken = safeEqual(token, this.transport.token)
-        let account;
-        try {
-            account = await this.getAccount();
-        } catch (e) {
-            return {
-                authorized: false,
-                account: undefined,
-                error: e,
-            }
-        }
-        const authorized = correctToken && !account.status.disabled;
-
-        return {
-            authorized,
-            account,
-            disabled: account.status.disabled,
-        }
-    }
-
-    async getAccount() {
-        return this._accountService.get(this.account);
     }
 
     clone() {

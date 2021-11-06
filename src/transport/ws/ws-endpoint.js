@@ -129,18 +129,8 @@ class WebSocketEndpoint {
             return this._unauthorized(sock, req);
         }
 
-        let tunnel;
-        try {
-            tunnel = await this.tunnelService.get(tunnelId);
-            if (!(tunnel instanceof Tunnel)) {
-                return this._unauthorized(sock, req);
-            }
-        } catch (e) {
-            return this._unauthorized(sock, req);
-        }
-
-        const authResult = await tunnel.authorize(token);
-        if (authResult.authorized !== true) {
+        const authResult = await this.tunnelService.authorize(tunnelId, token);
+        if (authResult.authorized == false) {
             authResult.error &&
                 logger
                     .withContext("tunnel", tunnelId)
@@ -152,6 +142,8 @@ class WebSocketEndpoint {
             return this._unauthorized(sock, req);
         }
 
+        const {tunnel, account} = authResult;
+
         if (tunnel.state().connected) {
             return this._rawHttpResponse(sock, req, {
                 status: 503,
@@ -160,7 +152,6 @@ class WebSocketEndpoint {
             });
         }
 
-        const account = authResult.account;
         const timeout = setTimeout(() => {
             logger.withContext("tunnel", tunnelId).debug(`HTTP upgrade on websocket timeout`);
             this._rawHttpResponse(sock, req, {
@@ -176,7 +167,7 @@ class WebSocketEndpoint {
                 tunnelId: tunnel.id,
                 socket: ws,
             })
-            const res = await account.connectTunnel(tunnel.id, transport, {
+            const res = await this.tunnelService.connect(tunnel.id, account.id, transport, {
                 peer: this._getRequestClientIp(req),
             });
             if (!res) {

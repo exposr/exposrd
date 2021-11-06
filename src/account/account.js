@@ -1,6 +1,6 @@
-import TunnelService from '../tunnel/tunnel-service.js';
 import AccountService from '../account/account-service.js';
 
+// ORM object representing an account
 class Account {
 
     constructor(accountId) {
@@ -14,8 +14,6 @@ class Account {
             disabled_at: undefined,
             disabled_reason: undefined,
         };
-
-        this._tunnelService = new TunnelService();
     }
 
     _deserialization_hook() {
@@ -31,34 +29,6 @@ class Account {
             formatted: AccountService.formatId(this.id),
         }
     }
-
-    async getTunnel(tunnelId) {
-        return this._tunnelService.get(tunnelId, this.id);
-    }
-
-    async createTunnel(tunnelId) {
-        return this._tunnelService.create(tunnelId, this.id);
-    }
-
-    async updateTunnel(tunnelId, cb) {
-        return this._tunnelService.update(tunnelId, this.id, cb);
-    }
-
-    async deleteTunnel(tunnelId) {
-        return this._tunnelService.delete(tunnelId, this.id);
-    }
-
-    async connectTunnel(tunnelId, transport, opts) {
-        if (this.status.disabled) {
-            return false;
-        }
-        return this._tunnelService.connect(tunnelId, this.id, transport, opts);
-    }
-
-    async disconnectTunnel(tunnelId) {
-        return this._tunnelService.disconnect(tunnelId, this.id);
-    }
-
 }
 
 export default Account;

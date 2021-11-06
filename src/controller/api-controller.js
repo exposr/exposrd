@@ -3,6 +3,7 @@ import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
 import { Logger } from '../logger.js';
 import TransportService from '../transport/transport-service.js';
+import TunnelService from '../tunnel/tunnel-service.js';
 import Tunnel from '../tunnel/tunnel.js';
 import {
     ERROR_AUTH_NO_ACCESS_TOKEN,
@@ -27,6 +28,7 @@ class ApiController extends KoaController {
         });
         this.opts = opts;
         this.accountService = new AccountService();
+        this.tunnelService = new TunnelService();
         this.transportService = new TransportService();
         this._initializeRoutes();
 
@@ -159,7 +161,7 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const created = await account.createTunnel(tunnelId);
+                const created = await this.tunnelService.create(tunnelId, account.id);
                 if (created == false) {
                     ctx.status = 403;
                     ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
@@ -167,7 +169,7 @@ class ApiController extends KoaController {
                 }
 
                 const body = ctx.request.body;
-                const updatedTunnel = await account.updateTunnel(tunnelId, (tunnel) => {
+                const updatedTunnel = await this.tunnelService.update(tunnelId, account.id, (tunnel) => {
                     tunnel.ingress.http.enabled =
                         body?.ingress?.http?.enabled ?? tunnel.ingress.http.enabled;
                     tunnel.ingress.sni.enabled =
@@ -207,7 +209,7 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const result = await account.deleteTunnel(tunnelId);
+                const result = await this.tunnelService.delete(tunnelId, account.id);
                 if (result === false) {
                     ctx.status = 404;
                     ctx.body = {
@@ -232,7 +234,7 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const tunnel = await account.getTunnel(tunnelId);
+                const tunnel = await this.tunnelService.get(tunnelId, account.id);
                 if (!tunnel) {
                     ctx.status = 404;
                     ctx.body = {
@@ -258,7 +260,7 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const result = await account.disconnectTunnel(tunnelId);
+                const result = await this.tunnelService.disconnect(tunnelId, account.id);
                 if (result == undefined) {
                     ctx.status = 404;
                     ctx.body = {
@@ -335,6 +337,7 @@ class ApiController extends KoaController {
     async _destroy() {
         return Promise.allSettled([
             this.accountService.destroy(),
+            this.tunnelService.destroy(),
             this.transportService.destroy(),
         ]);
     }

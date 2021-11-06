@@ -113,25 +113,18 @@ class SSHEndpoint {
                 client.end();
             };
 
-            try {
-                tunnel = await this.tunnelService.get(tunnelId);
-                if (!(tunnel instanceof Tunnel)) {
-                    return reject();
-                }
-            } catch (e) {
+            const authResult = await this.tunnelService.authorize(tunnelId, token);
+            if (authResult.authorized == false) {
                 return reject();
             }
 
-            const authResult = await tunnel.authorize(token);
-            if (authResult.authorized !== true) {
-                return reject();
-            }
+            tunnel = authResult.tunnel;
+            account = authResult.account;
 
             if (tunnel.state().connected) {
                 return reject();
             }
 
-            account = authResult.account;
             ctx.accept();
         });
 
@@ -141,7 +134,7 @@ class SSHEndpoint {
                 upstream: tunnel.upstream.url,
                 client,
             });
-            const res = await account.connectTunnel(tunnel.id, transport, { peer: info.ip });
+            const res = await this.tunnelService.connect(tunnel.id, account.id, transport, { peer: info.ip });
             if (!res) {
                 logger
                     .withContext("tunnel", tunnel.id)

@@ -2,11 +2,13 @@ import assert from 'assert/strict';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
 import AccountService from '../account/account-service.js';
+import Account from '../account/account.js';
 import EventBus from '../eventbus/index.js';
 import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';
 import NodeSocket from '../transport/node-socket.js';
+import { safeEqual } from "../utils/misc.js";
 import Node, { NodeService } from '../utils/node.js';
 import TunnelState from './tunnel-state.js';
 import Tunnel from './tunnel.js';
@@ -35,7 +37,7 @@ class TunnelService {
         });
 
         this._lookupCache.on('expired', async (tunnelId) => {
-            const tunnel = await this.get(tunnelId);
+            const tunnel = await this._get(tunnelId);
             if (tunnel && tunnel.state().connected) {
                 this._lookupCache.set(tunnelId, tunnel, 60);
             } else {
@@ -87,10 +89,10 @@ class TunnelService {
         if (!(tunnel instanceof Tunnel)) {
             return false;
         }
-        return accountId === undefined || tunnel.isOwner(accountId);
+        return tunnel.isOwner(accountId);
     }
 
-    async get(tunnelId, accountId = undefined) {
+    async _get(tunnelId) {
         assert(tunnelId != undefined);
 
         const [tunnel, tunnelState] = await Promise.all([
@@ -98,15 +100,22 @@ class TunnelService {
             this.db_state.read(tunnelId, TunnelState)
         ]);
 
-        if (!tunnel) {
-            return false;
-        }
-
-        if (accountId != undefined && tunnel.account !== accountId) {
+        if (!(tunnel instanceof Tunnel)) {
             return false;
         }
 
         tunnel._state = tunnelState || new TunnelState();
+        return tunnel;
+    }
+
+    async get(tunnelId, accountId) {
+        assert(tunnelId != undefined);
+        assert(accountId != undefined);
+
+        const tunnel = this._get(tunnelId);
+        if (this._isPermitted(tunnel, accountId)) {
+            return false;
+        }
 
         logger.isDebugEnabled() && logger.debug({
             operation: 'get_tunnel',
@@ -116,10 +125,10 @@ class TunnelService {
         return tunnel;
     }
 
-    async lookup(tunnelId, accountId = undefined) {
+    async lookup(tunnelId) {
         let tunnel = this._lookupCache.get(tunnelId);
         if (tunnel === undefined) {
-            tunnel = await this.get(tunnelId, accountId);
+            tunnel = await this._get(tunnelId);
             if (tunnel && tunnel.state().connected) {
                 this._lookupCache.set(tunnelId, tunnel, 60);
             }
@@ -155,8 +164,10 @@ class TunnelService {
     }
 
     async update(tunnelId, accountId, cb) {
+        assert(tunnelId != undefined);
+        assert(accountId != undefined);
         return this.db.update(tunnelId, Tunnel, async (tunnel) => {
-            if (accountId != undefined && tunnel?.account !== accountId) {
+            if (tunnel?.account !== accountId) {
                 return false;
             }
 
@@ -183,13 +194,14 @@ class TunnelService {
         });
     }
 
-    async delete(tunnelId, accountId = undefined) {
+    async delete(tunnelId, accountId) {
         assert(tunnelId != undefined);
+        assert(accountId != undefined);
         const tunnel = await this.get(tunnelId, accountId);
         if (tunnel instanceof Tunnel == false) {
             return false;
         }
-        if (!await this.disconnect(tunnelId)) {
+        if (!await this.disconnect(tunnelId, accountId)) {
             logger
                 .withContext('tunnel', tunnelId)
                 .error({
@@ -233,6 +245,9 @@ class TunnelService {
     }
 
     async connect(tunnelId, accountId, transport, opts) {
+        assert(tunnelId != undefined);
+        assert(accountId != undefined);
+
         let tunnel = await this.get(tunnelId, accountId);
         if (tunnel instanceof Tunnel == false) {
             return false;
@@ -278,8 +293,11 @@ class TunnelService {
             keepaliveTimer: setInterval(keepaliveFun, 30 * 1000),
             transport
         };
-        transport.once('close', () => {
-            this.disconnect(tunnelId);
+        transport.once('close', async () => {
+            const tunnel = await this.lookup(tunnelId);
+            if (tunnel instanceof Tunnel) {
+                this._disconnect(tunnel);
+            }
         });
 
         const tunnelState = new TunnelState();
@@ -314,12 +332,10 @@ class TunnelService {
         return true;
     }
 
-    async disconnect(tunnelId, accountId = undefined) {
-        let tunnel = await this.get(tunnelId);
-        if (!this._isPermitted(tunnel, accountId)) {
-            return undefined;
-        }
+    async _disconnect(tunnel) {
+        assert(tunnel instanceof Tunnel);
 
+        const tunnelId = tunnel.id;
         if (!tunnel.state().connected && this.connectedTunnels[tunnelId] == undefined) {
             return true;
         }
@@ -353,7 +369,7 @@ class TunnelService {
                 });
         }
 
-        tunnel = await this.get(tunnelId);
+        tunnel = await this._get(tunnelId);
         if (!tunnel || !tunnel.state().connected) {
             logger
                 .withContext("tunnel", tunnelId)
@@ -371,6 +387,47 @@ class TunnelService {
                 });
             return false;
         }
+    }
+
+    async disconnect(tunnelId, accountId) {
+        assert(tunnelId != undefined);
+        assert(accountId != undefined);
+        let tunnel = await this.get(tunnelId, accountId);
+        if (!this._isPermitted(tunnel, accountId)) {
+            return undefined;
+        }
+        return this._disconnect(tunnel);
+    }
+
+    async authorize(tunnelId, token) {
+        const result = {
+            authorized: false,
+            tunnel: undefined,
+            account: undefined,
+        };
+
+        try {
+            const tunnel = await this._get(tunnelId);
+            if (!(tunnel instanceof Tunnel)) {
+                return result;
+            }
+            const account = await this.accountService.get(tunnel.account);
+            if (!(account instanceof Account)) {
+                return result;
+            }
+            const correctToken = safeEqual(token, tunnel?.transport?.token)
+
+            result.authorized = correctToken && !account.status.disabled;
+            if (result.authorized) {
+                result.tunnel = tunnel;
+                result.account = account;
+                result.disabled = account.status.disabled;
+            }
+        } catch (e) {
+            result.error = e;
+        }
+
+        return result;
     }
 
     isLocalConnected(tunnelId) {
