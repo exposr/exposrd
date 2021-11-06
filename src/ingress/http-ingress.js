@@ -418,6 +418,7 @@ class HttpIngress {
         this.httpListener.removeHandler('request', this._requestHandler);
         this.httpListener.removeHandler('upgrade', this._upgradeHandler);
         return Promise.allSettled([
+            this.altNameService.destroy(),
             this.eventBus.destroy(),
             this.tunnelService.destroy(),
             this.httpListener.destroy(),
