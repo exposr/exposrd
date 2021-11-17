@@ -55,8 +55,13 @@ class SNIIngress {
             },
         });
 
+        this._clients = new Set();
         server.on('secureConnection', (socket) => {
             this._handleConnection(socket);
+            this._clients.add(socket);
+            socket.once('close', () => {
+                this._clients.delete(socket);
+            });
         });
 
         const conError = (err) => {
@@ -75,6 +80,17 @@ class SNIIngress {
             });
             server.removeListener('error', conError);
             typeof opts.callback === 'function' && opts.callback();
+        });
+    }
+
+    async destroy() {
+        return new Promise((resolve) => {
+            this.server.once('close', async () => {
+                await this.tunnelService.destroy();
+                resolve();
+            });
+            this.server.close();
+            this._clients.forEach((sock) => sock.destroy());
         });
     }
 
@@ -310,14 +326,6 @@ class SNIIngress {
 
         upstream.pipe(socket);
         socket.pipe(upstream);
-    }
-
-    async destroy() {
-        this.destroyed = true;
-        return new Promise((resolve) => {
-            this.server.close();
-            resolve();
-        });
     }
 }
 
