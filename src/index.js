@@ -173,7 +173,10 @@ export default async () => {
     Logger.info("exposr-server ready");
 
     const sigHandler = async (signal) => {
-        Logger.info(`Shutdown initiated, signal=${signal}`)
+        Logger.info(`Shutdown initiated, signal=${signal}, press Ctrl-C again to force quit`);
+
+        process.on('SIGTERM', () => { process.exit(-1); });
+        process.on('SIGINT', () => { process.exit(-1); });
 
         await Promise.allSettled([
             apiController.destroy(),
@@ -189,6 +192,6 @@ export default async () => {
         process.exit(0);
     };
 
-    process.on('SIGTERM', sigHandler);
-    process.on('SIGINT', sigHandler);
+    process.once('SIGTERM', sigHandler);
+    process.once('SIGINT', sigHandler);
 }
