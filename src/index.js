@@ -173,23 +173,36 @@ export default async () => {
     Logger.info("exposr-server ready");
 
     const sigHandler = async (signal) => {
+        const gracefulTimeout = 10000;
+        const startTime = process.hrtime.bigint();
         Logger.info(`Shutdown initiated, signal=${signal}, press Ctrl-C again to force quit`);
 
-        process.on('SIGTERM', () => { process.exit(-1); });
-        process.on('SIGINT', () => { process.exit(-1); });
+        const graceful = await new Promise(async (resolve, reject) => {
+            process.once('SIGTERM', () => { resolve(false); });
+            process.once('SIGINT', () => { resolve(false); });
+            const timeout = setTimeout(() => {
+                resolve(false);
+            }, gracefulTimeout);
+            await Promise.allSettled([
+                apiController.destroy(),
+                adminApiController.destroy(),
+                adminController.destroy(),
+                transport.destroy(),
+                ingress.destroy(),
+                nodeService.destroy(),
+                storageService.destroy(),
+                eventBusService.destroy()
+            ]);
+            clearTimeout(timeout);
+            resolve(true);
+        });
 
-        await Promise.allSettled([
-            apiController.destroy(),
-            adminApiController.destroy(),
-            adminController.destroy(),
-            transport.destroy(),
-            ingress.destroy(),
-            nodeService.destroy(),
-            storageService.destroy(),
-            eventBusService.destroy()
-        ]);
-        Logger.info(`Shutdown complete`)
-        process.exit(0);
+        const elapsedMs = Math.round(Number((process.hrtime.bigint() - BigInt(startTime))) / 1e6);
+        if (!graceful) {
+            Logger.warn('Failed to gracefully shutdown service, forcing shutdown');
+        }
+        Logger.info(`Shutdown complete in ${elapsedMs} ms`);
+        process.exit(graceful ? 0 : -1);
     };
 
     process.once('SIGTERM', sigHandler);
