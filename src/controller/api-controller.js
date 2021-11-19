@@ -17,8 +17,6 @@ const logger = Logger("api");
 
 class ApiController extends KoaController {
 
-    static TUNNEL_ID_REGEX = /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/;
-
     constructor(opts) {
         super({
             port: opts.port,
@@ -133,7 +131,7 @@ class ApiController extends KoaController {
                 failure: 400,
                 continueOnError: true,
                 params: {
-                    tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
+                    tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
                 },
                 body: {
                     ingress: {
@@ -203,7 +201,7 @@ class ApiController extends KoaController {
                 failure: 400,
                 continueOnError: true,
                 params: {
-                    tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
+                    tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
                 }
             },
             handler: [handleError, handleAuth, async (ctx, next) => {
@@ -228,7 +226,7 @@ class ApiController extends KoaController {
                 failure: 400,
                 continueOnError: true,
                 params: {
-                    tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
+                    tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
                 }
             },
             handler: [handleError, handleAuth, async (ctx, next) => {
@@ -254,7 +252,7 @@ class ApiController extends KoaController {
                 failure: 400,
                 continueOnError: true,
                 params: {
-                    tunnel_id: Router.Joi.string().regex(ApiController.TUNNEL_ID_REGEX).required(),
+                    tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
                 }
             },
             handler: [handleError, handleAuth, async (ctx, next) => {

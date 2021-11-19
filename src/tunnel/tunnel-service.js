@@ -16,6 +16,9 @@ import Tunnel from './tunnel.js';
 const logger = Logger("tunnel-service");
 
 class TunnelService {
+
+    static TUNNEL_ID_REGEX = /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/;
+
     constructor() {
         if (TunnelService.instance instanceof TunnelService) {
             TunnelService.ref++;
