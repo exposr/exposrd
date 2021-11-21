@@ -138,7 +138,7 @@ class Storage {
     // false on storage error
     async _get(key) {
         if (key instanceof Array) {
-            return this._get_many(key);
+            return key.length > 0 ? this._get_many(key) : key;
         } else {
             return this._get_one(key);
         }
