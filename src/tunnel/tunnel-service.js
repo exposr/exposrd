@@ -121,11 +121,17 @@ class TunnelService {
             this.db_state.read(tunnelId, TunnelState)
         ]);
 
-        if (!(tunnel instanceof Tunnel)) {
+        if (tunnel instanceof Array && tunnelState instanceof Array) {
+            tunnel.forEach((t, i) => {
+                t._state = tunnelState[i] || new TunnelState();
+            });
+
+        } else if (tunnel instanceof Tunnel) {
+            tunnel._state = tunnelState || new TunnelState();
+        } else {
             return false;
         }
 
-        tunnel._state = tunnelState || new TunnelState();
         return tunnel;
     }
 
@@ -155,6 +161,15 @@ class TunnelService {
             }
         }
         return tunnel;
+    }
+
+    async list(cursor = 0, count = 10, verbose = false) {
+        const res = await this.db.list(cursor, count);
+        const data = verbose ? await this._get(res.data) : res.data.map((id) => { return {tunnel_id: id}; });
+        return {
+            cursor: res.cursor,
+            tunnels: data,
+        }
     }
 
     async create(tunnelId, accountId) {
