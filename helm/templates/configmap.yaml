@@ -43,6 +43,7 @@ data:
 {{- if .Values.exposr.ingress.http.domain }}
   EXPOSR_INGRESS_HTTP_DOMAIN: "{{ .Values.exposr.ingress.http.domain }}"
 {{- end }}
+  EXPOSR_INGRESS_HTTP_PORT: "8080"
 {{- end }}
 {{- if eq .Values.exposr.ingress.sni.enabled true }}
   EXPOSR_INGRESS_SNI_PORT: "{{ .Values.exposr.ingress.sni.port }}"
