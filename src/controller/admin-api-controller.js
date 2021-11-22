@@ -1,7 +1,13 @@
 import Router from 'koa-joi-router';
 import AccountService from '../account/account-service.js';
 import { Logger } from '../logger.js';
-import { ERROR_BAD_INPUT } from '../utils/errors.js';
+import TransportService from '../transport/transport-service.js';
+import TunnelService from '../tunnel/tunnel-service.js';
+import {
+    ERROR_BAD_INPUT,
+    ERROR_TUNNEL_NOT_FOUND,
+    ERROR_UNKNOWN_ERROR,
+} from '../utils/errors.js';
 import KoaController from './koa-controller.js';
 
 const logger = Logger("admin-api");
@@ -25,6 +31,8 @@ class AdminApiController extends KoaController {
         this.unauthAccess = this.apiKey === undefined && opts.unauthAccess === true;
 
         this.accountService = new AccountService();
+        this._tunnelService = new TunnelService();
+        this._transportService = new TransportService();
 
         if (this.apiKey != undefined) {
             logger.info("Admin API resource enabled with API key");
@@ -105,6 +113,28 @@ class AdminApiController extends KoaController {
                 status: account.status,
                 created_at: account.created_at,
                 updated_at: account.updated_at,
+            }
+        };
+
+        const tunnelProps = (tunnel, baseUrl) => {
+            return {
+                tunnel_id: tunnel.id,
+                accound_id: tunnel.account,
+                transport: {
+                    ...tunnel.transport,
+                    ...this._transportService.getTransports(tunnel, baseUrl),
+                },
+                ingress: tunnel.ingress,
+                upstream: tunnel.upstream,
+                connection: {
+                    connected: tunnel.state().connected,
+                    peer: tunnel.state().peer,
+                    connected_at: tunnel.state().connected_at,
+                    disconnected_at: tunnel.state().disconnected_at,
+                    alive_at: tunnel.state().alive_at,
+                },
+                created_at: tunnel.created_at,
+                updated_at: tunnel.updated_at,
             }
         };
 
@@ -211,10 +241,90 @@ class AdminApiController extends KoaController {
                 ctx.body = accountProps(account);
             }]
         });
+
+        router.route({
+            method: 'get',
+            path: '/v1/admin/tunnel/:tunnel_id',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
+                }
+            },
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
+                const tunnel = await this._tunnelService._get(ctx.params.tunnel_id);
+                if (!tunnel) {
+                    ctx.body = {
+                        error: ERROR_TUNNEL_NOT_FOUND,
+                    };
+                } else {
+                    ctx.status = 200;
+                    ctx.body = tunnelProps(tunnel, ctx.req._exposrBaseUrl);
+                }
+            }]
+        });
+
+        router.route({
+            method: 'delete',
+            path: '/v1/admin/tunnel/:tunnel_id',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
+                }
+            },
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
+                const tunnel = await this._tunnelService._get(ctx.params.tunnel_id);
+                if (!tunnel) {
+                    ctx.body = {
+                        error: ERROR_TUNNEL_NOT_FOUND,
+                    };
+                }
+                const result = await this._tunnelService.delete(tunnel.id, tunnel.account);
+                if (result === false) {
+                    ctx.status = 500;
+                    ctx.body = {
+                        error: ERROR_UNKNOWN_ERROR,
+                    };
+                } else {
+                    ctx.status = 204;
+                }
+            }]
+        });
+
+        router.route({
+            method: 'get',
+            path: '/v1/admin/tunnel',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                query: {
+                    cursor: Router.Joi.number().integer().min(0).optional(),
+                    count: Router.Joi.number().integer().min(1).max(100).optional().default(25),
+                    verbose: Router.Joi.boolean().default(false),
+                }
+            },
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
+                const res = await this._tunnelService.list(ctx.query.cursor, ctx.query.count, ctx.query.verbose);
+
+                ctx.status = 200;
+                ctx.body = {
+                    cursor: res.cursor,
+                    tunnels: res.tunnels.map((t) => { return ctx.query.verbose ? tunnelProps(t, ctx.req._exposrBaseUrl) : t; }),
+                };
+            }]
+        });
+
     }
 
     async _destroy() {
-        return this.accountService.destroy();
+        return Promise.allSettled([
+            this.accountService.destroy(),
+            this._tunnelService.destroy(),
+            this._transportService.destroy(),
+        ]);
     }
 }
 
