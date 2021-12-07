@@ -41,14 +41,14 @@ image.build:
 		--pull -t $(project):$(version) .
 
 ifneq (, $(publish))
-publish=--push
+push_flag=--push
 endif
 image.buildx:
 	docker buildx create --name exposr-server-builder --driver docker-container || true
 	docker buildx build \
 		--builder exposr-server-builder \
 		--platform $(platforms) \
-		$(publish) \
+		$(push_flag) \
 		--build-arg NODE_IMAGE=$(node_image) \
 		--build-arg PACKAGE_NAME=$(package_name) \
 		-t $(registry)/$(project):$(version) .
