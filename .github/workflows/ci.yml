@@ -12,11 +12,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Prepare builder
+      - name: Set up git
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Available platforms
+        run: echo ${{ steps.buildx.outputs.platforms }}
+
+      - name: Setup builder
         run: make builder.build
 
       - name: Build package
         run:  |
           make package.build.container
-          make image.build
+
+      - name: Build images
+        run:  |
+          make image.buildx

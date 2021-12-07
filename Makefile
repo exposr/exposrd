@@ -1,9 +1,10 @@
 registry?=exposr
 node_image?=16.13.0-alpine3.14
-package_name=exposr-server-$(version).tgz
+platforms?=linux/amd64,linux/arm64,linux/arm/v7
 
 project:=exposr-server
 version:=$(shell git describe --tags --always --dirty 2> /dev/null || git rev-parse --short HEAD)
+package_name=$(project)-$(version).tgz
 
 all: package.build.container image.build
 
@@ -39,16 +40,24 @@ image.build:
 		--build-arg PACKAGE_NAME=$(package_name) \
 		--pull -t $(project):$(version) .
 
-image.publish: image.build
-	docker tag $(project):$(version) $(registry)/$(project):$(version)
-	docker push $(registry)/$(project):$(version)
+ifneq (, $(publish))
+publish=--push
+endif
+image.buildx:
+	docker buildx create --name exposr-server-builder --driver docker-container || true
+	docker buildx build \
+		--builder exposr-server-builder \
+		--platform $(platforms) \
+		$(publish) \
+		--build-arg NODE_IMAGE=$(node_image) \
+		--build-arg PACKAGE_NAME=$(package_name) \
+		-t $(registry)/$(project):$(version) .
+	docker buildx rm exposr-server-builder
 
-image.publish.latest: image.publish
-	docker tag $(project):$(version) $(registry)/$(project):latest
-	docker push $(registry)/$(project):latest
+image.buildx.latest:
+	docker buildx imagetools create --tag $(registry)/$(project):latest $(registry)/$(project):$(version)
 
-image.publish.unstable: image.publish
-	docker tag $(project):$(version) $(registry)/$(project):unstable
-	docker push $(registry)/$(project):unstable
+image.buildx.unstable:
+	docker buildx imagetools create --tag $(registry)/$(project):unstable $(registry)/$(project):$(version)
 
-.PHONY: release release.publish builder.build image.build image.publish image.publish.latest image.publish.unstable
+.PHONY: release release.publish builder.build image.build image.buildx image.buildx.latest image.buildx.unstable
