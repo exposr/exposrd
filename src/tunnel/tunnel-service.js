@@ -90,12 +90,11 @@ class TunnelService {
     async destroy() {
         if (--TunnelService.ref == 0) {
             this.destroyed = true;
-            const tunnels = Object.keys(this.connectedTunnels);
-            const arr = []
-            tunnels.forEach((tunnelId) => {
-                arr.push(this.disconnect(tunnelId));
+            const tunnels = Object.keys(this.connectedTunnels).map(async (tunnelId) => {
+                const tunnel = await this.lookup(tunnelId);
+                return this._disconnect(tunnel);
             });
-            await Promise.allSettled(arr);
+            await Promise.allSettled(tunnels);
             return Promise.allSettled([
                 this.db.destroy(),
                 this.db_state.destroy(),
@@ -138,6 +137,10 @@ class TunnelService {
     async get(tunnelId, accountId) {
         assert(tunnelId != undefined);
         assert(accountId != undefined);
+
+        if (this.destroyed) {
+            return false;
+        }
 
         const tunnel = await this._get(tunnelId);
         if (!this._isPermitted(tunnel, accountId)) {
