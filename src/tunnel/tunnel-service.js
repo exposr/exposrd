@@ -139,8 +139,8 @@ class TunnelService {
         assert(tunnelId != undefined);
         assert(accountId != undefined);
 
-        const tunnel = this._get(tunnelId);
-        if (this._isPermitted(tunnel, accountId)) {
+        const tunnel = await this._get(tunnelId);
+        if (!this._isPermitted(tunnel, accountId)) {
             return false;
         }
 
