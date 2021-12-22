@@ -66,11 +66,12 @@ class Ingress {
                 ...tunnel.ingress[ing],
             };
 
-            const prevAltNames = prevTunnel.ingress[ing]?.alt_names || [];
+            const prevAltNames = prevTunnel.ingress[ing]?.alt_names || [];
             const baseUrl = this.ingress[ing].getBaseUrl(tunnel.id);
-            if (symDifference(obj?.alt_names || [], prevAltNames).length != 0) {
-                const alt_names = await AltNameService.resolve(baseUrl.hostname, obj.alt_names);
-                const diff = symDifference(alt_names, obj.alt_names);
+            const altNames = obj?.alt_names || [];
+            if (symDifference(altNames, prevAltNames).length != 0) {
+                const resolvedAltNames = await AltNameService.resolve(baseUrl.hostname, altNames);
+                const diff = symDifference(resolvedAltNames, altNames);
                 if (diff.length > 0) {
                     return error(ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES, diff);
                 }
@@ -78,8 +79,8 @@ class Ingress {
                 obj.alt_names = await this.altNameService.update(
                     ing,
                     tunnel.id,
-                    difference(alt_names, prevAltNames),
-                    difference(prevAltNames, alt_names)
+                    difference(resolvedAltNames, prevAltNames),
+                    difference(prevAltNames, resolvedAltNames)
                 );
             }
 
