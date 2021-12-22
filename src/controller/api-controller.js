@@ -137,14 +137,14 @@ class ApiController extends KoaController {
                     ingress: {
                         http: {
                             enabled: Router.Joi.boolean(),
-                            alt_names: Router.Joi.array().max(10).items(Router.Joi.string().lowercase().domain()),
+                            alt_names: Router.Joi.array().max(10).items(Router.Joi.string().lowercase().domain()).allow(null),
                         },
                         sni: {
                             enabled: Router.Joi.boolean(),
                         },
                     },
                     upstream: {
-                        url: Router.Joi.string().uri(),
+                        url: Router.Joi.string().uri().allow(null),
                     },
                     transport: {
                         ws: {
@@ -173,9 +173,11 @@ class ApiController extends KoaController {
                     tunnel.ingress.sni.enabled =
                         body?.ingress?.sni?.enabled ?? tunnel.ingress.sni.enabled;
                     tunnel.ingress.http.alt_names =
-                        body?.ingress?.http?.alt_names ?? tunnel.ingress.http.alt_names;
+                        body?.ingress?.http?.alt_names === null ? undefined :
+                            body?.ingress?.http?.alt_names ?? tunnel.ingress.http.alt_names;
                     tunnel.upstream.url =
-                        body?.upstream?.url ?? tunnel.upstream.url;
+                        body?.upstream?.url === null ? undefined :
+                            body?.upstream?.url ?? tunnel.upstream.url;
                     tunnel.transport.ws.enabled =
                         body?.transport?.ws?.enabled ?? tunnel.transport.ws.enabled;
                     tunnel.transport.ssh.enabled =
