@@ -138,7 +138,7 @@ HTTP ingress sub-domains will be allocated from `http://localhost:8080`.
 Start the client with, this will create a tunnel called `example` and connect it to `http://example.com`.
 The tunnel will be available at `http://example.localhost:8080`.
 
-    docker run --rm -ti exposr/exposr:latest --server http://host.docker.internal:8080/ tunnel http://example.com example
+    docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ tunnel connect http://example.com example
 
 Try the tunnel
 
@@ -149,7 +149,6 @@ Try the tunnel
 exposr needs to have at least one ingress and one transport method enabled. The default option enables
 the HTTP ingress and the WS transport.
 
-
 ### Account creation
 Account creation is disabled by default and needs to be enabled. It can be enabled in two ways, either through
 the public API or by enabling the administration API. It's recommended to only use the admin API
@@ -159,13 +158,21 @@ To enable it through the public API start exposr with the flag `--allow-registra
 
 > ⚠️ Warning: Enabling public account registration will allow anyone to register an account and to create tunnels on your server.
 
-### Administration interface
+### Administration
+
+#### Interface
 The administration interface runs on a separate port from public API. By default it uses `8081`.
 The interface can be enabled by passing the flag `--admin-enable true`.
 
+The administration interface exposes a `/ping` endpoint for load balancer health checks.
+
+#### API
+The administration API runs on a separate port from public API. By default it uses `8081`.
+The API can be enabled by passing the flag `--admin-api-enable true`.
+
 To further enable the administration API an API key must be configured.
 
-    exposr-server --admin-enable true --admin-api-key <insert key>
+    exposr-server --admin-api-enable true --admin-api-key <insert key>
 
 > ⚠️ Warning: The API key allows full privileged access to all accounts and tunnels.
 
@@ -249,27 +256,30 @@ Start the server with SSH transport enabled
 
 Create and account and configure a tunnel
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ create-account
-    Created account MNF4-P6Y6-M2MR-RVCT
+    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ account create
+     ✔ 2022-02-24 19:00:00 +0100 - Creating account...success
+    ✨ Created account DE94-JTNJ-FX5W-YWKY
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVCT create-tunnel my-tunnel
-    Tunnel my-tunnel created
+    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a DE94-JTNJ-FX5W-YWKY tunnel create my-tunnel
+     ✔ 2022-02-24 19:00:10 +0100 - Creating tunnel...success (my-tunnel)
+    ✨ Created tunnel my-tunnel
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVCT configure-tunnel my-tunnel transport-ssh true
-    Setting transport-ssh to true
+    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVCT tunnel configure my-tunnel set transport-ssh on
+     ✔ 2022-02-24 19:00:20 +0100 - Setting transport-ssh to 'true'...done
+    ✨ Tunnel my-tunnel configured
 
 Fetch the SSH endpoint URL
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVC" tunnel-info my-tunnel
+    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVC" tunnel info my-tunnel
     [...]
-      Transport endpoints
+      Transports
         SSH: ssh://my-tunnel:kXBnFV6Z1YoZPhoVLmxn9UO-Cp2qh7R19CGRrA_ylYfiiZ32N-CR9LWyHtaHxXn8UXGPNSt5xXUxf-5DlZOvLg@localhost:2200
 
 Establish the tunnel with SSH as normal
 
     > ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile /dev/null" -R example.com:80:example.com:80 ssh://my-tunnel:nfeflVuKGick0rD2C7Mqne6d-MDWPGCX6At7ygj0U8FTkgbLFi-XckuEUQ9-ipkJ0aRPkrxziKit4wWDisONXg@localhost:2200
     Warning: Permanently added '[localhost]:2200' (RSA) to the list of known hosts.
-    exposr/v0.1.5
+    exposr/v0.4.4
     Upstream target: http://example.com/
     HTTP ingress: http://my-tunnel.localhost:8080/
 
