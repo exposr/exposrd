@@ -43,11 +43,10 @@ class AdminApiController extends KoaController {
             return;
         }
 
-        this._initializeRoutes();
+        this.setRoutes((router) => this._initializeRoutes(router));
     }
 
-    _initializeRoutes() {
-        const router = this.router;
+    _initializeRoutes(router) {
 
         const handleError = async (ctx, next) => {
             if (!ctx.invalid) {

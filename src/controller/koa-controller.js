@@ -12,28 +12,29 @@ class KoaController {
         }
         const {port, callback, logger, host, prio} = opts;
 
-        this.app = new Koa();
-        this.router = Router();
-
-        const httpListener = this.httpListener = new Listener().getListener('http', port);
+        const httpListener = this.httpListener = new Listener().getListener('http', port, { app: new Koa() });
         this._requestHandler = httpListener.use('request', { host, logger, prio, logBody: true }, async (ctx, next) => {
             ctx.req._exposrBaseUrl = ctx.baseUrl;
-            if (!this.appCallback(ctx.req, ctx.res)) {
+            if (!await this.appCallback(ctx.req, ctx.res)) {
                 return next();
             }
         });
 
-        this.app.use(this.router.middleware());
-        this.appCallback = this.app.callback();
-        this.app.use(async (ctx, next) => {
-            ctx.req._unhandled_request = true;
-            return next();
+        httpListener.setState({
+            app: new Koa(),
+            ...httpListener.state,
         });
-        this.appCallback = (req, res) => {
-            this.app.callback()(req, res);
-            const unhandled = req._unhandled_request;
-            delete req._unhandled_request;
-            return !unhandled;
+        this.app = httpListener.state.app;
+
+        this.router = Router();
+        this.setRoutes = (initFun) => {
+            initFun(this.router);
+            this.app.use(this.router.middleware());
+        };
+
+        this.appCallback = async (req, res) => {
+            await (this.app.callback()(req, res));
+            return true;
         };
 
         this.httpListener.listen()

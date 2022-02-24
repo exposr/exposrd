@@ -19,12 +19,14 @@ class AdminController extends KoaController {
 
         this.appReady = false;
 
-        this.router.route({
-            method: 'get',
-            path: '/ping',
-            handler: async (ctx, next) => {
-                ctx.status = this.appReady ? 200 : 404;
-            },
+        this.setRoutes((router) => {
+            router.route({
+                method: 'get',
+                path: '/ping',
+                handler: async (ctx, next) => {
+                    ctx.status = this.appReady ? 200 : 404;
+                },
+            });
         });
     }
 

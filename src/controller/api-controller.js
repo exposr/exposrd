@@ -28,15 +28,15 @@ class ApiController extends KoaController {
         this.accountService = new AccountService();
         this.tunnelService = new TunnelService();
         this.transportService = new TransportService();
-        this._initializeRoutes();
 
         if (opts.allowRegistration) {
             logger.warn({message: "Public account registration is enabled"});
         }
+
+        this.setRoutes((router) => this._initializeRoutes(router));
     }
 
-    _initializeRoutes() {
-        const router = this.router;
+    _initializeRoutes(router) {
 
         const handleError = async (ctx, next) => {
             if (!ctx.invalid) {

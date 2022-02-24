@@ -20,6 +20,7 @@ class HttpListener extends ListenerInterface {
             'request': [],
             'upgrade': []
         };
+        this.state = opts.state || {};
 
         const parseForwarded = (forwarded) => {
             return Object.fromEntries(forwarded
@@ -139,6 +140,10 @@ class HttpListener extends ListenerInterface {
                 sock.destroy();
             }
         });
+    }
+
+    setState(state) {
+        this.state = state;
     }
 
     getPort() {
