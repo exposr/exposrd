@@ -1,6 +1,7 @@
 import assert from 'assert/strict';
 import Tunnel from '../../src/tunnel/tunnel.js';
-import SSHEndpoint from '../../src/endpoint/ssh-endpoint.js';
+import SSHEndpoint from '../../src/transport/ssh/ssh-endpoint.js';
+import { initEventBusService, initStorageService } from '../test-utils.js'
 
 describe('ssh endpoint', () => {
 
@@ -34,16 +35,21 @@ describe('ssh endpoint', () => {
 
     endpointTests.forEach(({args, baseUrl, expected}) => {
         it(`getEndpoint() for ${JSON.stringify(args)}, ${baseUrl} returns ${expected}`, () => {
+            const storageService = initStorageService();
+            const eventBusService = initEventBusService();
+
+
             const tunnel = new Tunnel();
             tunnel.id = 'test';
-            tunnel.endpoints.token = 'token';
+            tunnel.transport.token = 'token';
 
             const endpoint = new SSHEndpoint(args);
             const ep = endpoint.getEndpoint(tunnel, baseUrl);
             endpoint.destroy();
 
             assert(ep.url == expected, `got ${ep.url}`);
-
+            storageService.destroy();
+            eventBusService.destroy();
         });
     });
 });
