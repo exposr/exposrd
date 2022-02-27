@@ -14,7 +14,7 @@ spec:
     - port: {{ .Values.service.adminApiPort }}
       targetPort: admin-api
       protocol: TCP
-      name: http
+      name: admin-api
     - port: {{ .Values.service.adminPort }}
       targetPort: admin
       protocol: TCP
