@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.5.0](https://github.com/exposr/exposr-server/compare/v0.4.4...v0.5.0) (2022-02-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **admin-api:** move resources under v1/admin
+* **ws-transport:** change the ws transport endpoint
+* non-backwards compatible tunnel API
+
+### Features
+
+* add administrative account disabling ([6cd6f9a](https://github.com/exposr/exposr-server/commit/6cd6f9acce1ae52c3f41bb623d7dc5043a3dd9c8))
+* add graceful shutdown timeout ([ec4b07e](https://github.com/exposr/exposr-server/commit/ec4b07eb594f9c1b900f5473d80e2c176082936e))
+* **admin-api:** add API for listing/reading and deleting tunnels ([f06a247](https://github.com/exposr/exposr-server/commit/f06a2477033e998bf8469efe4b685a1b7a2a6578))
+* **admin-api:** add endpoint to list accounts ([e5ab4ef](https://github.com/exposr/exposr-server/commit/e5ab4ef94d9f6e929183bd2503d0a5136f53274d))
+* **admin-api:** add verbose flag to account list API ([8f72444](https://github.com/exposr/exposr-server/commit/8f72444c4996845be8fcbac8a95cd9239456959c))
+* **admin-api:** expose account details ([b720320](https://github.com/exposr/exposr-server/commit/b72032038e1042f9db45e689985027212f9f75c2))
+* **admin-api:** implement account deletion ([22da260](https://github.com/exposr/exposr-server/commit/22da26015540933290205c34149682fa905cc78f))
+* force quit on second SIGTERM/SIGINT ([6ff89e6](https://github.com/exposr/exposr-server/commit/6ff89e6153147f96aa6b3c67c8ef8c140657465d))
+* **helm:** only expose admin api through the admin ingress ([3172fd6](https://github.com/exposr/exposr-server/commit/3172fd64e9dc017508b99eecbd9e15988e540d77))
+* split admin service and admin api into separate controllers ([f780fab](https://github.com/exposr/exposr-server/commit/f780fab75d2a8eeda0dd4757628bbbc65abfe3ac))
+* **storage:** add support for batch get/read ([888b638](https://github.com/exposr/exposr-server/commit/888b638bf8a335da469b326a810e60d0fd58f7a4))
+* **tunnel-service:** add cursor based listing of tunnels ([7066a6d](https://github.com/exposr/exposr-server/commit/7066a6d27a9bbde054b3de2263e662d10a7942e9))
+
+
+### Bug Fixes
+
+* **admin-api:** move resources under v1/admin ([0b9298a](https://github.com/exposr/exposr-server/commit/0b9298a126f805929485f07d470bfcbdb28768f9))
+* allow API controllers to properly run on the same port ([6c6f78f](https://github.com/exposr/exposr-server/commit/6c6f78ff1ede6e6a7a279de83ab86f8ceb8b49bd))
+* **altname-service:** default to empty array ([32839c1](https://github.com/exposr/exposr-server/commit/32839c17c19d5349039bdddd52e782d9e9d5e14b))
+* **api-controller:** allow unsetting values ([57c4d6b](https://github.com/exposr/exposr-server/commit/57c4d6be2d7b8af0dc7d950d69be818232b2c0dc))
+* consider undefined as [] when setting new altnames ([2f1faeb](https://github.com/exposr/exposr-server/commit/2f1faeb2b586c9de0cd4f4a94f9ca373c4f6788c))
+* **eventbus:** call ready callback in next tick ([650436b](https://github.com/exposr/exposr-server/commit/650436ba9dae53694dacba836a0f53abaef05ccd))
+* **helm:** explicitly set http ingress port ([99411fb](https://github.com/exposr/exposr-server/commit/99411fb4ed2484863520b061112631eff1a4e9cd))
+* **http-ingress:** destroy altnameservice during shutdown ([bd3322f](https://github.com/exposr/exposr-server/commit/bd3322f939682749d7fa8f7accb30af2fe602218))
+* **http-listener:** add proper lifecycle handling to http listener ([c481627](https://github.com/exposr/exposr-server/commit/c4816272f159b0f54684a0d44f1bbc1d8098898c))
+* **http-listener:** wrap callback in try/catch ([d0a4104](https://github.com/exposr/exposr-server/commit/d0a410484e06d31c2854bf4879729e155b25fe2d))
+* move out service references in ORM classes ([657d56f](https://github.com/exposr/exposr-server/commit/657d56fc8c7ea52a6c91e4ae4c57deaefc3bdb47))
+* **node-socket:** destroy tunnelservice reference on destroy ([027ff23](https://github.com/exposr/exposr-server/commit/027ff236200cb5d11850583858d9f6a1bb0ac471))
+* share koa instance across controllers using the same listener ([a6c43f3](https://github.com/exposr/exposr-server/commit/a6c43f3e5e5ed9cee0934aa18437c833cc5f6a4a))
+* shutdown API controllers before transport and ingress ([caeac37](https://github.com/exposr/exposr-server/commit/caeac375436636db86f3f8aaa9f1b2faca71d66d))
+* **sni-ingress:** implement proper graceful destroy ([397eed1](https://github.com/exposr/exposr-server/commit/397eed18b204fa41148cc8ae06d281e06d89c5f5))
+* **ssh-endpoint:** implement destroy ([97b79b4](https://github.com/exposr/exposr-server/commit/97b79b4d1647daa4f069cec9b99e6de9316cb558))
+* **ssh-transport:** destroy tunnelservice reference on destroy ([27606cc](https://github.com/exposr/exposr-server/commit/27606cc1b47c9139b8a667f7940c9c490d10b059))
+* **storage:** don't multi-query storage layer if array of keys is empty ([af3ef90](https://github.com/exposr/exposr-server/commit/af3ef90b4dfe533f3ff587c92d5edbd305ae2548))
+* **transport-service:** add reference counting ([1cabede](https://github.com/exposr/exposr-server/commit/1cabedef093038f37318898cda2bd85e0d484601))
+* **tunnel-service:** add reference counting to handle lifecycle ([76c7e65](https://github.com/exposr/exposr-server/commit/76c7e658d504817ce4a7d78bc7d4c9c6eca36c90))
+* **tunnel-service:** disconnect tunnels on shutdown ([4fcfcc9](https://github.com/exposr/exposr-server/commit/4fcfcc96a2718b459f1965c3bd212aa28d1fc73b))
+* **tunnel-service:** fix broken permission check ([9bdd3fe](https://github.com/exposr/exposr-server/commit/9bdd3fe0da8d393cc98f87fb2493d8b0968115b7))
+* **tunnel:** create clone method ([792344d](https://github.com/exposr/exposr-server/commit/792344d2647542593206c63503117aab215c5522))
+* update helm ingress template to use networking.k8s.io/v1 ([1aea5ff](https://github.com/exposr/exposr-server/commit/1aea5ff3a7d80836f6f0036255e1f653154eb32c))
+* wait for api controller to become ready at startup ([ad44e46](https://github.com/exposr/exposr-server/commit/ad44e4625e5305845560c9c5584e318dcfb6790a))
+* wait for transport to become ready during startup ([8a3e2e9](https://github.com/exposr/exposr-server/commit/8a3e2e9df467bbe3c8aa15a4548a4ee32c4bb6fa))
+
+
+* change endpoints to transport in tunnel API ([37029fd](https://github.com/exposr/exposr-server/commit/37029fd21ec1cd25d77a2d8280e9e2a16835aa50))
+* **ws-transport:** change the ws transport endpoint ([36274bd](https://github.com/exposr/exposr-server/commit/36274bd6b83389321175b5ad1f7601f67ccc5081))
+
 ### [0.4.4](https://github.com/exposr/exposr-server/compare/v0.4.3...v0.4.4) (2021-10-01)
 
 ### [0.4.3](https://github.com/exposr/exposr-server/compare/v0.4.2...v0.4.3) (2021-08-18)
