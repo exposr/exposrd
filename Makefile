@@ -1,5 +1,5 @@
 registry?=exposr
-node_image?=16.13.0-alpine3.14
+node_image?=16.14.0-alpine3.15
 platforms?=linux/amd64,linux/arm64,linux/arm/v7
 
 project:=exposr-server
