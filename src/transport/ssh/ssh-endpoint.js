@@ -146,7 +146,7 @@ class SSHEndpoint {
         client.on('ready', async (ctx) => {
             const transport = new SSHTransport({
                 tunnelId: tunnel.id,
-                upstream: tunnel.upstream.url,
+                target: tunnel.target.url,
                 client,
             });
             const res = await this.tunnelService.connect(tunnel.id, account.id, transport, { peer: info.ip });

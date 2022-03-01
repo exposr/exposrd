@@ -27,7 +27,7 @@ class Tunnel {
                 urls: undefined,
             },
         };
-        this.upstream = {
+        this.target = {
             url: undefined,
         };
         this.created_at = undefined;

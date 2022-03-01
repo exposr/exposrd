@@ -104,8 +104,8 @@ class ApiController extends KoaController {
                 },
                 transport: {},
                 ingress: {},
-                upstream: {
-                    url: tunnel.upstream.url,
+                target: {
+                    url: tunnel.target.url,
                 },
                 created_at: tunnel.created_at,
             };
@@ -143,7 +143,7 @@ class ApiController extends KoaController {
                             enabled: Router.Joi.boolean(),
                         },
                     },
-                    upstream: {
+                    target: {
                         url: Router.Joi.string().uri().allow(null),
                     },
                     transport: {
@@ -175,9 +175,9 @@ class ApiController extends KoaController {
                     tunnel.ingress.http.alt_names =
                         body?.ingress?.http?.alt_names === null ? undefined :
                             body?.ingress?.http?.alt_names ?? tunnel.ingress.http.alt_names;
-                    tunnel.upstream.url =
-                        body?.upstream?.url === null ? undefined :
-                            body?.upstream?.url ?? tunnel.upstream.url;
+                    tunnel.target.url =
+                        body?.target?.url === null ? undefined :
+                            body?.target?.url ?? tunnel.target.url;
                     tunnel.transport.ws.enabled =
                         body?.transport?.ws?.enabled ?? tunnel.transport.ws.enabled;
                     tunnel.transport.ssh.enabled =

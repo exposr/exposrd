@@ -269,8 +269,8 @@ class SNIIngress {
             operation: 'sni-connect',
             servername,
             peer,
-            upstream: {
-                ...tunnel.upstream
+            target: {
+                ...tunnel.target
             },
         });
 
@@ -281,8 +281,8 @@ class SNIIngress {
                 operation: 'sni-disconnect',
                 servername,
                 peer,
-                upstream: {
-                    ...tunnel.upstream
+                target: {
+                    ...tunnel.target
                 },
                 duration: elapsedMs,
                 bytes: {
@@ -298,7 +298,7 @@ class SNIIngress {
                 port: this.port,
             },
         };
-        const upstream = this.tunnelService.createConnection(tunnelId, ctx);
+        const target = this.tunnelService.createConnection(tunnelId, ctx);
         const logError = (err) => {
             logger.info({
                 operation: 'sni-error',
@@ -307,12 +307,12 @@ class SNIIngress {
             });
         };
 
-        upstream.on('close', () => {
+        target.on('close', () => {
             socket.end();
             socket.destroy();
         });
 
-        upstream.on('error', (err) => {
+        target.on('error', (err) => {
             logError(err);
             socket.end();
             socket.destroy();
@@ -320,12 +320,12 @@ class SNIIngress {
 
         socket.on('error', (err) => {
             logError(err);
-            upstream.end();
-            upstream.destroy();
+            target.end();
+            target.destroy();
         });
 
-        upstream.pipe(socket);
-        socket.pipe(upstream);
+        target.pipe(socket);
+        socket.pipe(target);
     }
 }
 

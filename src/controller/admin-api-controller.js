@@ -124,7 +124,7 @@ class AdminApiController extends KoaController {
                     ...this._transportService.getTransports(tunnel, baseUrl),
                 },
                 ingress: tunnel.ingress,
-                upstream: tunnel.upstream,
+                target: tunnel.target,
                 connection: {
                     connected: tunnel.state().connected,
                     peer: tunnel.state().peer,

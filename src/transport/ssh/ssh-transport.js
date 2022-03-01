@@ -14,9 +14,9 @@ class SSHTransport extends Transport {
         const client = this._client = opts.client;
 
         try {
-            this._upstream = new URL(opts.upstream);
+            this._target = new URL(opts.target);
         } catch (e) {
-            this._upstream = new URL("tcp://");
+            this._target = new URL("tcp://");
         }
 
         client.on('session', (accept, reject) => {
@@ -27,7 +27,7 @@ class SSHTransport extends Transport {
             session.on('shell', async (accept, reject) => {
                 const stream = accept();
                 const tunnel = await this._tunnelService.lookup(opts.tunnelId);
-                stream.write(`Upstream target: ${this._upstream.href}\r\n`);
+                stream.write(`Target URL: ${this._target.href}\r\n`);
                 Object.keys(tunnel.ingress).forEach((ing) => {
                     if (!tunnel.ingress[ing].enabled) {
                         return;
@@ -52,19 +52,19 @@ class SSHTransport extends Transport {
 
             const bindUrl = this._bindaddr = Hostname.parse(info.bindAddr, info.bindPort);
             if (bindUrl && bindUrl.hostname != 'localhost') {
-                if (bindUrl.href != this._upstream.href) {
-                    this._upstream = bindUrl;
+                if (bindUrl.href != this._target.href) {
+                    this._target = bindUrl;
                     this._tunnelService.update(opts.tunnelId, undefined, (tunnel) => {
-                        tunnel.upstream.url = bindUrl.href;
+                        tunnel.target.url = bindUrl.href;
                     });
                     logger.info({
-                        operation: 'update-upstream',
-                        upstream: bindUrl.href,
+                        operation: 'update-target',
+                        target: bindUrl.href,
                     });
                 }
             }
 
-            const port = Hostname.getPort(this._upstream);
+            const port = Hostname.getPort(this._target);
             if (port > 0) {
                 accept(port);
             } else {
@@ -81,7 +81,7 @@ class SSHTransport extends Transport {
         const sock = new SSHTransportSocket({
             ...opts,
             client: this._client,
-            upstream: this._upstream,
+            target: this._target,
             bindaddr: this._bindaddr,
         });
         sock.connect(callback);
@@ -113,7 +113,7 @@ class SSHTransportSocket extends Duplex {
         this.bytesWritten = 0;
 
         this._client = opts.client;
-        this._upstream = opts.upstream;
+        this._target = opts.target;
         this._bindaddr = opts.bindaddr;
 
         super.cork();
@@ -137,8 +137,8 @@ class SSHTransportSocket extends Duplex {
             this.once('connect', callback);
         }
 
-        const port = Hostname.getPort(this._upstream);
-        this._client.forwardOut(this._bindaddr.hostname, port, this._upstream.hostname, port, (err, stream) => {
+        const port = Hostname.getPort(this._target);
+        this._client.forwardOut(this._bindaddr.hostname, port, this._target.hostname, port, (err, stream) => {
             this.connecting = false;
             if (err) {
                 typeof callback === 'function' && this.removeListener('connect', callback);
@@ -148,10 +148,10 @@ class SSHTransportSocket extends Duplex {
             }
 
             this._stream = stream;
-            const isTLS = Hostname.isTLS(this._upstream);
+            const isTLS = Hostname.isTLS(this._target);
             if (isTLS) {
                 const tlsSock = tls.connect({
-                    servername: this._upstream.hostname,
+                    servername: this._target.hostname,
                     socket: stream,
                 });
                 stream = tlsSock;

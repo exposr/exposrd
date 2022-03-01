@@ -12,8 +12,8 @@ import { ERROR_TUNNEL_NOT_FOUND,
          ERROR_TUNNEL_HTTP_INGRESS_DISABLED,
          ERROR_HTTP_INGRESS_REQUEST_LOOP,
          ERROR_TUNNEL_TRANSPORT_REQUEST_LIMIT,
-         ERROR_TUNNEL_UPSTREAM_CON_REFUSED,
-         ERROR_TUNNEL_UPSTREAM_CON_FAILED,
+         ERROR_TUNNEL_TARGET_CON_REFUSED,
+         ERROR_TUNNEL_TARGET_CON_FAILED,
          ERROR_UNKNOWN_ERROR,
 } from '../utils/errors.js';
 import Node from '../utils/node.js';
@@ -219,13 +219,13 @@ class HttpIngress {
     _rewriteHeaders(headers, tunnel) {
         const host = headers['host'];
 
-        let upstream;
-        if (tunnel.upstream.url) {
+        let target;
+        if (tunnel.target.url) {
             try {
-                upstream = new URL(tunnel.upstream.url);
+                target = new URL(tunnel.target.url);
             } catch {}
         }
-        if (upstream === undefined || !upstream.protocol.startsWith('http')) {
+        if (target === undefined || !target.protocol.startsWith('http')) {
             return;
         }
 
@@ -239,15 +239,15 @@ class HttpIngress {
                 try {
                     const url = new URL(value);
                     if (url.host == host) {
-                        url.protocol = upstream.protocol;
-                        url.host = upstream.host;
-                        url.port = upstream.port;
+                        url.protocol = target.protocol;
+                        url.host = target.host;
+                        url.port = target.port;
                         headers[headerName] = url.href;
                     }
                 } catch {
                 }
             } else {
-                headers[headerName] = upstream.host;
+                headers[headerName] = target.host;
             }
         });
     }
@@ -324,10 +324,10 @@ class HttpIngress {
                 msg = ERROR_TUNNEL_TRANSPORT_REQUEST_LIMIT;
             } else if (err.code == 'ECONNRESET') {
                 res.statusCode = 503;
-                msg = ERROR_TUNNEL_UPSTREAM_CON_REFUSED;
+                msg = ERROR_TUNNEL_TARGET_CON_REFUSED;
             } else {
                 res.statusCode = 503;
-                msg = ERROR_TUNNEL_UPSTREAM_CON_FAILED;
+                msg = ERROR_TUNNEL_TARGET_CON_FAILED;
             }
             res.end(JSON.stringify({error: msg}));
         });
@@ -383,8 +383,8 @@ class HttpIngress {
                 port: this.httpListener.getPort(),
             }
         };
-        const upstream = this.tunnelService.createConnection(tunnel.id, ctx);
-        if (upstream === undefined) {
+        const target = this.tunnelService.createConnection(tunnel.id, ctx);
+        if (target === undefined) {
             _canonicalHttpResponse(sock, req, {
                 status: 503,
                 statusLine: 'Service Unavailable',
@@ -394,20 +394,20 @@ class HttpIngress {
         }
 
         const headers = this._requestHeaders(req, tunnel, baseUrl);
-        upstream.on('error', (err) => {
+        target.on('error', (err) => {
             sock.end();
         });
 
-        upstream.on('connect', () => {
-            upstream.pipe(sock);
-            sock.pipe(upstream);
+        target.on('connect', () => {
+            target.pipe(sock);
+            sock.pipe(target);
 
             let raw = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
             Object.keys(headers).forEach(k => {
                 raw += `${k}: ${req.headers[k]}\r\n`;
             });
             raw += '\r\n';
-            upstream.write(raw);
+            target.write(raw);
         });
 
         return true;
