@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.0](https://github.com/exposr/exposr-server/compare/v0.5.1...v0.6.0) (2022-03-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* API property upstream is now called target
+
+* rename upstream to target ([8c43783](https://github.com/exposr/exposr-server/commit/8c437837666684604b5453e68415ce417946af97))
+
 ### [0.5.1](https://github.com/exposr/exposr-server/compare/v0.5.0...v0.5.1) (2022-02-27)
 
 
