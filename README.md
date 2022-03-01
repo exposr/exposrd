@@ -260,13 +260,11 @@ Create and account and configure a tunnel
      ✔ 2022-02-24 19:00:00 +0100 - Creating account...success
     ✨ Created account DE94-JTNJ-FX5W-YWKY
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a DE94-JTNJ-FX5W-YWKY tunnel create my-tunnel
+    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a DE94-JTNJ-FX5W-YWKY tunnel create my-tunnel transport-ssh on ingress-http on
      ✔ 2022-02-24 19:00:10 +0100 - Creating tunnel...success (my-tunnel)
-    ✨ Created tunnel my-tunnel
-
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVCT tunnel configure my-tunnel set transport-ssh on
      ✔ 2022-02-24 19:00:20 +0100 - Setting transport-ssh to 'true'...done
-    ✨ Tunnel my-tunnel configured
+     ✔ 2022-02-24 19:00:20 +0100 - Setting ingress-http to 'true'...done
+    ✨ Created tunnel my-tunnel
 
 Fetch the SSH endpoint URL
 
@@ -279,11 +277,11 @@ Establish the tunnel with SSH as normal
 
     > ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile /dev/null" -R example.com:80:example.com:80 ssh://my-tunnel:nfeflVuKGick0rD2C7Mqne6d-MDWPGCX6At7ygj0U8FTkgbLFi-XckuEUQ9-ipkJ0aRPkrxziKit4wWDisONXg@localhost:2200
     Warning: Permanently added '[localhost]:2200' (RSA) to the list of known hosts.
-    exposr/v0.4.4
-    Upstream target: http://example.com/
+    exposr/v0.5.1
+    Target URL: http://example.com/
     HTTP ingress: http://my-tunnel.localhost:8080/
 
-The upstream target can be configured with the `bind_address` part of the `-R` argument to ssh. If an upstream target
+The target can be configured with the `bind_address` part of the `-R` argument to ssh. If a target
 has already been configured the left-hand part of -R can be left out, example `-R 0:example.com:80`.
 
 Note that the connection token is only valid for one connection, and must be re-fetched for each connection.
