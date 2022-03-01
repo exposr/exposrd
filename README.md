@@ -32,7 +32,7 @@ example at the load balancer.
 
 ## Demo
 
-![](https://exposr.github.io/docs/img/demo/exposr-demo-20210822.gif)
+![](https://exposr.github.io/docs/img/demo/exposr-demo-20220301.svg)
 
 ## Supported transports
 
