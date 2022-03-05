@@ -138,7 +138,7 @@ HTTP ingress sub-domains will be allocated from `http://localhost:8080`.
 Start the client with, this will create a tunnel called `example` and connect it to `http://example.com`.
 The tunnel will be available at `http://example.localhost:8080`.
 
-    docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ tunnel connect http://example.com example
+    docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ tunnel connect example http://example.com
 
 Try the tunnel
 
