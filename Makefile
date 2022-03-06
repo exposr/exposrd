@@ -20,14 +20,25 @@ endef
 %.container: builder.build
 	$(call docker.run, "make $(subst .container,,$@)")
 
-release:
-	yarn run release --skip.changelog
-
-release.publish:
-	git push --follow-tags origin
-
 package.build:
-	yarn pack --no-default-rc --production --frozen-lockfile --filename $(package_name)
+	yarn install --no-default-rc --frozen-lockfile
+	mkdir -p dist
+	yarn pack --no-default-rc --frozen-lockfile --filename dist/$(package_name)
+
+bundle.build:
+	yarn install --no-default-rc --frozen-lockfile
+	yarn run bundle
+
+dist.clean:
+	rm -fr dist
+
+dist.linux.build:
+	yarn install --no-default-rc --frozen-lockfile
+	PKG_CACHE_PATH=.pkg-cache yarn run dist-linux
+
+dist.macos.build:
+	yarn install --no-default-rc --frozen-lockfile
+	PKG_CACHE_PATH=.pkg-cache yarn run dist-macos
 
 # Builder image
 builder.build:
@@ -37,7 +48,6 @@ builder.build:
 image.build:
 	docker build \
 		--build-arg NODE_IMAGE=$(node_image) \
-		--build-arg PACKAGE_NAME=$(package_name) \
 		--pull -t $(project):$(version) .
 
 ifneq (, $(publish))
@@ -50,7 +60,6 @@ image.buildx:
 		--platform $(platforms) \
 		$(push_flag) \
 		--build-arg NODE_IMAGE=$(node_image) \
-		--build-arg PACKAGE_NAME=$(package_name) \
 		-t $(registry)/$(project):$(version) .
 	docker buildx rm exposr-server-builder
 
