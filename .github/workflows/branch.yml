@@ -1,0 +1,27 @@
+name: branch
+on:
+  push:
+    branches:
+      - '*'
+      - '!master'
+
+  workflow_dispatch:
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run tests
+        run: |
+          yarn install --frozen-lockfile
+          yarn run test
+
+      - name: Prepare builder
+        run: make builder.build
+
+      - name: Build package
+        run:  |
+            make package.build.container

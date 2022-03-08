@@ -1,20 +1,23 @@
 {
   "name": "exposr-server",
   "version": "0.6.0",
-  "main": "src/index.js",
   "type": "module",
+  "main": "exposr-server.cjs",
+  "bin": "exposr-server.cjs",
   "author": "Fredrik Lindberg <fli@shapeshifter.se>",
   "license": "MIT",
   "engines": {
     "node": ">=16"
   },
   "files": [
-    "exposr-server",
-    "src",
+    "exposr-server.cjs",
     "README.md",
     "LICENSE",
     "yarn.lock",
-    "build.env"
+    "build.env",
+    "build.js",
+    "Dockerfile",
+    "Makefile"
   ],
   "dependencies": {
     "content-type": "^1.0.4",
@@ -32,14 +35,22 @@
     "yargs": "^17.1.1"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^21.0.2",
+    "@rollup/plugin-json": "^4.1.0",
     "mocha": "^9.2.1",
+    "pkg": "^5.5.2",
+    "rollup": "^2.69.2",
     "standard-version": "^9.3.2",
     "yaml": "^1.10.2"
   },
   "scripts": {
-    "prepack": "scripts/build-env.sh > build.env",
-    "postpack": "rm build.env",
+    "prepack": "yarn run version && yarn run bundle",
+    "postpack": "rm build.env exposr-server.cjs",
     "release": "standard-version",
+    "version": "scripts/build-version.sh",
+    "bundle": "rollup exposr-server.js --file exposr-server.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
+    "dist-macos": "source build.env; pkg -d --public-packages 'node_modules/*' -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-macos-x64 -t node16-macos-x64 exposr-server.cjs",
+    "dist-linux": "source build.env; pkg -d --public-packages 'node_modules/*' -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-linux -t node16-linuxstatic-arm64,node16-linuxstatic-armv7,node16-linuxstatic-x64 exposr-server.cjs",
     "test": "NODE_ENV=test mocha --exit --recursive test"
   }
 }

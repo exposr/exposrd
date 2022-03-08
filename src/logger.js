@@ -22,17 +22,18 @@ Log4js.addLayout('json', function(config) {
 class LoggerFactory {
     constructor(namespace) {
         const logger = this._logger = Log4js.getLogger(namespace);
+        const config = new Config();
 
         Log4js.configure({
             appenders: {
-              out: { type: 'stdout', layout: { type: Config.get('log-format'), separator: ',' } }
+              out: { type: 'stdout', layout: { type: config.get('log-format'), separator: ',' } }
             },
             categories: {
-              default: { appenders: ['out'], level: Config.get("log-level") }
+              default: { appenders: ['out'], level: config.get("log-level") }
             }
         });
 
-        logger.level = Config.get("log-level");
+        logger.level = config.get("log-level");
         logger.addContext('host', os.hostname());
 
         logger.withContext = (key, value) => {

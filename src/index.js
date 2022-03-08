@@ -11,6 +11,7 @@ import Node, { NodeService } from './utils/node.js';
 import Version from './version.js';
 
 export default async () => {
+    const config = new Config();
     Logger.info(`exposr-server ${Version.version.version}`);
     Logger.info({
         node_id: Node.identifier,
@@ -27,13 +28,13 @@ export default async () => {
     // Initialize storage and eventbus
     const storageServiceReady = new Promise((resolve, reject) => {
         try {
-            const mode = Config.get('redis-url') ? 'redis' : 'mem';
+            const mode = config.get('redis-url') ? 'redis' : 'mem';
 
             const storage = new StorageService(mode, {
                 callback: (err) => {
                     err ? reject(err) : resolve(storage);
                 },
-                redisUrl: Config.get('redis-url'),
+                redisUrl: config.get('redis-url'),
             });
         } catch (e) {
             reject(e);
@@ -42,13 +43,13 @@ export default async () => {
 
     const eventBusServiceReady = new Promise((resolve, reject) => {
         try {
-            const mode = Config.get('redis-url') ? 'redis' : 'mem';
+            const mode = config.get('redis-url') ? 'redis' : 'mem';
 
             const eventBusService = new EventBusService(mode, {
                 callback: (err) => {
                     err ? reject(err) : resolve(eventBusService);
                 },
-                redisUrl: Config.get('redis-url'),
+                redisUrl: config.get('redis-url'),
             });
         } catch (e) {
             reject(e);
@@ -75,15 +76,15 @@ export default async () => {
                     err ? reject(err) : resolve(transport);
                 },
                 ws: {
-                  enabled: Config.get('transport').includes('ws'),
-                  baseUrl: Config.get('api-url'),
-                  port: Config.get('api-port'),
+                  enabled: config.get('transport').includes('ws'),
+                  baseUrl: config.get('api-url'),
+                  port: config.get('api-port'),
                 },
                 ssh: {
-                  enabled: Config.get('transport').includes('ssh'),
-                  hostKey: Config.get('transport-ssh-key'),
-                  host: Config.get('transport-ssh-host'),
-                  port: Config.get('transport-ssh-port'),
+                  enabled: config.get('transport').includes('ssh'),
+                  hostKey: config.get('transport-ssh-key'),
+                  host: config.get('transport-ssh-host'),
+                  port: config.get('transport-ssh-port'),
                 },
             });
         } catch (e) {
@@ -99,16 +100,16 @@ export default async () => {
                     err ? reject(err) : resolve(ingress);
                 },
                 http: {
-                    enabled: Config.get('ingress').includes('http'),
-                    port: Config.get('ingress-http-port'),
-                    subdomainUrl: Config.get('ingress-http-domain')
+                    enabled: config.get('ingress').includes('http'),
+                    port: config.get('ingress-http-port'),
+                    subdomainUrl: config.get('ingress-http-domain')
                 },
                 sni: {
-                    enabled: Config.get('ingress').includes('sni'),
-                    port: Config.get('ingress-sni-port'),
-                    host: Config.get('ingress-sni-host'),
-                    cert: Config.get('ingress-sni-cert'),
-                    key: Config.get('ingress-sni-key'),
+                    enabled: config.get('ingress').includes('sni'),
+                    port: config.get('ingress-sni-port'),
+                    host: config.get('ingress-sni-host'),
+                    cert: config.get('ingress-sni-cert'),
+                    key: config.get('ingress-sni-key'),
                 }
             });
         } catch (e) {
@@ -118,8 +119,8 @@ export default async () => {
 
     const adminControllerReady = new Promise((resolve, reject) => {
         const adminController = new AdminController({
-            enable: Config.get('admin-enable'),
-            port: Config.get('admin-port'),
+            enable: config.get('admin-enable'),
+            port: config.get('admin-port'),
             callback: (err) => {
                 err ? reject(err) : resolve(adminController);
             },
@@ -128,10 +129,10 @@ export default async () => {
 
     const adminApiControllerReady = new Promise((resolve, reject) => {
         const adminApiController = new AdminApiController({
-            enable: Config.get('admin-api-enable'),
-            port: Config.get('admin-api-port'),
-            apiKey: Config.get('admin-api-key'),
-            unauthAccess: Config.get('admin-api-allow-access-without-key'),
+            enable: config.get('admin-api-enable'),
+            port: config.get('admin-api-port'),
+            apiKey: config.get('admin-api-key'),
+            unauthAccess: config.get('admin-api-allow-access-without-key'),
             callback: (err) => {
                 err ? reject(err) : resolve(adminApiController);
             },
@@ -140,9 +141,9 @@ export default async () => {
 
     const apiControllerReady = new Promise((resolve, reject) => {
         const apiController = new ApiController({
-            port: Config.get('api-port'),
-            url: Config.get('api-url'),
-            allowRegistration: Config.get('allow-registration') || false,
+            port: config.get('api-port'),
+            url: config.get('api-url'),
+            allowRegistration: config.get('allow-registration') || false,
             callback: (err) => {
                 err ? reject(err) : resolve(apiController);
             },
