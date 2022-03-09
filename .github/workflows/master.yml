@@ -97,13 +97,13 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      #- name: Publish versioned container
-      #  run:  |
-      #    make publish=true image.buildx
+      - name: Publish versioned container
+        run:  |
+          make publish=true image.buildx
 
-      #- name: Publish unstable container
-      #  run: |
-      #    make image.buildx.unstable
+      - name: Publish unstable container
+        run: |
+          make image.buildx.unstable
 
   summary:
     runs-on: ubuntu-latest
