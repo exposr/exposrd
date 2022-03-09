@@ -49,8 +49,8 @@
     "release": "standard-version",
     "version": "scripts/build-version.sh",
     "bundle": "rollup exposr-server.js --file exposr-server.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
-    "dist-macos": "source build.env; pkg -d --public-packages 'node_modules/*' -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-macos-x64 -t node16-macos-x64 exposr-server.cjs",
-    "dist-linux": "source build.env; pkg -d --public-packages 'node_modules/*' -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-linux -t node16-linuxstatic-arm64,node16-linuxstatic-armv7,node16-linuxstatic-x64 exposr-server.cjs",
+    "dist-macos": "source build.env; pkg -d --options 'no-warnings' --public-packages 'node_modules/*' -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-macos-x64 -t node16-macos-x64 exposr-server.cjs",
+    "dist-linux": "source build.env; pkg -d --options 'no-warnings' --public-packages 'node_modules/*' -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-linux -t node16-linuxstatic-arm64,node16-linuxstatic-armv7,node16-linuxstatic-x64 exposr-server.cjs",
     "test": "NODE_ENV=test mocha --exit --recursive test"
   }
 }
