@@ -16,6 +16,8 @@ RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then cp /dist/exposr-server-*-li
 RUN if [ "${TARGETPLATFORM}" = "linux/arm/v7" ]; then cp /dist/exposr-server-*-linux-armv7 /exposr-server; fi
 
 FROM scratch
+ARG VERSION
+LABEL org.opencontainers.image.description exposr-server ${VERSION}
 COPY --from=platform /exposr-server /exposr-server
 EXPOSE 8080
 EXPOSE 8081

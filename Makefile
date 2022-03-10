@@ -48,6 +48,7 @@ builder.build:
 image.build:
 	docker build \
 		--build-arg NODE_IMAGE=$(node_image) \
+		--build-arg VERSION=${version} \
 		--pull -t $(project):$(version) .
 
 ifneq (, $(publish))
@@ -60,6 +61,7 @@ image.buildx:
 		--platform $(platforms) \
 		$(push_flag) \
 		--build-arg NODE_IMAGE=$(node_image) \
+		--build-arg VERSION=${version} \
 		-t $(registry)/$(project):$(version) .
 	docker buildx rm exposr-server-builder
 

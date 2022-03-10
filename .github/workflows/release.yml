@@ -105,6 +105,21 @@ jobs:
         run: |
           make image.buildx.latest
 
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish versioned container to ghcr.io
+        run:  |
+          make publish=true registry=ghcr.io/exposr image.buildx
+
+      - name: Publish latest container to ghcr.io
+        run: |
+          make registry=ghcr.io/exposr image.buildx.latest
+
   release:
     runs-on: ubuntu-latest
     needs: [dist_linux, dist_macos]
