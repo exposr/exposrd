@@ -3,6 +3,7 @@ import { Duplex } from 'stream';
 import tls from 'tls';
 import logger from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
+import Tunnel from '../../tunnel/tunnel.js';
 import Hostname from '../../utils/hostname.js';
 import Transport from '../transport.js';
 
@@ -25,8 +26,11 @@ class SSHTransport extends Transport {
                 accept();
             });
             session.on('shell', async (accept, reject) => {
-                const stream = accept();
                 const tunnel = await this._tunnelService.lookup(opts.tunnelId);
+                if (!(tunnel instanceof Tunnel) || tunnel.id != opts.tunnelId) {
+                    return reject();
+                }
+                const stream = accept();
                 stream.write(`Target URL: ${this._target.href}\r\n`);
                 Object.keys(tunnel.ingress).forEach((ing) => {
                     if (!tunnel.ingress[ing].enabled) {
@@ -45,8 +49,13 @@ class SSHTransport extends Transport {
             });
         });
 
-        client.on('request', (accept, reject, name, info) => {
+        client.on('request', async (accept, reject, name, info) => {
             if (name !== 'tcpip-forward') {
+                return reject();
+            }
+
+            const tunnel = await this._tunnelService.lookup(opts.tunnelId);
+            if (!(tunnel instanceof Tunnel) || tunnel.id != opts.tunnelId) {
                 return reject();
             }
 
@@ -54,7 +63,7 @@ class SSHTransport extends Transport {
             if (bindUrl && bindUrl.hostname != 'localhost') {
                 if (bindUrl.href != this._target.href) {
                     this._target = bindUrl;
-                    this._tunnelService.update(opts.tunnelId, undefined, (tunnel) => {
+                    this._tunnelService.update(tunnel.id, tunnel.account, (tunnel) => {
                         tunnel.target.url = bindUrl.href;
                     });
                     logger.info({
