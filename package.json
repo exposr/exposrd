@@ -1,6 +1,6 @@
 {
   "name": "exposr-server",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "main": "exposr-server.cjs",
   "bin": "exposr-server.cjs",
