@@ -17,18 +17,18 @@ stopfn() {
 }
 
 get_token() {
-    echo $(curl -s ${EXPOSR_SERVER}/v1/account/8D6F8MKFPDXH56RW/token | jq -r .token)
+    echo $(curl -s ${EXPOSR_SERVER}/v1/account/${EXPOSR_ACCOUNT}/token | jq -r .token)
 }
 
 # NB: THIS DOES NOT PERFORM ANY SANITY CHECKING ON THE URL, A MALICIOUS SERVER COULD INJECT COMMANDS
 get_url() {
     token=$(get_token)
-    echo $(curl -s -H "Authorization: Bearer ${token}" ${EXPOSR_SERVER}/v1/tunnel/${EXPOSR_TUNNEL} | jq -r .endpoints.ssh.url)
+    echo $(curl -s -H "Authorization: Bearer ${token}" ${EXPOSR_SERVER}/v1/tunnel/${EXPOSR_TUNNEL} | jq -r .transport.ssh.url)
 }
 
 while ${loop}; do
     echo "Press Ctrl-C twice to disconnect"
     echo ""
-    ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile /dev/null" -R ${DESTINATION}:${DESTINATION} $(get_url)
+    ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile /dev/null" -R ${DESTINATION}:${DESTINATION} "$(get_url)"
     sleep 2
 done
