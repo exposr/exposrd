@@ -3,7 +3,7 @@ node_image?=16.14.0-alpine3.15
 platforms?=linux/amd64,linux/arm64,linux/arm/v7
 
 project:=exposr-server
-version:=$(shell git describe --tags --always --dirty 2> /dev/null || git rev-parse --short HEAD)
+version=$(shell [ -e build.env ] && . ./build.env 2> /dev/null && echo $${EXPOSR_BUILD_VERSION} || git describe --tags --always --dirty 2> /dev/null || git rev-parse --short HEAD)
 package_name=$(project)-$(version).tgz
 
 all: package.build.container image.build
