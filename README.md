@@ -1,12 +1,12 @@
-# exposr
+# exposr - dynamic reverse tunnel relay server
 
-exposr is a self-hosted tunnel server that allows you to securely expose devices and services
+exposr is a self-hosted reverse tunnel relay server that allows you to securely expose devices and services
 behind NATs or firewalls to the Internet through public URLs.
 
 exposr can for example be used for development and previews or for exposing services behind NAT/firewalls
 to the Internet without port-forwarding and risk of exposing your IP address.
 
-Why another "localhost reverse proxy"? exposr takes a slightly different approach than other servers
+Why another "reverse tunnel server"? exposr takes a slightly different approach than other servers
 of the same type. exposr is designed to run as a container with horizontal elastic scaling properties,
 and is well suited to run in container-orchestration systems like Kubernetes.
 
@@ -43,7 +43,7 @@ example at the load balancer.
 
 The Websocket transport endpoint can run behind a HTTP load balancer on the same port
 as the API. The SSH transport endpoint requires a dedicated TCP port and requires
-a TCP load balancer.
+a TCP load balancer in multi-node setups.
 
 ## Supported ingress methods
 
@@ -58,6 +58,7 @@ when the server is restarted. Since tunnels (and accounts) are created by the cl
 on-the-fly this works good enough for small single-node setups.
 
 Redis is supported for multi-node support or if long-term persistance is required.
+
 ## Horizontal scaling
 exposr can be run in a multi-node setup, ingress connections are re-routed to the node
 that have the tunnel established. This allows load balancing in round-robin
@@ -124,8 +125,13 @@ needs to be known in order to perform privileged operations on a tunnel.
 
 ## Runtime artifacts
 
-Currently, only containers are available as a runtime artifacts.
-Latest release is available with the `latest` tag, latest development is available with the `unstable` tag.
+### Containers
+Containers are available for deployments in container runtime environments.
+
+Latest release is available with the `latest` tag, latest development (master branch) is available with the `unstable` tag.
+
+### Static binaries
+For single node or ad-hoc deployments, static binaries are available for Linux (amd64, arm64 and armv7) as well as MacOS x64 (runs on M1).
 
 ## Quick start
 You can quickly try out exposr without installing anything.
