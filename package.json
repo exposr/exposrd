@@ -20,19 +20,19 @@
     "Makefile"
   ],
   "dependencies": {
-    "content-type": "^1.0.4",
-    "koa": "^2.13.4",
+    "content-type": "^1.0.5",
+    "koa": "^2.14.1",
     "koa-joi-router": "^8.0.0",
     "koa-router": "^10.0.0",
-    "log4js": "^6.4.0",
+    "log4js": "^6.7.1",
     "node-cache": "^5.1.2",
     "port-numbers": "^6.0.1",
     "redis": "^3.1.2",
     "redlock": "^4.2.0",
-    "ssh2": "^1.4.0",
+    "ssh2": "^1.11.0",
     "sshpk": "^1.16.1",
     "ws": "^7.3.1",
-    "yargs": "^17.1.1"
+    "yargs": "^17.6.2"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.0.2",
