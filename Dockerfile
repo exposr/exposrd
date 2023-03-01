@@ -3,10 +3,10 @@ FROM node:${NODE_IMAGE} AS builder
 RUN apk add \
     git \
     make
-RUN mkdir /workdir
+RUN mkdir /workdir /.cache /.yarn
+RUN chmod 777 /.cache /.yarn
 WORKDIR /workdir
 ENTRYPOINT ["/bin/sh", "-c"]
-
 
 FROM node:${NODE_IMAGE} as platform
 ARG TARGETPLATFORM
