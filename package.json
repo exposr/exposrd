@@ -50,8 +50,6 @@
     "version": "scripts/build-version.sh",
     "bundle": "rollup exposr-server.js --file exposr-server.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
     "dist": "scripts/build-dist.sh",
-    "dist-macos": "yarn run dist node18-macos-x64",
-    "dist-linux": "yarn run dist node18-linuxstatic-arm64,node18-linuxstatic-armv7,node18-linuxstatic-x64",
     "test": "NODE_ENV=test mocha --exit --recursive test"
   }
 }
