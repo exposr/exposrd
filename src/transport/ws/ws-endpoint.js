@@ -1,6 +1,6 @@
 import net from 'net';
 import querystring from 'querystring';
-import WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
 import Listener from '../../listener/index.js';
 import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
@@ -25,7 +25,7 @@ class WebSocketEndpoint {
         this.opts = opts;
         this.httpListener = new Listener().getListener('http', opts.port);
         this.tunnelService = new TunnelService();
-        this.wss = new WebSocket.Server({ noServer: true });
+        this.wss = new WebSocketServer({ noServer: true });
         this.destroyed = false;
 
         this._upgradeHandler = this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
