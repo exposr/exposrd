@@ -39,7 +39,7 @@
     "@rollup/plugin-json": "^6.0.0",
     "mocha": "^10.2.0",
     "pkg": "^5.8.0",
-    "rollup": "^3.13.0",
+    "rollup": "^3.18.0",
     "standard-version": "^9.3.2",
     "yaml": "^2.2.1"
   },
