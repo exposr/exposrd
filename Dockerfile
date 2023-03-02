@@ -10,10 +10,11 @@ ENTRYPOINT ["/bin/sh", "-c"]
 
 FROM node:${NODE_IMAGE} as platform
 ARG TARGETPLATFORM
+ARG VERSION=*
 COPY dist /dist
-RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then cp /dist/exposr-server-*-linux-x64 /exposr-server; fi
-RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then cp /dist/exposr-server-*-linux-arm64 /exposr-server; fi
-RUN if [ "${TARGETPLATFORM}" = "linux/arm/v7" ]; then cp /dist/exposr-server-*-linux-armv7 /exposr-server; fi
+RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then cp /dist/exposr-server-${VERSION}-linux-x64 /exposr-server; fi
+RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then cp /dist/exposr-server-${VERSION}-linux-arm64 /exposr-server; fi
+RUN if [ "${TARGETPLATFORM}" = "linux/arm/v7" ]; then cp /dist/exposr-server-${VERSION}-linux-armv7 /exposr-server; fi
 
 FROM scratch
 ARG VERSION
