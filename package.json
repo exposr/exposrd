@@ -17,7 +17,8 @@
     "build.env",
     "build.js",
     "Dockerfile",
-    "Makefile"
+    "Makefile",
+    "scripts/build-dist.sh"
   ],
   "dependencies": {
     "content-type": "^1.0.5",
