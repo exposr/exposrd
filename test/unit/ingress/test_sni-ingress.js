@@ -1,5 +1,5 @@
-import SNIIngress from '../../src/ingress/sni-ingress.js';
-import Tunnel from '../../src/tunnel/tunnel.js';
+import SNIIngress from '../../../src/ingress/sni-ingress.js';
+import Tunnel from '../../../src/tunnel/tunnel.js';
 import assert from 'assert/strict';
 import { X509Certificate } from 'crypto';
 import fs from 'fs';

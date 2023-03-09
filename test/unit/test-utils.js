@@ -1,5 +1,5 @@
-import { EventBusService } from "../src/eventbus/index.js";
-import { StorageService } from "../src/storage/index.js";
+import { EventBusService } from "../../src/eventbus/index.js";
+import { StorageService } from "../../src/storage/index.js";
 
 export const initStorageService = () => {
     return new StorageService('mem', {});
