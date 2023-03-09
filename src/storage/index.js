@@ -114,9 +114,12 @@ class Storage {
         return obj;
     }
 
-    async create(key, obj, opts = { NX: true }) {
+    async create(key, obj, opts = { NX: true, TTL: undefined }) {
         const serialized = Serializer.serialize(obj);
-        await this._set(key, serialized, opts);
+        const res = await this._set(key, serialized, opts);
+        if (!res) {
+            return res;
+        }
         return obj;
     }
 
