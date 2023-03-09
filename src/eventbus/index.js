@@ -122,11 +122,14 @@ class EventBus extends EventEmitter {
                 }
                 this.removeListener(channel, fun);
                 timer && clearTimeout(timer);
-                resolve();
+                resolve(message);
             };
             this.on(channel, fun)
             if (typeof timeout === 'number') {
-                timer = setTimeout(reject, timeout)
+                timer = setTimeout(() => {
+                    this.removeListener(channel, fun);
+                    reject();
+                }, timeout)
             }
         });
     }

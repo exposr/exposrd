@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import assert from 'assert/strict';
 import Storage, { StorageService } from '../../../src/storage/index.js';
 import { setTimeout } from 'timers/promises';
+import { REDIS_URL } from '../../env.js';
 
 class Data {
     constructor(foo, bar) {
@@ -17,7 +18,7 @@ class Data {
 }
 
 describe('redis storage', () => {
-    const redisUrl = 'redis://localhost:6379';
+    const redisUrl = REDIS_URL;
     let storageService;
 
     before(async () => {
