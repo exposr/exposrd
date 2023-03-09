@@ -178,8 +178,19 @@ class Storage {
         return this._storage.delete(this._key(key));
     };
 
-    async list(cursor = 0, count = 10) {
-        const data = [];
+    async list(state = undefined, count = 10) {
+        let data = [];
+
+        if (state?.data?.length > 0) {
+            data = state.data.slice(0, count);
+            state.data = state.data.slice(count);
+            return {
+                cursor: state,
+                data
+            }
+        }
+
+        let cursor = state?.cursor;
         do {
             const requested = count - data.length;
             const res = await this._storage.list(`${this.ns}:`, cursor, requested);
@@ -187,9 +198,15 @@ class Storage {
             data.push(...res.data);
         } while (data.length < count && cursor != 0);
 
+        data = data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1));
+        state = {
+            cursor,
+            data: data.slice(count)
+        };
+
         return {
-            cursor: cursor > 0 ? cursor : undefined,
-            data: data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1)),
+            cursor: state.cursor > 0 || state.data.length > 0 ? state : null,
+            data: data.slice(0, count)
         }
     }
 }
