@@ -104,9 +104,9 @@ class Storage {
         }
 
         const res = await cb(obj);
-        if (res !== true) {
+        if (res !== true || !lock.locked()) {
             lock.unlock();
-            return res;
+            return false;
         }
         const serialized = Serializer.serialize(obj);
         await this._set(key, serialized, opts);
