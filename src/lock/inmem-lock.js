@@ -5,7 +5,8 @@ class InmemLock {
 
     async lock(resource) {
         return {
-            unlock: () => { return true; }
+            active: () => { return true; },
+            unlock: async () => { return true; }
         }
     }
 

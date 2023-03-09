@@ -2,23 +2,37 @@ import RedisLock from './redis-lock.js';
 import InmemLock from './inmem-lock.js';
 import { Logger } from '../logger.js';
 
-const logger = Logger("lock-service");
-
 class Lock {
-    constructor(resource, lock) {
+    constructor(resource, lock, logger) {
         this._lock = lock;
         this.resource = resource;
+        this.logger = logger;
+    }
+
+    locked() {
+        return this._lock.active();
     }
 
     unlock() {
-        this._lock.unlock();
-        logger.isTraceEnabled() &&
-            logger.trace({
-                operation: 'unlock',
-                resource: this.resource,
+        return this._lock.unlock()
+            .catch((err) => {
+                this.logger.error({
+                    message: `failed to unlock resource ${this.resource}: ${err.message}`,
+                    operation: 'unlock',
+                });
+                return false;
+            })
+            .then(() => {
+                this.logger.isTraceEnabled() &&
+                    this.logger.trace({
+                        operation: 'unlock',
+                        resource: this.resource,
+                    });
+                return true;
             });
-    }
+   }
 }
+export { Lock };
 
 class LockService {
     constructor(type, opts) {
@@ -29,14 +43,20 @@ class LockService {
         LockService.ref = 1;
         LockService.instance = this;
 
+        this.logger = Logger("lock-service");
+
         switch (type) {
             case 'redis':
-                this._lock = new RedisLock({
-                    redisUrl: opts.redisUrl
+                this._lockType = new RedisLock({
+                    redisUrl: opts.redisUrl,
+                    callback: (err) => {
+                        typeof opts.callback === 'function' && process.nextTick(() => opts.callback());
+                    }
                 });
                 break;
             case 'mem':
-                this._lock = new InmemLock();
+                this._lockType = new InmemLock();
+                typeof opts.callback === 'function' && process.nextTick(() => opts.callback());
                 break;
             default:
                 assert.fail(`Unknown lock ${type}`);
@@ -46,22 +66,37 @@ class LockService {
     async destroy() {
         if (--LockService.ref == 0) {
             delete LockService.instance;
-            return this._lock.destroy();
+            return this._lockType.destroy();
         }
     }
 
-    async lock(resource, ttl = 5000) {
-        const lock = await this._lock.lock(`lock:${resource}`, ttl);
-        logger.isTraceEnabled() &&
-            logger.trace({
-                operation: 'lock',
-                resource,
-                result: !!lock,
+    async lock(resource) {
+        return this._lockType.lock(`lock:${resource}`)
+            .catch((err) => {
+                this.logger.error({
+                    message: `failed to obtain lock on ${resource}: ${err.message}`,
+                    operation: 'lock',
+                });
+                return false;
+            })
+            .then((lock) => {
+                if (!lock) {
+                    this.logger.error({
+                        message: `failed to obtain lock on ${resource}`,
+                        operation: 'lock',
+                    });
+                    return lock;
+                }
+                return new Lock(resource, lock, this.logger);
+            })
+            .finally(() => {
+                this.logger.isTraceEnabled() &&
+                    this.logger.trace({
+                        operation: 'lock',
+                        resource,
+                        result: lock != false,
+                    });
             });
-        if (!lock) {
-            return lock;
-        }
-        return new Lock(resource, lock);
     }
 }
 
