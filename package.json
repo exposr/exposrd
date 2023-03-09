@@ -51,6 +51,6 @@
     "version": "scripts/build-version.sh",
     "bundle": "rollup exposr-server.js --file exposr-server.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
     "dist": "scripts/build-dist.sh",
-    "test": "NODE_ENV=test mocha --exit --recursive test"
+    "test": "scripts/run-test.sh"
   }
 }
