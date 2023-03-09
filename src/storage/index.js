@@ -47,7 +47,7 @@ class StorageService {
 
     async destroy() {
         if (--StorageService.ref == 0) {
-            await Promise.all([this._storage.destroy(), this._lockService.destroy()]);
+            await Promise.allSettled([this._storage.destroy(), this._lockService.destroy()]);
             this.destroyed = true;
             delete this._storage;
             delete Storage.instance;
