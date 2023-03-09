@@ -1,9 +1,10 @@
 import assert from 'assert/strict';
 import { setTimeout } from 'timers/promises';
 import LockService, { Lock } from '../../../src/lock/index.js';
+import { REDIS_URL } from '../../env.js';
 
 describe('redis lock', () => {
-    const redisUrl = 'redis://localhost:6379';
+    const redisUrl = REDIS_URL;
     let lockService;
 
     before(async () => {
