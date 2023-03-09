@@ -175,7 +175,7 @@ class Storage {
             key = this.key;
         }
         assert(key !== undefined);
-        this._storage.delete(this._key(key));
+        return this._storage.delete(this._key(key));
     };
 
     async list(cursor = 0, count = 10) {
