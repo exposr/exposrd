@@ -28,7 +28,7 @@
     "log4js": "^6.8.0",
     "node-cache": "^5.1.2",
     "port-numbers": "^6.0.1",
-    "redis": "^3.1.2",
+    "redis": "^4.6.5",
     "redlock": "^4.2.0",
     "ssh2": "^1.11.0",
     "sshpk": "^1.16.1",
@@ -51,6 +51,6 @@
     "version": "scripts/build-version.sh",
     "bundle": "rollup exposr-server.js --file exposr-server.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
     "dist": "scripts/build-dist.sh",
-    "test": "NODE_ENV=test mocha --exit --recursive test"
+    "test": "scripts/run-test.sh"
   }
 }

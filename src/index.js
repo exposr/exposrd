@@ -20,7 +20,7 @@ export default async () => {
     });
 
     process.on('uncaughtException', (err, origin) => {
-        Logger.error(`uncaughtException: ${err.message}`);
+        Logger.error(`uncaughtException: ${origin} ${err.message}`);
         Logger.debug(err.stack);
         process.exit(-1);
     });

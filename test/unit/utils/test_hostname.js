@@ -1,4 +1,4 @@
-import Hostname from '../../src/utils/hostname.js';
+import Hostname from '../../../src/utils/hostname.js';
 import assert from 'assert/strict';
 
 describe('hostname', () => {

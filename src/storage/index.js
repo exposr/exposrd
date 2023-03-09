@@ -47,7 +47,7 @@ class StorageService {
 
     async destroy() {
         if (--StorageService.ref == 0) {
-            await Promise.all([this._storage.destroy(), this._lockService.destroy()]);
+            await Promise.allSettled([this._storage.destroy(), this._lockService.destroy()]);
             this.destroyed = true;
             delete this._storage;
             delete Storage.instance;
@@ -104,9 +104,9 @@ class Storage {
         }
 
         const res = await cb(obj);
-        if (res !== true) {
+        if (res !== true || !lock.locked()) {
             lock.unlock();
-            return res;
+            return false;
         }
         const serialized = Serializer.serialize(obj);
         await this._set(key, serialized, opts);
@@ -114,9 +114,12 @@ class Storage {
         return obj;
     }
 
-    async create(key, obj, opts = { NX: true }) {
+    async create(key, obj, opts = { NX: true, TTL: undefined }) {
         const serialized = Serializer.serialize(obj);
-        await this._set(key, serialized, opts);
+        const res = await this._set(key, serialized, opts);
+        if (!res) {
+            return res;
+        }
         return obj;
     }
 
@@ -172,11 +175,22 @@ class Storage {
             key = this.key;
         }
         assert(key !== undefined);
-        this._storage.delete(this._key(key));
+        return this._storage.delete(this._key(key));
     };
 
-    async list(cursor = 0, count = 10) {
-        const data = [];
+    async list(state = undefined, count = 10) {
+        let data = [];
+
+        if (state?.data?.length > 0) {
+            data = state.data.slice(0, count);
+            state.data = state.data.slice(count);
+            return {
+                cursor: state,
+                data
+            }
+        }
+
+        let cursor = state?.cursor;
         do {
             const requested = count - data.length;
             const res = await this._storage.list(`${this.ns}:`, cursor, requested);
@@ -184,9 +198,15 @@ class Storage {
             data.push(...res.data);
         } while (data.length < count && cursor != 0);
 
+        data = data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1));
+        state = {
+            cursor,
+            data: data.slice(count)
+        };
+
         return {
-            cursor: cursor > 0 ? cursor : undefined,
-            data: data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1)),
+            cursor: state.cursor > 0 || state.data.length > 0 ? state : null,
+            data: data.slice(0, count)
         }
     }
 }

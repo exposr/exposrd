@@ -1,4 +1,4 @@
-import IngressUtils from '../../src/ingress/utils.js';
+import IngressUtils from '../../../src/ingress/utils.js';
 import assert from 'assert/strict';
 
 describe('ingress utils', () => {
