@@ -205,7 +205,7 @@ class TunnelService {
         assert(tunnelId != undefined);
         assert(accountId != undefined);
         return this.db.update(tunnelId, Tunnel, async (tunnel) => {
-            if (tunnel?.account !== accountId) {
+            if (!this._isPermitted(tunnel, accountId)) {
                 return false;
             }
 
