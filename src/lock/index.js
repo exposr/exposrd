@@ -89,7 +89,7 @@ class LockService {
                 }
                 return new Lock(resource, lock, this.logger);
             })
-            .finally(() => {
+            .finally((lock) => {
                 this.logger.isTraceEnabled() &&
                     this.logger.trace({
                         operation: 'lock',
