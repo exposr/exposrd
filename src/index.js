@@ -4,24 +4,25 @@ import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
 import { EventBusService } from './eventbus/index.js';
 import Ingress from './ingress/index.js';
-import Logger from './logger.js';
+import { Logger } from './logger.js';
 import { StorageService } from './storage/index.js';
 import TransportService from './transport/transport-service.js';
 import Node, { NodeService } from './utils/node.js';
 import Version from './version.js';
 
-export default async () => {
-    const config = new Config();
-    Logger.info(`exposr-server ${Version.version.version}`);
-    Logger.info({
+export default async (argv) => {
+    const config = new Config(argv);
+    const logger = Logger();
+    logger.info(`exposr-server ${Version.version.version}`);
+    logger.info({
         node_id: Node.identifier,
         host: Node.hostname,
         address: Node.address,
     });
 
     process.on('uncaughtException', (err, origin) => {
-        Logger.error(`uncaughtException: ${origin} ${err.message}`);
-        Logger.debug(err.stack);
+        logger.error(`uncaughtException: ${origin} ${err.message}`);
+        logger.debug(err.stack);
         process.exit(-1);
     });
 
@@ -62,7 +63,7 @@ export default async () => {
             eventBusServiceReady
         ])
         .catch((err) => {
-            Logger.error(`Failed to start up: ${err.message}`);
+            logger.error(`Failed to start up: ${err.message}`);
             process.exit(-1);
         });
 
@@ -165,47 +166,60 @@ export default async () => {
             adminControllerReady,
         ])
         .catch((err) => {
-            Logger.error(`Failed to start up: ${err.message}`);
-            Logger.debug(err.stack);
+            logger.error(`Failed to start up: ${err.message}`);
+            logger.debug(err.stack);
             process.exit(-1);
         });
 
     adminController.setReady();
-    Logger.info("exposr-server ready");
+    logger.info("exposr-server ready");
 
-    const sigHandler = async (signal) => {
+    const shutdown = async (signal) => {
         const gracefulTimeout = 10000;
         const startTime = process.hrtime.bigint();
-        Logger.info(`Shutdown initiated, signal=${signal}, press Ctrl-C again to force quit`);
+        logger.info(`Shutdown initiated, signal=${signal}, press Ctrl-C again to force quit`);
 
-        const graceful = await new Promise(async (resolve, reject) => {
-            process.once('SIGTERM', () => { resolve(false); });
-            process.once('SIGINT', () => { resolve(false); });
-            const timeout = setTimeout(() => {
-                resolve(false);
-            }, gracefulTimeout);
-            await Promise.allSettled([
-                apiController.destroy(),
-                adminApiController.destroy(),
-                adminController.destroy(),
-                transport.destroy(),
-                ingress.destroy(),
-                nodeService.destroy(),
-                storageService.destroy(),
-                eventBusService.destroy()
-            ]);
-            clearTimeout(timeout);
-            resolve(true);
+        const destruction = Promise.allSettled([
+            apiController.destroy(),
+            adminApiController.destroy(),
+            adminController.destroy(),
+            transport.destroy(),
+            ingress.destroy(),
+            nodeService.destroy(),
+            storageService.destroy(),
+            eventBusService.destroy(),
+            config.destroy(),
+        ]);
+
+        let gracefulTimer;
+        const timeout = new Promise((resolve, reject) => {
+            gracefulTimer = setTimeout(reject, gracefulTimeout);
         });
 
-        const elapsedMs = Math.round(Number((process.hrtime.bigint() - BigInt(startTime))) / 1e6);
-        if (!graceful) {
-            Logger.warn('Failed to gracefully shutdown service, forcing shutdown');
-        }
-        Logger.info(`Shutdown complete in ${elapsedMs} ms`);
-        process.exit(graceful ? 0 : -1);
+        let forceListener;
+        const force = new Promise((resolve, reject) => {
+            forceListener = () => { reject(); };
+            process.once('SIGTERM', forceListener);
+            process.once('SIGINT', forceListener);
+        });
+
+        return Promise.race([
+            destruction, timeout, force
+        ]).catch((e) => {
+            logger.warn('Failed to gracefully shutdown service, forcing shutdown');
+            return false;
+        })
+        .then(() => {
+            return true;
+        })
+        .finally(() => {
+            clearTimeout(gracefulTimer);
+            process.removeListener('SIGTERM', forceListener);
+            process.removeListener('SIGINT', forceListener);
+            const elapsedMs = Math.round(Number((process.hrtime.bigint() - BigInt(startTime))) / 1e6);
+            logger.info(`Shutdown complete in ${elapsedMs} ms`);
+        });
     };
 
-    process.once('SIGTERM', sigHandler);
-    process.once('SIGINT', sigHandler);
+    return shutdown;
 }
