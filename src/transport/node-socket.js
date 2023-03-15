@@ -1,14 +1,13 @@
 import { Socket } from 'net';
-import { Logger } from '../logger.js';
+import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
 import Tunnel from '../tunnel/tunnel.js';
 import Node, { NodeService } from '../utils/node.js';
 
-const logger = Logger("tunnel-service");
-
 class NodeSocket extends Socket {
     constructor(opts) {
         super();
+        this.logger = Logger("tunnel-service");
         this._opts = opts;
         this._tunnelService = new TunnelService();
         this._canonicalConnect = this.connect;
@@ -58,7 +57,7 @@ class NodeSocket extends Socket {
         }
 
         this.nextNode = nextNode;
-        logger.isDebugEnabled() && logger.withContext('tunnel', this._opts.tunnelId).debug({
+        this.logger.isDebugEnabled() && this.logger.withContext('tunnel', this._opts.tunnelId).debug({
             operation: 'connection-redirect',
             next: nextNode,
         });

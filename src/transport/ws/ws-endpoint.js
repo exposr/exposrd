@@ -11,8 +11,6 @@ import {
 } from '../../utils/errors.js';
 import WebSocketTransport from './ws-transport.js';
 
-const logger = Logger("ws-endpoint");
-
 class WebSocketEndpoint {
 
     static BASE_PATH = '/v1/tunnel';
@@ -23,12 +21,13 @@ class WebSocketEndpoint {
 
     constructor(opts) {
         this.opts = opts;
+        this.logger = Logger("ws-endpoint");
         this.httpListener = new Listener().getListener('http', opts.port);
         this.tunnelService = new TunnelService();
         this.wss = new WebSocketServer({ noServer: true });
         this.destroyed = false;
 
-        this._upgradeHandler = this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
+        this._upgradeHandler = this.httpListener.use('upgrade', { logger: this.logger }, async (ctx, next) => {
             if (!await this.handleUpgrade(ctx.req, ctx.sock, ctx.head)) {
                 return next();
             }
@@ -39,7 +38,7 @@ class WebSocketEndpoint {
                 typeof opts.callback === 'function' && opts.callback();
             })
             .catch((err) => {
-                logger.error({
+                this.logger.error({
                     message: `Failed to initialize websocket transport connection endpoint: ${err}`,
                 })
                 typeof opts.callback === 'function' && opts.callback(err);
@@ -115,7 +114,7 @@ class WebSocketEndpoint {
 
     async handleUpgrade(req, sock, head) {
         if (req.upgrade !== true) {
-            logger.trace("upgrade called on non-upgrade request");
+            this.logger.trace("upgrade called on non-upgrade request");
             return undefined;
         }
 
@@ -132,7 +131,7 @@ class WebSocketEndpoint {
         const authResult = await this.tunnelService.authorize(tunnelId, token);
         if (authResult.authorized == false) {
             authResult.error &&
-                logger
+                this.logger
                     .withContext("tunnel", tunnelId)
                     .error({
                         operation: 'upgrade',
@@ -153,7 +152,7 @@ class WebSocketEndpoint {
         }
 
         const timeout = setTimeout(() => {
-            logger.withContext("tunnel", tunnelId).debug(`HTTP upgrade on websocket timeout`);
+            this.logger.withContext("tunnel", tunnelId).debug(`HTTP upgrade on websocket timeout`);
             this._rawHttpResponse(sock, req, {
                 status: 504,
                 statusLine: 'Timeout',
@@ -171,7 +170,7 @@ class WebSocketEndpoint {
                 peer: this._getRequestClientIp(req),
             });
             if (!res) {
-                logger
+                this.logger
                     .withContext("tunnel", tunnelId)
                     .error({
                         operation: 'upgrade',

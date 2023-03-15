@@ -1,11 +1,11 @@
 import { Logger } from '../logger.js';
 import KoaController from "./koa-controller.js";
 
-const logger = Logger("admin");
 class AdminController extends KoaController {
     _name = 'Admin'
 
     constructor(opts) {
+        const logger = Logger("admin");
 
         if (!opts.enable) {
             logger.info({

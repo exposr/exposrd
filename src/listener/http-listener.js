@@ -10,11 +10,10 @@ import {
     HTTP_HEADER_X_SCHEME
 } from '../utils/http-headers.js';
 
-const logger = Logger("http-listener");
-
 class HttpListener extends ListenerInterface {
     constructor(opts) {
         super();
+        this.logger = Logger("http-listener");
         this.opts = opts;
         this.callbacks = {
             'request': [],
@@ -34,7 +33,7 @@ class HttpListener extends ListenerInterface {
         };
 
         const getBaseUrl = (req) => {
-            const headers = req.headers || {};
+            const headers = req.headers || {};
 
             const forwarded = parseForwarded(headers[HTTP_HEADER_FORWARDED] || '');
             const proto = forwarded?.proto
@@ -49,7 +48,7 @@ class HttpListener extends ListenerInterface {
             try {
                 return new URL(`${proto}://${host.toLowerCase()}${port ? `:${port}` : ''}`);
             } catch (e) {
-                logger.isTraceEnabled() && logger.trace({e});
+                this.logger.isTraceEnabled() && this.logger.trace({e});
                 return undefined;
             }
         };
@@ -84,7 +83,7 @@ class HttpListener extends ListenerInterface {
                             break;
                         }
                     } catch (e) {
-                        logger.error(e);
+                        this.logger.error(e);
                         ctx.res.statusCode = 500;
                         ctx.res.end();
                     }
@@ -94,7 +93,7 @@ class HttpListener extends ListenerInterface {
                 ctx.res.end();
             }
 
-            customLogger ??= logger;
+            customLogger ??= this.logger;
             setImmediate(() => {
                 capture.then((res) => {
                     if (customLogger === false) {
@@ -173,7 +172,7 @@ class HttpListener extends ListenerInterface {
 
     async _listen() {
         const listenError = (err) => {
-            logger.error(`Failed to start http listener: ${err.message}`);
+            this.logger.error(`Failed to start http listener: ${err.message}`);
         };
         this.server.once('error', listenError);
         return new Promise((resolve, reject) => {

@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 import { Duplex } from 'stream';
 import tls from 'tls';
-import logger from '../../logger.js';
+import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
 import Tunnel from '../../tunnel/tunnel.js';
 import Hostname from '../../utils/hostname.js';
@@ -11,6 +11,7 @@ class SSHTransport extends Transport {
     constructor(opts) {
         super();
 
+        this.logger = Logger("ssh-transport");
         this._tunnelService = new TunnelService();
         const client = this._client = opts.client;
 
@@ -66,7 +67,7 @@ class SSHTransport extends Transport {
                     this._tunnelService.update(tunnel.id, tunnel.account, (tunnel) => {
                         tunnel.target.url = bindUrl.href;
                     });
-                    logger.info({
+                    this.logger.info({
                         operation: 'update-target',
                         target: bindUrl.href,
                     });

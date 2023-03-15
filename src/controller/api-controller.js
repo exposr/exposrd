@@ -13,24 +13,25 @@ import {
 } from '../utils/errors.js';
 import KoaController from './koa-controller.js';
 
-const logger = Logger("api");
-
 class ApiController extends KoaController {
 
     constructor(opts) {
+        const logger = Logger("api");
+
         super({
             port: opts.port,
             callback: opts.callback,
             host: opts.url?.host,
             logger,
         });
+        this.logger = logger;
         this.opts = opts;
         this.accountService = new AccountService();
         this.tunnelService = new TunnelService();
         this.transportService = new TransportService();
 
         if (opts.allowRegistration) {
-            logger.warn({message: "Public account registration is enabled"});
+            this.logger.warn({message: "Public account registration is enabled"});
         }
 
         this.setRoutes((router) => this._initializeRoutes(router));

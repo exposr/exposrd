@@ -28,11 +28,11 @@ import {
     HTTP_HEADER_FORWARDED
 } from '../utils/http-headers.js';
 
-const logger = Logger("http-ingress");
 class HttpIngress {
 
     constructor(opts) {
         this.opts = opts;
+        this.logger = Logger("http-ingress");
 
         if (opts.subdomainUrl == undefined) {
             throw new Error("No wildcard domain given for HTTP ingress");
@@ -42,12 +42,12 @@ class HttpIngress {
         this.altNameService = new AltNameService();
         this.tunnelService = new TunnelService();
         this.httpListener = new Listener().getListener('http', opts.port);
-        this._requestHandler = this.httpListener.use('request', { logger, prio: 1 }, async (ctx, next) => {
+        this._requestHandler = this.httpListener.use('request', { logger: this.logger, prio: 1 }, async (ctx, next) => {
             if (!await this.handleRequest(ctx.req, ctx.res, ctx.baseUrl)) {
                 next();
             }
         });
-        this._upgradeHandler = this.httpListener.use('upgrade', { logger }, async (ctx, next) => {
+        this._upgradeHandler = this.httpListener.use('upgrade', { logger: this.logger }, async (ctx, next) => {
             if (!await this.handleUpgradeRequest(ctx.req, ctx.sock, ctx.head, ctx.baseUrl)) {
                 next();
             }
@@ -61,9 +61,9 @@ class HttpIngress {
 
         this._agentCache.on('expired', (key, agent) => {
             const pendingRequests = agent.requests?.length || 0;
-            const activeSockets = (agent.sockets?.length || 0) - (agent.freeSockets?.length || 0);
+            const activeSockets = (agent.sockets?.length || 0) - (agent.freeSockets?.length || 0);
             if (pendingRequests > 0 || activeSockets > 0) {
-                logger.withContext("tunnel", key).debug({
+                this.logger.withContext("tunnel", key).debug({
                     message: 'extended http agent cache ttl',
                     pendingRequests,
                     activeSockets
@@ -73,8 +73,8 @@ class HttpIngress {
             }
             this._agentCache.del(key);
             agent.destroy();
-            logger.isDebugEnabled() &&
-                logger.withContext("tunnel", key).debug("http agent destroyed")
+            this.logger.isDebugEnabled() &&
+                this.logger.withContext("tunnel", key).debug("http agent destroyed")
         });
 
         const eventBus = this.eventBus = new EventBus();
@@ -84,14 +84,14 @@ class HttpIngress {
 
         this.httpListener.listen()
             .then(() => {
-                logger.info({
+                this.logger.info({
                     message: `HTTP ingress listening on port ${opts.port}`,
                     url: this.getBaseUrl(),
                 });
                 typeof opts.callback === 'function' && opts.callback();
             })
             .catch((err) => {
-                logger.error({
+                this.logger.error({
                     message: `Failed to initialize HTTP ingress: ${err.message}`,
                 });
                 typeof opts.callback === 'function' && opts.callback(err);
@@ -164,8 +164,8 @@ class HttpIngress {
             return this.tunnelService.createConnection(tunnelId, ctx, callback);
         };
 
-        logger.isDebugEnabled() &&
-            logger.withContext("tunnel", tunnelId).debug("http agent created")
+        this.logger.isDebugEnabled() &&
+            this.logger.withContext("tunnel", tunnelId).debug("http agent created")
         return agent;
     }
 
@@ -305,7 +305,7 @@ class HttpIngress {
         opt.agent = this._getAgent(tunnel.id);
         opt.headers = this._requestHeaders(req, tunnel, baseUrl);
 
-        logger.trace({
+        this.logger.trace({
             operation: 'tunnel-request',
             path: opt.path,
             method: opt.method,

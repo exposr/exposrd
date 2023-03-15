@@ -10,12 +10,12 @@ import {
 } from '../utils/errors.js';
 import KoaController from './koa-controller.js';
 
-const logger = Logger("admin-api");
-
 class AdminApiController extends KoaController {
     _name = 'Admin API'
 
     constructor(opts) {
+        const logger = Logger("admin-api");
+
         if (!opts.enable) {
             logger.info({
                 message: `HTTP Admin API disabled`,
@@ -24,7 +24,8 @@ class AdminApiController extends KoaController {
             return super();
         }
 
-        super({...opts, logger});
+        super({...opts, logger: logger});
+        this.logger = logger;
 
         this.apiKey = typeof opts.apiKey === 'string' &&
             opts.apiKey?.length > 0 ? opts.apiKey : undefined;

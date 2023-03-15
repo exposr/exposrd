@@ -5,11 +5,10 @@ import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
 import IngressUtils from './utils.js';
 
-const logger = Logger("sni-ingress");
-
 class SNIIngress {
     constructor(opts) {
         this.opts = opts;
+        this.logger = Logger("sni-ingress");
 
         if (!opts.cert) {
             throw new Error("No certificate provided for SNI ingress");
@@ -66,14 +65,14 @@ class SNIIngress {
 
         const conError = (err) => {
             typeof opts.callback === 'function' && opts.callback(err);
-            logger.error({
+            this.logger.error({
                 message: `Failed to start SNI ingress: ${err.message}`,
             });
         };
         server.once('error', conError);
 
         server.listen(this.port, () => {
-            logger.info({
+            this.logger.info({
                 message: "SNI ingress initialized",
                 port: this.port,
                 host: this.host,
@@ -131,7 +130,7 @@ class SNIIngress {
     _loadCert() {
 
         const logerr = (msg) => {
-            logger.warn({
+            this.logger.warn({
                 operation: 'sni-load-cert',
                 msg,
             });
@@ -169,7 +168,7 @@ class SNIIngress {
         );
 
         if (!x509cert.checkPrivateKey(keyObj)) {
-            logger.warn({
+            this.logger.warn({
                 operation: 'sni-load-cert',
                 msg: 'private key does not match certificate',
             });
@@ -178,7 +177,7 @@ class SNIIngress {
 
         const wildSubs = SNIIngress._getWildcardSubjects(x509cert);
         if (wildSubs.length == 0) {
-            logger.warn({
+            this.logger.warn({
                 operation: 'sni-load-cert',
                 msg: 'certificate has no wildcard subjects',
             });
@@ -199,7 +198,7 @@ class SNIIngress {
         }
 
         if (!sniUrl) {
-            logger.warn({
+            this.logger.warn({
                 operation: 'sni-load-cert',
                 msg: 'failed to parse any of the certificate subjects as FQDN',
             });
@@ -209,7 +208,7 @@ class SNIIngress {
         this.sniUrl = sniUrl;
 
         if (wildSubs.length > 1) {
-            logger.info({
+            this.logger.info({
                 operation: 'sni-load-cert',
                 msg: `certificate has multiple wildcard subjects, using ${this.sniUrl.hostname} as primary ingress`,
             });
@@ -223,7 +222,7 @@ class SNIIngress {
           cert: this.cert,
         });
 
-        logger.info({
+        this.logger.info({
             operation: 'sni-load-cert',
             msg: 'certificate loaded',
             'ingress-domain': this.sniUrl.hostname,
@@ -259,13 +258,13 @@ class SNIIngress {
         }
 
         if (!tunnel.ingress?.sni?.enabled) {
-            logger.withContext('tunnel', tunnelId).trace({
+            this.logger.withContext('tunnel', tunnelId).trace({
                 msg: 'SNI ingress disabled for tunnel'
             });
             return close();
         }
 
-        logger.withContext('tunnel', tunnelId).info({
+        this.logger.withContext('tunnel', tunnelId).info({
             operation: 'sni-connect',
             servername,
             peer,
@@ -277,7 +276,7 @@ class SNIIngress {
         const startTime = process.hrtime.bigint();
         socket.on('close', () => {
             const elapsedMs = Math.round(Number((process.hrtime.bigint() - BigInt(startTime))) / 1e6);
-            logger.withContext('tunnel', tunnelId).info({
+            this.logger.withContext('tunnel', tunnelId).info({
                 operation: 'sni-disconnect',
                 servername,
                 peer,
@@ -300,7 +299,7 @@ class SNIIngress {
         };
         const target = this.tunnelService.createConnection(tunnelId, ctx);
         const logError = (err) => {
-            logger.info({
+            this.logger.info({
                 operation: 'sni-error',
                 peer,
                 err,
