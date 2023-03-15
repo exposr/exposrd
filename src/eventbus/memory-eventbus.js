@@ -7,6 +7,10 @@ class MemoryEventBus {
         typeof opts.callback === 'function' && process.nextTick(opts.callback);
     }
 
+    async destroy() {
+        return true;
+    }
+
     async publish(event, message) {
         return new Promise((resolve) => {
             this._handler(event, message);
