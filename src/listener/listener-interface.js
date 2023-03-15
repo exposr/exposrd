@@ -1,8 +1,13 @@
 import assert from 'assert/strict';
 
 class ListenerInterface {
+    constructor() {
+        this._ref = 1;
+    }
 
-    _ref = 0;
+    acquire() {
+        this._ref++;
+    }
 
     async _listen() {
         assert.fail("_listen not implemented");
@@ -13,7 +18,6 @@ class ListenerInterface {
     }
 
     async listen() {
-        this._ref++;
         if (this._listening) {
             return new Promise((resolve) => { resolve() });
         }
@@ -49,13 +53,12 @@ class ListenerInterface {
     }
 
     async destroy() {
-        if (this._destroyed) {
-            return;
-        }
         if (--this._ref == 0) {
             this._destroyed = true;
-            return this._destroy();
+            await this._destroy();
+            return true;
         }
+        return false;
     }
 }
 

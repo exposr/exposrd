@@ -11,8 +11,9 @@ class KoaController {
             return;
         }
         const {port, callback, logger, host, prio} = opts;
+        this._port = port;
 
-        const httpListener = this.httpListener = new Listener().getListener('http', port, { app: new Koa() });
+        const httpListener = this.httpListener = Listener.acquire('http', port, { app: new Koa() });
         this._requestHandler = httpListener.use('request', { host, logger, prio, logBody: true }, async (ctx, next) => {
             ctx.req._exposrBaseUrl = ctx.baseUrl;
             if (!await this.appCallback(ctx.req, ctx.res)) {
@@ -60,7 +61,7 @@ class KoaController {
     async destroy() {
         this.httpListener.removeHandler('request', this._requestHandler);
         return Promise.allSettled([
-            this.httpListener.destroy(),
+            Listener.release('http', this._port),
             this._destroy(),
         ]);
     }

@@ -22,7 +22,7 @@ class WebSocketEndpoint {
     constructor(opts) {
         this.opts = opts;
         this.logger = Logger("ws-endpoint");
-        this.httpListener = new Listener().getListener('http', opts.port);
+        this.httpListener = Listener.acquire('http', opts.port);
         this.tunnelService = new TunnelService();
         this.wss = new WebSocketServer({ noServer: true });
         this.destroyed = false;
@@ -63,7 +63,7 @@ class WebSocketEndpoint {
         });
         return Promise.allSettled([
             this.tunnelService.destroy(),
-            this.httpListener.destroy(),
+            Listener.release('http', this.opts.port),
         ]);
     }
 
