@@ -160,11 +160,18 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const created = await this.tunnelService.create(tunnelId, account.id);
-                if (created == false) {
-                    ctx.status = 403;
-                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
-                    return;
+
+                if (ctx.request.method == 'PUT') {
+                    let tunnel
+                    tunnel = await this.tunnelService.create(tunnelId, account.id);
+                    if (tunnel == false) {
+                        tunnel = await this.tunnelService.get(tunnelId, account.id);
+                    }
+                    if (!(tunnel instanceof Tunnel)) {
+                        ctx.status = 403;
+                        ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
+                        return;
+                    }
                 }
 
                 const body = ctx.request.body;
