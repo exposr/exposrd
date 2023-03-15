@@ -89,6 +89,7 @@ class TunnelService {
     async destroy() {
         if (--TunnelService.ref == 0) {
             this.destroyed = true;
+            delete TunnelService.instance;
             const tunnels = Object.keys(this.connectedTunnels).map(async (tunnelId) => {
                 const tunnel = await this.lookup(tunnelId);
                 return this._disconnect(tunnel);
