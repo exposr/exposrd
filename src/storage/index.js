@@ -50,7 +50,7 @@ class StorageService {
             await Promise.allSettled([this._storage.destroy(), this._lockService.destroy()]);
             this.destroyed = true;
             delete this._storage;
-            delete Storage.instance;
+            delete StorageService.instance;
         }
     }
 }
