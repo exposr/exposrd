@@ -1,11 +1,11 @@
 import assert from 'assert/strict';
 import crypto from 'crypto';
 import { setTimeout } from 'timers/promises';
-import { createAccount, createEchoServer, getAuthToken, getTunnel, putTunnel, startExposr } from './e2e-utils.js';
+import { createAccount, createEchoServer, getAuthToken, getTunnel, putTunnel, sshClient } from './e2e-utils.js';
 
-const echoServerUrl = "http://host.docker.internal:10000";
+const echoServerUrl = "http://localhost:10000";
 
-describe('Websocket E2E', () => {
+describe('SSH transport E2E', () => {
     let exposr;
     let terminator;
     let echoServerTerminator;
@@ -17,6 +17,7 @@ describe('Websocket E2E', () => {
             "node",
             "--admin-enable",
             "--allow-registration",
+            "--transport", "ssh",
             "--ingress", "http",
             "--ingress-http-domain", "http://localhost:8080"
         ]);
@@ -29,19 +30,45 @@ describe('Websocket E2E', () => {
         await echoServerTerminator()
     });
 
-    it('WS transport w/ HTTP ingress E2E', async () => {
+    it('SSH transport w/ HTTP ingress E2E', async () => {
+
         const account = await createAccount();
         let authToken = await getAuthToken(account.account_id);
         const tunnelId = crypto.randomBytes(20).toString('hex');
-        await putTunnel(authToken, tunnelId);
+        let res = await putTunnel(authToken, tunnelId, {
+            transport: {
+              ssh: {
+                enabled: true
+              },
+            },
+            ingress: {
+                http: {
+                    enabled: true
+                }
+            },
+            target: {
+              url: `${echoServerUrl}`
+            }
+        });
 
-        const exposrCliTerminator = startExposr([
-            "-a", `${account.account_id}`,
-            "tunnel", "connect", `${tunnelId}`, `${echoServerUrl}`
-        ]);
+        assert(res.status == 200, "could not create tunnel")
+
+        res = await getTunnel(authToken, tunnelId);
+        let data = await res.json(); 
+        assert(data?.transport?.ssh?.enabled == true, "SSH transport not enabled");
+        assert(typeof data?.transport?.ssh?.url == 'string', "No SSH connect URL available");
+
+        const targetUrl = new URL(data.target.url);
+
+        const terminateClient = sshClient(
+            data?.transport?.ssh?.host,
+            data?.transport?.ssh?.port,
+            data?.transport?.ssh?.username,
+            data?.transport?.ssh?.password,
+            targetUrl,
+        ); 
 
         authToken = await getAuthToken(account.account_id);
-        let res, data;
         do {
             await setTimeout(1000);
             res = await getTunnel(authToken, tunnelId);
@@ -64,7 +91,7 @@ describe('Websocket E2E', () => {
         data = await res.text()
         assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`) 
 
-        exposrCliTerminator();
+        terminateClient();
 
     }).timeout(60000);
 });
