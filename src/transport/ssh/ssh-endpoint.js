@@ -108,7 +108,7 @@ class SSHEndpoint {
 
         return {
             host: url.hostname,
-            post: url.port,
+            port: url.port,
             username,
             password,
             url: url.href,
