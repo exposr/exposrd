@@ -120,12 +120,19 @@ class SSHEndpoint {
         let tunnel;
         let account;
         client.on('authentication', async (ctx) => {
-            const [tunnelId, token] = ctx.username.split(':');
+            let [tunnelId, token] = ctx.username.split(':');
+            if (token == undefined) {
+                token = ctx.password;
+            }
 
             const reject = () => {
                 ctx.reject();
                 client.end();
             };
+
+            if (token == undefined) {
+                return ctx.reject();
+            }
 
             const authResult = await this.tunnelService.authorize(tunnelId, token);
             if (authResult.authorized == false) {
