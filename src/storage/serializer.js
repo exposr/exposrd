@@ -15,7 +15,7 @@ class Serializer {
     }
 
     static deserialize(json, clazz) {
-        const obj = JSON.parse(json) || {};
+        const obj = JSON.parse(json) || {};
         if (obj.__class__ != clazz.name) {
             return undefined;
         }

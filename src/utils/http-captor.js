@@ -49,7 +49,7 @@ class HttpCaptor {
         this._response = response;
 
         this.limit = opts?.limit || 1*1024;
-        this.captureRequestBody = opts?.captureRequestBody || false;
+        this.captureRequestBody = opts?.captureRequestBody || false;
         this.captureResponseBody = opts?.captureResponseBody || false;
     }
 
