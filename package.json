@@ -4,7 +4,7 @@
   "type": "module",
   "main": "exposr-server.cjs",
   "bin": "exposr-server.cjs",
-  "author": "Fredrik Lindberg <fli@shapeshifter.se>",
+  "author": "Fredrik Lindberg <fli@fli.dev>",
   "license": "MIT",
   "engines": {
     "node": ">=16"
