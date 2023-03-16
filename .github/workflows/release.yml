@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Set up git
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup builder
         run: make builder.build
