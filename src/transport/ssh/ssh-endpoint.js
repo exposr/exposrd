@@ -6,13 +6,12 @@ import TunnelService from '../../tunnel/tunnel-service.js';
 import Version from '../../version.js';
 import SSHTransport from './ssh-transport.js';
 
-const logger = Logger("ssh-transport-endpoint");
-
 const sshBanner = `exposr/${Version.version.version}`;
 
 class SSHEndpoint {
     constructor(opts) {
         this.opts = opts;
+        this.logger = Logger("ssh-transport-endpoint");
         this.tunnelService = new TunnelService();
         this._clients = new Set();
 
@@ -42,7 +41,7 @@ class SSHEndpoint {
         });
 
         server.on('connection', (client, clientInfo) => {
-            logger.info({
+            this.logger.info({
                 operation: 'connection',
                 info: {
                     ip: clientInfo.ip,
@@ -59,7 +58,7 @@ class SSHEndpoint {
         });
 
         const connectionError = (err) => {
-            logger.error({
+            this.logger.error({
                 message: `Failed to initialize ssh transport connection endpoint: ${err}`,
             });
             typeof opts.callback === 'function' && opts.callback(err);
@@ -67,7 +66,7 @@ class SSHEndpoint {
         server.once('error', connectionError);
         server.listen(opts.port, (err) => {
             server.removeListener('error', connectionError);
-            logger.info({
+            this.logger.info({
                 msg: 'SSH transport endpoint initialized',
                 fingerprint: this._fingerprint
             });
@@ -151,7 +150,7 @@ class SSHEndpoint {
             });
             const res = await this.tunnelService.connect(tunnel.id, account.id, transport, { peer: info.ip });
             if (!res) {
-                logger
+                this.logger
                     .withContext("tunnel", tunnel.id)
                     .error({
                         operation: 'transport_connect',

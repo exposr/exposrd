@@ -1,13 +1,15 @@
 import assert from 'assert/strict';
-import { setTimeout } from 'timers/promises';
+import Config from '../../../src/config.js';
 import EventBus, { EventBusService } from '../../../src/eventbus/index.js';
 import { REDIS_URL } from '../../env.js';
 
-describe('redis lock', () => {
+describe('redis eventbus', () => {
     let busService;
+    let bus;
+    let config;
 
     before(async () => {
-
+        config = new Config();
         return new Promise((resolve) => {
             busService = new EventBusService('redis', {
                 redisUrl: REDIS_URL,
@@ -18,11 +20,18 @@ describe('redis lock', () => {
 
     after(async () => {
         await busService.destroy();
+        await config.destroy();
+    });
+
+    beforeEach(() => {
+        bus = new EventBus();
+    });
+
+    afterEach(async () => {
+        await bus.destroy();
     });
 
     it('redis bus pub/sub', async () => {
-        const bus = new EventBus();
-
         const recv = new Promise((resolve) => {
             bus.once('test', (message) => {
                 resolve(message)
@@ -38,8 +47,6 @@ describe('redis lock', () => {
     });
 
     it('redis bus waitfor', async () => {
-        const bus = new EventBus();
-        
         const recv = bus.waitFor('test', (message) => {
             return message.data == 42;
         });
@@ -54,8 +61,6 @@ describe('redis lock', () => {
     });
 
     it('redis bus waitfor timeout wrong data', async () => {
-        const bus = new EventBus();
-
         const recv = bus.waitFor('test', (message) => {
             return message.data == 42;
         }, 100);
@@ -74,8 +79,6 @@ describe('redis lock', () => {
     });
 
     it('redis bus waitfor timeout no data', async () => {
-        const bus = new EventBus();
-
         const recv = bus.waitFor('test', (message) => {
             return message.data == 42;
         }, 100);

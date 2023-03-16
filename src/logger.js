@@ -58,4 +58,3 @@ class LoggerFactory {
 }
 
 export function Logger(ns) { return new LoggerFactory(ns); };
-export default new LoggerFactory();

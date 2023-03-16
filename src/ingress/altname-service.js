@@ -2,11 +2,10 @@ import dns from 'dns';
 import Storage from '../storage/index.js';
 import { Logger } from '../logger.js';
 
-const logger = Logger("alt-name-service");
-
 class AltNameService {
     constructor() {
         this.db = new Storage("ingress-altnames");
+        this.logger = Logger("alt-name-service");
     }
 
     async destroy() {
@@ -50,8 +49,8 @@ class AltNameService {
             return obj?.tunnelId === tunnelId ? an : [];
         }))).flatMap(({_, value}) => value);
 
-        logger.isTraceEnabled() &&
-            logger.trace({
+        this.logger.isTraceEnabled() &&
+            this.logger.trace({
                 operation: 'update',
                 service,
                 tunnelId,

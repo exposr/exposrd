@@ -3,6 +3,7 @@ import assert from 'assert/strict';
 import Storage, { StorageService } from '../../../src/storage/index.js';
 import { setTimeout } from 'timers/promises';
 import { REDIS_URL } from '../../env.js';
+import Config from '../../../src/config.js';
 
 class Data {
     constructor(foo, bar) {
@@ -20,8 +21,10 @@ class Data {
 describe('redis storage', () => {
     const redisUrl = REDIS_URL;
     let storageService;
+    let config;
 
     before(async () => {
+        config = new Config();
         return new Promise((resolve) => {
             storageService = new StorageService('redis', {
                 redisUrl,
@@ -32,6 +35,7 @@ describe('redis storage', () => {
 
     after(async () => {
         await storageService.destroy();
+        await config.destroy();
     });
 
     it('redis storage basic set/get', async () => {
@@ -57,6 +61,7 @@ describe('redis storage', () => {
         assert(data === null, `${key} visible in ns test2, got ${data}`);
 
         await storage.destroy();
+        await storage2.destroy();
     });
 
     it('redis storage multi key get: all found', async () => {

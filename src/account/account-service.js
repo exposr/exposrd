@@ -3,8 +3,6 @@ import Storage from '../storage/index.js';
 import Account from './account.js';
 import { Logger } from '../logger.js';
 
-const logger = Logger("account-service");
-
 class AccountService {
     static ACCOUNT_ID_ALPHABET = 'CDEFHJKMNPRTVWXY2345689';
     static ACCOUNT_ID_LENGTH = 16;
@@ -34,6 +32,7 @@ class AccountService {
 
     constructor() {
         this._db = new Storage("account");
+        this.logger = Logger("account-service");
     }
 
     async destroy() {
@@ -82,7 +81,7 @@ class AccountService {
                 return account.deleteTunnel(tunnelId);
             }));
         } catch (e) {
-            logger.error({
+            this.logger.error({
                 message: `Failed to delete account`,
             });
             return false;

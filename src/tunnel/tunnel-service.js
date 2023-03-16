@@ -13,8 +13,6 @@ import Node, { NodeService } from '../utils/node.js';
 import TunnelState from './tunnel-state.js';
 import Tunnel from './tunnel.js';
 
-const logger = Logger("tunnel-service");
-
 class TunnelService {
 
     static TUNNEL_ID_REGEX = /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/;
@@ -27,6 +25,7 @@ class TunnelService {
         TunnelService.ref = 1;
         TunnelService.instance = this;
 
+        this.logger = Logger("tunnel-service");
         this.accountService = new AccountService();
         this.db = new Storage("tunnel");
         this.db_state = new Storage("tunnel-state");
@@ -90,6 +89,7 @@ class TunnelService {
     async destroy() {
         if (--TunnelService.ref == 0) {
             this.destroyed = true;
+            delete TunnelService.instance;
             const tunnels = Object.keys(this.connectedTunnels).map(async (tunnelId) => {
                 const tunnel = await this.lookup(tunnelId);
                 return this._disconnect(tunnel);
@@ -147,7 +147,7 @@ class TunnelService {
             return false;
         }
 
-        logger.isDebugEnabled() && logger.debug({
+        this.logger.isDebugEnabled() && this.logger.debug({
             operation: 'get_tunnel',
             tunnel: tunnel.id,
             account: tunnel.account,
@@ -194,7 +194,7 @@ class TunnelService {
             }
         });
 
-        logger.isDebugEnabled() && logger.debug({
+        this.logger.isDebugEnabled() && this.logger.debug({
             operation: 'create_tunnel',
             tunnel: tunnel.id,
             account: tunnel.account,
@@ -206,7 +206,7 @@ class TunnelService {
         assert(tunnelId != undefined);
         assert(accountId != undefined);
         return this.db.update(tunnelId, Tunnel, async (tunnel) => {
-            if (tunnel?.account !== accountId) {
+            if (!this._isPermitted(tunnel, accountId)) {
                 return false;
             }
 
@@ -216,8 +216,8 @@ class TunnelService {
             const updatedIngress = await new Ingress().updateIngress(tunnel, orig);
             if (updatedIngress instanceof Error) {
                 const err = updatedIngress;
-                logger.isDebugEnabled() &&
-                    logger
+                this.logger.isDebugEnabled() &&
+                    this.logger
                         .withContext('tunnel', tunnelId)
                         .debug({
                             operation: 'update_tunnel',
@@ -241,7 +241,7 @@ class TunnelService {
             return false;
         }
         if (!await this.disconnect(tunnelId, accountId)) {
-            logger
+            this.logger
                 .withContext('tunnel', tunnelId)
                 .error({
                     operation: 'delete_tunnel',
@@ -265,7 +265,7 @@ class TunnelService {
                 updateAccount,
             ]);
         } catch (e) {
-            logger
+            this.logger
                 .withContext('tunnel', tunnelId)
                 .error({
                     operation: 'delete_tunnel',
@@ -275,7 +275,7 @@ class TunnelService {
             return false;
         }
 
-        logger.isDebugEnabled() && logger.debug({
+        this.logger.isDebugEnabled() && this.logger.debug({
             operation: 'delete_tunnel',
             tunnel: tunnelId,
             account: accountId,
@@ -293,7 +293,7 @@ class TunnelService {
         }
         if (tunnel.connected) {
             if (!await this.disconnect(tunnelId, accountId)) {
-                logger
+                this.logger
                     .withContext('tunnel',tunnelId)
                     .error({
                         operation: 'connect_tunnel',
@@ -303,10 +303,10 @@ class TunnelService {
             }
         }
 
-        logger.isDebugEnabled() &&
+        this.logger.isDebugEnabled() &&
             assert(this.connectedTunnels[tunnelId] === undefined);
         if (this.connectedTunnels[tunnelId] != undefined) {
-            logger
+            this.logger
                 .withContext('tunnel',tunnelId)
                 .error({
                     operation: 'connect_tunnel',
@@ -346,7 +346,7 @@ class TunnelService {
         tunnelState.connected_at = new Date().toISOString();
         tunnelState.alive_at = tunnelState.connected_at;
         if (!await this.db_state.create(tunnelId, tunnelState, { NX: false, TTL: 60 })) {
-            logger
+            this.logger
                 .withContext("tunnel", tunnelId)
                 .error({
                     operation: 'connect_tunnel',
@@ -361,7 +361,7 @@ class TunnelService {
             node: await this.nodeService.get(),
         });
 
-        logger
+        this.logger
             .withContext("tunnel", tunnelId)
             .info({
                 operation: 'connect_tunnel',
@@ -382,7 +382,7 @@ class TunnelService {
         // Check for stale state
         const connectedNode = await this.nodeService.get(tunnel.state().node);
         if (!connectedNode) {
-            logger
+            this.logger
                 .withContext('tunnel', tunnelId)
                 .warn({
                     operation: 'disconnect_tunnel',
@@ -400,7 +400,7 @@ class TunnelService {
         try {
             await this.eventBus.waitFor('disconnected', (msg) => msg?.tunnelId == tunnelId, 4500);
         } catch (timeout) {
-            logger
+            this.logger
                 .withContext('tunnel', tunnelId)
                 .warn({
                     operation: 'disconnect_tunnel',
@@ -410,7 +410,7 @@ class TunnelService {
 
         tunnel = await this._get(tunnelId);
         if (!tunnel || !tunnel.state().connected) {
-            logger
+            this.logger
                 .withContext("tunnel", tunnelId)
                 .info({
                     operation: 'disconnect_tunnel',
@@ -418,7 +418,7 @@ class TunnelService {
                 });
             return true;
         } else {
-            logger
+            this.logger
                 .withContext("tunnel", tunnelId)
                 .error({
                     operation: 'disconnect_tunnel',

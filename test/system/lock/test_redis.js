@@ -1,14 +1,16 @@
 import assert from 'assert/strict';
 import { setTimeout } from 'timers/promises';
+import Config from '../../../src/config.js';
 import LockService, { Lock } from '../../../src/lock/index.js';
 import { REDIS_URL } from '../../env.js';
 
 describe('redis lock', () => {
     const redisUrl = REDIS_URL;
     let lockService;
+    let config;
 
     before(async () => {
-
+        config = new Config();
         return new Promise((resolve) => {
             lockService = new LockService('redis', {
                 redisUrl,
@@ -19,6 +21,7 @@ describe('redis lock', () => {
 
     after(async () => {
         await lockService.destroy();
+        await config.destroy();
     });
 
     it('redis lock/unlock', async () => {

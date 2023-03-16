@@ -62,7 +62,10 @@ class EventBusService {
 
     async destroy() {
         if (--EventBusService.ref == 0) {
-            return this._bus.destroy();
+            await this._bus.destroy();
+            this.destroyed = true;
+            delete this._bus;
+            delete EventBusService.instance;
         }
     }
 }

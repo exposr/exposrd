@@ -3,8 +3,25 @@ import Tunnel from '../../../src/tunnel/tunnel.js';
 import assert from 'assert/strict';
 import { X509Certificate } from 'crypto';
 import fs from 'fs';
+import { initEventBusService, initStorageService } from '../test-utils.js'
+import Config from '../../../src/config.js';
 
 describe('sni ingress', () => {
+    let storageService;
+    let eventbusService;
+    let config;
+
+    before(() => {
+        config = new Config();
+        storageService = initStorageService();
+        eventbusService = initEventBusService();
+    });
+
+    after(() => {
+        storageService.destroy();
+        eventbusService.destroy();
+        config.destroy()
+    });
 
     it("_getWildcardSubjects parses CN correctly", () => {
         const cert = fs.readFileSync(new URL('../fixtures/cn-public-cert.pem', import.meta.url));

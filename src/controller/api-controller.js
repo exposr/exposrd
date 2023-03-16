@@ -13,24 +13,25 @@ import {
 } from '../utils/errors.js';
 import KoaController from './koa-controller.js';
 
-const logger = Logger("api");
-
 class ApiController extends KoaController {
 
     constructor(opts) {
+        const logger = Logger("api");
+
         super({
             port: opts.port,
             callback: opts.callback,
             host: opts.url?.host,
             logger,
         });
+        this.logger = logger;
         this.opts = opts;
         this.accountService = new AccountService();
         this.tunnelService = new TunnelService();
         this.transportService = new TransportService();
 
         if (opts.allowRegistration) {
-            logger.warn({message: "Public account registration is enabled"});
+            this.logger.warn({message: "Public account registration is enabled"});
         }
 
         this.setRoutes((router) => this._initializeRoutes(router));
@@ -159,11 +160,18 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const created = await this.tunnelService.create(tunnelId, account.id);
-                if (created == false) {
-                    ctx.status = 403;
-                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
-                    return;
+
+                if (ctx.request.method == 'PUT') {
+                    let tunnel
+                    tunnel = await this.tunnelService.create(tunnelId, account.id);
+                    if (tunnel == false) {
+                        tunnel = await this.tunnelService.get(tunnelId, account.id);
+                    }
+                    if (!(tunnel instanceof Tunnel)) {
+                        ctx.status = 403;
+                        ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
+                        return;
+                    }
                 }
 
                 const body = ctx.request.body;

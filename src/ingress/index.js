@@ -49,7 +49,8 @@ class Ingress {
     async destroy() {
         const promises = Object.keys(this.ingress)
             .map(k => this.ingress[k].destroy())
-            .concat([this.altNameService.destroy()])
+            .concat([this.altNameService.destroy()]);
+        delete Ingress.instance;
         return Promise.allSettled(promises);
     }
 
