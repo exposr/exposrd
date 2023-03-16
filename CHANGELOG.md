@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.1](https://github.com/exposr/exposr-server/compare/v0.7.0...v0.7.1) (2023-03-16)
+
+
+### Bug Fixes
+
+* **api:** only try to create tunnels on PUT requests ([e7c52f4](https://github.com/exposr/exposr-server/commit/e7c52f4a3a863dd4a45460f02ea615be13276a74))
+* **config:** allow argv to be passed in to the constructor ([5e43522](https://github.com/exposr/exposr-server/commit/5e435228914b304f53a12744c04e119bb6c0a939))
+* delete the static instance reference ([d048674](https://github.com/exposr/exposr-server/commit/d04867498cf69a555b2a4bbdcf30512634814b0a))
+* **eventbus:** properly destroy the EventBusService ([e8f6e4b](https://github.com/exposr/exposr-server/commit/e8f6e4b8d5e2713d454709254be28fd82f9b41cf))
+* **eventbus:** remove listener on timeout ([c9f6d40](https://github.com/exposr/exposr-server/commit/c9f6d40e8c296403b4f8c13767a67c28707beee3))
+* **eventbus:** return message when using waitFor ([1395c1f](https://github.com/exposr/exposr-server/commit/1395c1fa70c4101fd74050cf073e0900c955ebfd))
+* **eventbus:** update redis eventbus ([f072cb1](https://github.com/exposr/exposr-server/commit/f072cb1cbf55f13411901f2858f8c4e8d39f9266))
+* **ingress:** delete instance reference on destroy ([c807a1e](https://github.com/exposr/exposr-server/commit/c807a1edd8eba0d051e6096f96310bdbf48e1bfb))
+* **listener:** properly reference count listeners ([978e76b](https://github.com/exposr/exposr-server/commit/978e76b62cf59cc596f67ed2d2845d34f16d87e6))
+* **lock:** overhaul lockservice ([5feb2cc](https://github.com/exposr/exposr-server/commit/5feb2cc1f3505acc5f0caab2f779957386a6ad6b))
+* **memory-eventbus:** add missing destroy method ([820969a](https://github.com/exposr/exposr-server/commit/820969a273d4658567203fafd8dcefa048967508))
+* print origin of exception when logging uncaught exceptions ([bf2c582](https://github.com/exposr/exposr-server/commit/bf2c582081ac9dbce961b2dc45d8837fb36c3b3c))
+* remove non-printable characters ([0a7c9aa](https://github.com/exposr/exposr-server/commit/0a7c9aa630f4aba6b6a8621cd8372d63be0b9b62))
+* **ssh:** allow access token to be pass as ssh password ([eb52708](https://github.com/exposr/exposr-server/commit/eb52708c2b84e78bb222acdb2217245e3cc1ab33))
+* **ssh:** fix typo ([b39deef](https://github.com/exposr/exposr-server/commit/b39deefe9eb3c71b0835f21276593e38e04cea57))
+* **storage:** add missing promise await ([7778ca7](https://github.com/exposr/exposr-server/commit/7778ca7e9b58c3dceed594ed66f8cfb696d47216))
+* **storage:** check if lock is still held before commit ([97c068e](https://github.com/exposr/exposr-server/commit/97c068ec830d7d77873b4e63bb962868dce6cd9b))
+* **storage:** return the value of the delete operation ([8bfdfce](https://github.com/exposr/exposr-server/commit/8bfdfcee819f935fa877e5b681b3d0f7d71aabf6))
+* **storage:** update list() to only return max count entries ([aa8f65c](https://github.com/exposr/exposr-server/commit/aa8f65c46c2cc7d3c92a951ce4b7ead2b1335f9c))
+* **storage:** update redis storage provider ([13c6d4b](https://github.com/exposr/exposr-server/commit/13c6d4b7ab07482c62bdbb30c798becaebeb7f1f))
+* **storage:** use allSettled during destroy ([100e01a](https://github.com/exposr/exposr-server/commit/100e01a6f315987fba3095f7ea63dfda07066991))
+* trace output ([38731e8](https://github.com/exposr/exposr-server/commit/38731e81d4d300de93dab2519feb02255ca4066d))
+* **tunnel-service:** delete instance reference on destroy ([95866ad](https://github.com/exposr/exposr-server/commit/95866ad92e3c98f49a108d318ef7d32d7134a9f6))
+* use _isPermitted instead of equals check ([826c084](https://github.com/exposr/exposr-server/commit/826c0848feec81f61c0885c87613cf47a4250e56))
+* use class private logging instances ([11fb0c6](https://github.com/exposr/exposr-server/commit/11fb0c6aabfcb023966de58ed28cf705e6ae0c01))
+
 ## [0.7.0](https://github.com/exposr/exposr-server/compare/v0.6.0...v0.7.0) (2022-03-10)
 
 
