@@ -6,6 +6,7 @@ class RedisEventBus {
     constructor(opts) {
 
         this.logger = Logger("redis-eventbus");
+        this._channel = "exposr";
         const redisUrl = opts.redisUrl;
         assert(redisUrl != null, "no redisUrl given");
 
@@ -49,7 +50,6 @@ class RedisEventBus {
             const wasReadyProp = `_${client}_was_ready`;
 
             if (this[errorProp]?.message != err?.message) {
-                console.log(err);
                 this.logger.error({
                     message: `redis ${client} client error: ${err.message}`,
                 });
@@ -103,9 +103,18 @@ class RedisEventBus {
                     errorHandler(err, 'subscriber');
                 });
 
-                this._subscriber.subscribe('event', (message) => {
-                    const obj = JSON.parse(message);
-                    opts.handler(obj.event, obj.message);
+                this._subscriber.subscribe(this._channel, (message) => {
+                    try {
+                        const obj = JSON.parse(message);
+                        opts.handler(obj);
+                    } catch (e) {
+                        this.logger.debug({
+                            message: `failed to receive message: ${e.message}`,
+                            operation: 'redis_channel_error',
+                            url: redisUrl,
+                            client: 'subscriber'
+                        });
+                    }
                 });
             }),
 
@@ -147,7 +156,7 @@ class RedisEventBus {
         });
 
         try {
-            await this._subscriber.unsubscribe('event');
+            await this._subscriber.unsubscribe(this._channel);
         } catch (err) {
             this.logger.error({
                 operation: 'destroy',
@@ -173,11 +182,11 @@ class RedisEventBus {
         ]);
     }
 
-    async publish(event, message) {
-        return this._publisher.publish('event', JSON.stringify({event, message}))
+    async publish(message) {
+        return this._publisher.publish(this._channel, JSON.stringify(message))
             .catch((err) => {
                 this.logger.error({
-                    message: `failed to publish event ${event}: ${err.message}`,
+                    message: `failed to publish message ${message.event}: ${err.message}`,
                     operation: 'publish',
                 });
                 return false;
@@ -185,7 +194,6 @@ class RedisEventBus {
             .then((num) => {
                 this.logger.debug({
                     operation: 'publish',
-                    event,
                     num,
                     message,
                 });

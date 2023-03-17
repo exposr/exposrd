@@ -1,6 +1,7 @@
 import assert from 'assert/strict';
 import MemoryEventBus from './memory-eventbus.js';
 import RedisEventBus from './redis-eventbus.js';
+import Node from '../utils/node.js';
 
 class ClusterService {
     constructor(type, opts) {
@@ -13,8 +14,12 @@ class ClusterService {
         ClusterService.ref = 1;
 
         this._listeners = [];
-        const onMessage = (event, message) => {
-            this.emit(event, message);
+        const onMessage = (msg) => {
+            const {event, message, node, ts} = msg;
+            try {
+                this._listeners.forEach((l) => l._emit(event, message, {node, ts}));
+            } catch (e) {
+            }
         };
 
         const ready = (err) => {
@@ -49,12 +54,18 @@ class ClusterService {
         this._listeners = this._listeners.filter((x) => x != bus);
     }
 
-    emit(event, message) {
-        this._listeners.forEach((l) => l._emit(event, message));
-    }
-
     async publish(event, message) {
-        return this._bus.publish(event, message);
+        const msg = {
+            event,
+            message,
+            node: {
+                id: Node.identifier,
+                host: Node.hostname,
+                ip: Node.address,
+            },
+            ts: new Date().getTime(),
+        };
+        return this._bus.publish(msg);
     }
 
     async destroy() {

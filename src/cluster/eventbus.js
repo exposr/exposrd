@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
 import { Logger } from '../logger.js';
-import Node from '../utils/node.js';
 import ClusterService from './index.js';
 
 class EventBus extends EventEmitter {
@@ -26,25 +25,18 @@ class EventBus extends EventEmitter {
         return this.clusterService.destroy();
     }
 
-    _emit(event, message) {
+    _emit(event, message, meta) {
         super.emit(event, message);
         this.logger.isTraceEnabled() &&
-            this.logger.trace({
-                operation: 'emit',
-                event,
-                message
-            });
+           this.logger.trace({
+               operation: 'emit',
+               event,
+               message
+           });
     }
 
     async publish(event, message) {
-        return this.clusterService.publish(event, {
-            ...message,
-            _node: {
-                id: Node.identifier,
-                host: Node.hostname,
-            },
-            _ts: new Date().getTime(),
-        });
+        return this.clusterService.publish(event, message);
     }
 
     async waitFor(channel, predicate, timeout = undefined) {
