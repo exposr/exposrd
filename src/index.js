@@ -2,7 +2,7 @@ import Config from './config.js';
 import AdminApiController from './controller/admin-api-controller.js';
 import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
-import { EventBusService } from './eventbus/index.js';
+import ClusterService from './cluster/index.js';
 import Ingress from './ingress/index.js';
 import { Logger } from './logger.js';
 import { StorageService } from './storage/index.js';
@@ -26,7 +26,7 @@ export default async (argv) => {
         process.exit(-1);
     });
 
-    // Initialize storage and eventbus
+    // Initialize storage and cluster service
     const storageServiceReady = new Promise((resolve, reject) => {
         try {
             const mode = config.get('redis-url') ? 'redis' : 'mem';
@@ -42,13 +42,13 @@ export default async (argv) => {
         }
     });
 
-    const eventBusServiceReady = new Promise((resolve, reject) => {
+    const clusterServiceReady = new Promise((resolve, reject) => {
         try {
             const mode = config.get('redis-url') ? 'redis' : 'mem';
 
-            const eventBusService = new EventBusService(mode, {
+            const clusterService = new ClusterService(mode, {
                 callback: (err) => {
-                    err ? reject(err) : resolve(eventBusService);
+                    err ? reject(err) : resolve(clusterService);
                 },
                 redisUrl: config.get('redis-url'),
             });
@@ -57,10 +57,10 @@ export default async (argv) => {
         }
     });
 
-    const [storageService, eventBusService] = await Promise
+    const [storageService, clusterService] = await Promise
         .all([
             storageServiceReady,
-            eventBusServiceReady
+            clusterServiceReady
         ])
         .catch((err) => {
             logger.error(`Failed to start up: ${err.message}`);
@@ -187,7 +187,7 @@ export default async (argv) => {
             ingress.destroy(),
             nodeService.destroy(),
             storageService.destroy(),
-            eventBusService.destroy(),
+            clusterService.destroy(),
             config.destroy(),
         ]);
 

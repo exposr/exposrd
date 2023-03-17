@@ -1,7 +1,7 @@
 import http, { Agent } from 'http';
 import net from 'net';
 import NodeCache from 'node-cache';
-import EventBus from '../eventbus/index.js';
+import EventBus from '../cluster/eventbus.js';
 import Listener from '../listener/index.js';
 import IngressUtils from './utils.js';
 import { Logger } from '../logger.js';

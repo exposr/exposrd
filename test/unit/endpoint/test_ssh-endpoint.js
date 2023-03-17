@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import SSHEndpoint from '../../../src/transport/ssh/ssh-endpoint.js';
-import { initEventBusService, initStorageService } from '../test-utils.js'
+import { initClusterService, initStorageService } from '../test-utils.js'
 import Config from '../../../src/config.js';
 
 describe('ssh endpoint', () => {
@@ -38,7 +38,7 @@ describe('ssh endpoint', () => {
         it(`getEndpoint() for ${JSON.stringify(args)}, ${baseUrl} returns ${expected}`, () => {
             const config = new Config();
             const storageService = initStorageService();
-            const eventBusService = initEventBusService();
+            const clusterService = initClusterService();
 
             const tunnel = new Tunnel();
             tunnel.id = 'test';
@@ -50,7 +50,7 @@ describe('ssh endpoint', () => {
 
             assert(ep.url == expected, `got ${ep.url}`);
             storageService.destroy();
-            eventBusService.destroy();
+            clusterService.destroy();
             config.destroy();
         });
     });

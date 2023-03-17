@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import NodeCache from 'node-cache';
 import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
-import EventBus from '../eventbus/index.js';
+import EventBus from '../cluster/eventbus.js';
 import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';

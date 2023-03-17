@@ -3,23 +3,23 @@ import Tunnel from '../../../src/tunnel/tunnel.js';
 import assert from 'assert/strict';
 import { X509Certificate } from 'crypto';
 import fs from 'fs';
-import { initEventBusService, initStorageService } from '../test-utils.js'
+import { initClusterService, initStorageService } from '../test-utils.js'
 import Config from '../../../src/config.js';
 
 describe('sni ingress', () => {
     let storageService;
-    let eventbusService;
+    let clusterService;
     let config;
 
     before(() => {
         config = new Config();
         storageService = initStorageService();
-        eventbusService = initEventBusService();
+        clusterService = initClusterService();
     });
 
     after(() => {
         storageService.destroy();
-        eventbusService.destroy();
+        clusterService.destroy();
         config.destroy()
     });
 
