@@ -105,8 +105,7 @@ class RedisEventBus {
 
                 this._subscriber.subscribe(this._channel, (message) => {
                     try {
-                        const obj = JSON.parse(message);
-                        opts.handler(obj);
+                        opts.handler(message);
                     } catch (e) {
                         this.logger.debug({
                             message: `failed to receive message: ${e.message}`,
@@ -183,7 +182,7 @@ class RedisEventBus {
     }
 
     async publish(message) {
-        return this._publisher.publish(this._channel, JSON.stringify(message))
+        return this._publisher.publish(this._channel, message)
             .catch((err) => {
                 this.logger.error({
                     message: `failed to publish message ${message.event}: ${err.message}`,

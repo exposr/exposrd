@@ -1,7 +1,9 @@
 import assert from 'assert/strict';
+import crypto from 'crypto';
 import MemoryEventBus from './memory-eventbus.js';
 import RedisEventBus from './redis-eventbus.js';
 import Node from '../utils/node.js';
+import { Logger } from '../logger.js';
 
 class ClusterService {
     constructor(type, opts) {
@@ -13,13 +15,12 @@ class ClusterService {
         ClusterService.instance = this;
         ClusterService.ref = 1;
 
+        this.logger = Logger("cluster-service");
+        this._key = 'cb8f34580bd6179cfe1b3db1f08a13704899eab3380f7a79444cceb0aefed010';
+
         this._listeners = [];
-        const onMessage = (msg) => {
-            const {event, message, node, ts} = msg;
-            try {
-                this._listeners.forEach((l) => l._emit(event, message, {node, ts}));
-            } catch (e) {
-            }
+        const onMessage = (payload) => {
+            this._receive(payload)
         };
 
         const ready = (err) => {
@@ -54,8 +55,33 @@ class ClusterService {
         this._listeners = this._listeners.filter((x) => x != bus);
     }
 
+    _receive(payload) {
+        try {
+            const msg = JSON.parse(payload);
+            const {s, ...data} = msg;
+
+            const data_s = JSON.stringify(data);
+            const signature = crypto.createHmac('sha256', this._key).update(data_s).digest('hex');
+            if (s !== signature) {
+                this.logger.debug({
+                    message: `invalid message signature: ${signature}`,
+                    payload
+                });
+                return;
+            }
+
+            const {event, message, node, ts} = data;
+            this._listeners.forEach((l) => l._emit(event, message, {node, ts}));
+        } catch (e) {
+            this.logger.debug({
+                message: `receive failed invalid message: ${e.message}`,
+                payload
+            });
+        }
+    }
+
     async publish(event, message) {
-        const msg = {
+        const payload = {
             event,
             message,
             node: {
@@ -65,7 +91,16 @@ class ClusterService {
             },
             ts: new Date().getTime(),
         };
-        return this._bus.publish(msg);
+
+        const data_s = JSON.stringify(payload);
+        const signature = crypto.createHmac('sha256', this._key).update(data_s).digest('hex');
+
+        const msg = {
+            ...payload,
+            s: signature
+        };
+
+        return this._bus.publish(JSON.stringify(msg));
     }
 
     async destroy() {
