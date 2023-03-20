@@ -4,6 +4,7 @@ import MemoryEventBus from './memory-eventbus.js';
 import RedisEventBus from './redis-eventbus.js';
 import Node from '../utils/node.js';
 import { Logger } from '../logger.js';
+import UdpEventBus from './udp-eventbus.js';
 
 class ClusterService {
     constructor(type, opts) {
@@ -34,6 +35,13 @@ class ClusterService {
                     callback: ready,
                     handler: onMessage,
                 })
+                break;
+            case 'udp':
+                this._bus = new UdpEventBus({
+                    ...opts,
+                    callback: ready,
+                    handler: onMessage,
+                });
                 break;
             case 'mem':
                 this._bus = new MemoryEventBus({
