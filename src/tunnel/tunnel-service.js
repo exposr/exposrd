@@ -3,13 +3,14 @@ import crypto from 'crypto';
 import NodeCache from 'node-cache';
 import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
+import Node from '../cluster/cluster-node.js';
 import EventBus from '../cluster/eventbus.js';
+import ClusterService from '../cluster/index.js';
 import Ingress from '../ingress/index.js';
 import { Logger } from '../logger.js';
 import Storage from '../storage/index.js';
 import NodeSocket from '../transport/node-socket.js';
 import { safeEqual } from "../utils/misc.js";
-import Node, { NodeService } from '../utils/node.js';
 import TunnelState from './tunnel-state.js';
 import Tunnel from './tunnel.js';
 
@@ -30,7 +31,7 @@ class TunnelService {
         this.db = new Storage("tunnel");
         this.db_state = new Storage("tunnel-state");
         this.eventBus = new EventBus();
-        this.nodeService = new NodeService();
+        this.clusterService = new ClusterService();
         this.connectedTunnels = {};
 
         this._lookupCache = new NodeCache({
@@ -98,7 +99,7 @@ class TunnelService {
             return Promise.allSettled([
                 this.db.destroy(),
                 this.db_state.destroy(),
-                this.nodeService.destroy(),
+                this.clusterService.destroy(),
                 this.eventBus.destroy(),
                 this.accountService.destroy(),
             ]);
@@ -316,7 +317,7 @@ class TunnelService {
         }
 
         const keepaliveFun = async () => {
-            const node = await this.nodeService.get();
+            const node = this.clusterService.getSelf();
             this.eventBus.publish('keepalive', {
                 tunnelId,
                 node,
@@ -358,7 +359,7 @@ class TunnelService {
 
         this.eventBus.publish('connected', {
             tunnelId,
-            node: await this.nodeService.get(),
+            node: this.clusterService.getSelf(),
         });
 
         this.logger
@@ -380,7 +381,7 @@ class TunnelService {
         }
 
         // Check for stale state
-        const connectedNode = await this.nodeService.get(tunnel.state().node);
+        const connectedNode = this.clusterService.getNode(tunnel.state().node);
         if (!connectedNode) {
             this.logger
                 .withContext('tunnel', tunnelId)

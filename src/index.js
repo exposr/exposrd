@@ -7,8 +7,8 @@ import Ingress from './ingress/index.js';
 import { Logger } from './logger.js';
 import { StorageService } from './storage/index.js';
 import TransportService from './transport/transport-service.js';
-import Node, { NodeService } from './utils/node.js';
 import Version from './version.js';
+import Node from './cluster/cluster-node.js';
 
 export default async (argv) => {
     const config = new Config(argv);
@@ -66,8 +66,6 @@ export default async (argv) => {
             logger.error(`Failed to start up: ${err.message}`);
             process.exit(-1);
         });
-
-    const nodeService = new NodeService();
 
     const transportReady = new Promise((resolve, reject) => {
         try {
@@ -185,7 +183,6 @@ export default async (argv) => {
             adminController.destroy(),
             transport.destroy(),
             ingress.destroy(),
-            nodeService.destroy(),
             storageService.destroy(),
             clusterService.destroy(),
             config.destroy(),

@@ -7,6 +7,7 @@ import IngressUtils from './utils.js';
 import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
 import AltNameService from './altname-service.js';
+import Node from '../cluster/cluster-node.js';
 import { ERROR_TUNNEL_NOT_FOUND,
          ERROR_TUNNEL_NOT_CONNECTED,
          ERROR_TUNNEL_HTTP_INGRESS_DISABLED,
@@ -16,7 +17,6 @@ import { ERROR_TUNNEL_NOT_FOUND,
          ERROR_TUNNEL_TARGET_CON_FAILED,
          ERROR_UNKNOWN_ERROR,
 } from '../utils/errors.js';
-import Node from '../utils/node.js';
 import {
     HTTP_HEADER_EXPOSR_VIA,
     HTTP_HEADER_X_FORWARDED_HOST,

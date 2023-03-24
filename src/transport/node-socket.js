@@ -1,8 +1,9 @@
 import { Socket } from 'net';
+import Node from '../cluster/cluster-node.js';
+import ClusterService from '../cluster/index.js';
 import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
 import Tunnel from '../tunnel/tunnel.js';
-import Node, { NodeService } from '../utils/node.js';
 
 class NodeSocket extends Socket {
     constructor(opts) {
@@ -10,6 +11,7 @@ class NodeSocket extends Socket {
         this.logger = Logger("tunnel-service");
         this._opts = opts;
         this._tunnelService = new TunnelService();
+        this._clusterService = new ClusterService();
         this._canonicalConnect = this.connect;
         this.connect = (_opt, callback) => {
             this.connecting = true;
@@ -21,6 +23,7 @@ class NodeSocket extends Socket {
 
     async destroy() {
         super.destroy();
+        await this._clusterService.destroy();
         return this._tunnelService.destroy();
     }
 
@@ -45,25 +48,25 @@ class NodeSocket extends Socket {
             return closeSock();
         }
 
-        const nodeService = new NodeService();
-        const nextNode = await nodeService.get(tunnel.state().node);
-        nodeService.destroy();
+        const nextNode = this._clusterService.getNode(tunnel.state().node);
         if (!nextNode) {
             return closeSock();
         }
 
+        this.nextNode = nextNode;
         if (nextNode.id == Node.identifier) {
             return closeSock();
         }
 
-        this.nextNode = nextNode;
         this.logger.isDebugEnabled() && this.logger.withContext('tunnel', this._opts.tunnelId).debug({
             operation: 'connection-redirect',
-            next: nextNode,
+            next: nextNode.id,
+            ip: nextNode.ip,
+            port: this._opts.port,
         });
 
         this._canonicalConnect({
-            host: nextNode.address,
+            host: nextNode.ip,
             port: this._opts.port,
             setDefaultEncoding: 'binary'
         }, () => {
