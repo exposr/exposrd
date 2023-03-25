@@ -170,6 +170,7 @@ export default async (argv) => {
         });
 
     adminController.setReady();
+    clusterService.setReady();
     logger.info("exposr-server ready");
 
     const shutdown = async (signal) => {

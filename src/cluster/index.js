@@ -29,13 +29,7 @@ class ClusterService {
             this._receive(payload)
         };
 
-        const heartbeat = () => {
-            this.publish("cluster:heartbeat");
-        };
-
         const ready = (err) => {
-            heartbeat();
-            this._heartbeat = setInterval(heartbeat, this._heartbeatInterval);
             typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
         };
 
@@ -64,6 +58,14 @@ class ClusterService {
             default:
                 assert.fail(`unknown type ${type}`);
         }
+    }
+
+    setReady() {
+        const heartbeat = () => {
+            this.publish("cluster:heartbeat");
+        };
+        heartbeat();
+        this._heartbeat = setInterval(heartbeat, this._heartbeatInterval);
     }
 
     attach(bus) {

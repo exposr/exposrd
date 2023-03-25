@@ -158,9 +158,16 @@ describe('cluster service', () => {
         it(`are sending heartbeat`, async () => {
             const spy = sinon.spy(ClusterService.prototype, "publish");
 
-            await clock.tickAsync(clusterservice._heartbeatInterval + 1);
+            // Heartbeat sent on ready
+            clusterservice.setReady();
+            assert(spy.calledOnceWithExactly("cluster:heartbeat"), "initial onready heartbeat not sent");
 
-            assert(spy.calledOnceWithExactly("cluster:heartbeat"), "heartbeat not sent");
+            // Heartbeat sent after interval
+            await clock.tickAsync(clusterservice._heartbeatInterval + 1);
+            assert(spy.getCall(1)?.calledWithExactly("cluster:heartbeat"), "heartbeat not sent");
+
+            await clock.tickAsync(clusterservice._heartbeatInterval + 1);
+            assert(spy.getCall(2)?.calledWithExactly("cluster:heartbeat"), "heartbeat not sent");
 
             sinon.restore();
         });
