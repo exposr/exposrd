@@ -29,7 +29,11 @@ class ClusterService {
             this._receive(payload)
         };
 
-        const ready = (err) => {
+        const ready = async (err) => {
+            if (err) {
+                await this.destroy();
+            }
+            this.logger.info(`Clustering mode ${type} initialized`);
             typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
         };
 
