@@ -13,7 +13,9 @@ describe('redis eventbus', () => {
         config = new Config();
         return new Promise((resolve) => {
             clusterService = new ClusterService('redis', {
-                redisUrl: REDIS_URL,
+                redis: {
+                    redisUrl: REDIS_URL,
+                },
                 callback: (err) => err ? rejects(err) : resolve()
             });
         });

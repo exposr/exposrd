@@ -40,21 +40,21 @@ class ClusterService {
         switch (type) {
             case 'redis':
                 this._bus = new RedisEventBus({
-                    ...opts,
+                    ...opts.redis,
                     callback: ready,
                     handler: onMessage,
                 })
                 break;
             case 'udp':
                 this._bus = new UdpEventBus({
-                    ...opts,
+                    ...opts.udp,
                     callback: ready,
                     handler: onMessage,
                 });
                 break;
+            case 'single-node':
             case 'mem':
                 this._bus = new MemoryEventBus({
-                    ...opts,
                     callback: ready,
                     handler: onMessage,
                 });

@@ -29,13 +29,13 @@ export default async (argv) => {
     // Initialize storage and cluster service
     const storageServiceReady = new Promise((resolve, reject) => {
         try {
-            const mode = config.get('redis-url') ? 'redis' : 'mem';
+            const type = config.get('storage');
 
-            const storage = new StorageService(mode, {
+            const storage = new StorageService(type, {
                 callback: (err) => {
                     err ? reject(err) : resolve(storage);
                 },
-                redisUrl: config.get('redis-url'),
+                redisUrl: config.get('storage-redis-url'),
             });
         } catch (e) {
             reject(e);
@@ -44,13 +44,29 @@ export default async (argv) => {
 
     const clusterServiceReady = new Promise((resolve, reject) => {
         try {
-            const mode = config.get('redis-url') ? 'redis' : 'mem';
+            const type = config.get('cluster');
 
-            const clusterService = new ClusterService(mode, {
+            const clusterService = new ClusterService(type, {
                 callback: (err) => {
                     err ? reject(err) : resolve(clusterService);
                 },
-                redisUrl: config.get('redis-url'),
+                redis: {
+                    redisUrl: config.get('cluster-redis-url'),
+                },
+                udp: {
+                    port: config.get('cluster-udp-port'),
+                    discoveryMethod: config.get('cluster-udp-discovery') != 'auto' ? config.get('cluster-udp-discovery'): undefined,
+                    multicast: {
+                        group: config.get('cluster-udp-discovery-multicast-group')
+                    },
+                    kubernetes: {
+                        serviceNameEnv: config.get('cluster-udp-discovery-kubernetes-service-env'),
+                        namespaceEnv: config.get('cluster-udp-discovery-kubernetes-namespace-env'),
+                        serviceName: config.get('cluster-udp-discovery-kubernetes-service'),
+                        namespace: config.get('cluster-udp-discovery-kubernetes-namespace'),
+                        clusterDomain: config.get('cluster-udp-discovery-kubernetes-cluster-domain'),
+                    }
+                }
             });
         } catch (e) {
             reject(e);

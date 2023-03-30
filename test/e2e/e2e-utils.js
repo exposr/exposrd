@@ -3,7 +3,7 @@ import child_process from 'child_process';
 import ssh from 'ssh2';
 import net from 'net';
 
-const baseApi = "http://localhost:8080";
+const defaultBaseApi = "http://localhost:8080";
 
 export const sshClient = (host, port, username, password, target) => {
     const client = new ssh.Client();
@@ -58,7 +58,7 @@ export const createEchoServer = async (port = 10000) => {
     };
 };
 
-export const createAccount = async () => {
+export const createAccount = async (baseApi = defaultBaseApi) => {
     try {
     const res = await fetch(`${baseApi}/v1/account`, {
         method: 'POST'
@@ -69,13 +69,13 @@ export const createAccount = async () => {
     }
 };
 
-export const getAuthToken = async (accountId) => {
+export const getAuthToken = async (accountId, baseApi = defaultBaseApi) => {
     const res = await fetch(`${baseApi}/v1/account/${accountId}/token`);
     const data = await res.json();
     return data.token;
 };
 
-export const putTunnel = async (authToken, tunnelId, opts = {}) => {
+export const putTunnel = async (authToken, tunnelId, opts = {}, baseApi = defaultBaseApi) => {
     const res = await fetch(`${baseApi}/v1/tunnel/${tunnelId}`, {
         method: 'PUT',
         headers: {
@@ -87,7 +87,7 @@ export const putTunnel = async (authToken, tunnelId, opts = {}) => {
     return res;
 }
 
-export const getTunnel = async(authToken, tunnelId) => {
+export const getTunnel = async(authToken, tunnelId, baseApi = defaultBaseApi) => {
     const res = await fetch(`${baseApi}/v1/tunnel/${tunnelId}`, {
         method: 'GET',
         headers: {
@@ -97,10 +97,11 @@ export const getTunnel = async(authToken, tunnelId) => {
     return res;
 };
 
-export const startExposr = (args) => {
+export const startExposr = (args, port) => {
+    port ??= 8080;
     const obj = child_process.spawn("docker", ["run", "--rm", "-t", "--add-host", "host.docker.internal:host-gateway", "exposr/exposr:latest",
         "--non-interactive",
-        "-s", "http://host.docker.internal:8080",
+        "-s", `http://host.docker.internal:${port}`,
     ].concat(args), {detached: true});
 
     let buf = '';

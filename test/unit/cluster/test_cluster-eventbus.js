@@ -15,7 +15,9 @@ describe('UDP eventbus', () => {
     const createClusterService = async (opts = {}) => {
         return new Promise((resolve, reject) => {
             const res = new ClusterService('udp', {
-                ...opts,
+                udp: {
+                    ...opts,
+                },
                 callback: (err) => { err ? reject(err) : resolve(res); }
             });
         });
@@ -249,7 +251,7 @@ describe('UDP eventbus', () => {
                 'MY_SERVICE_NAME': 'my-service'
             });
 
-            const clusterservice = new ClusterService('udp', {
+            const clusterservice = await createClusterService({
                 discoveryMethod: 'kubernetes',
                 kubernetes: {
                     serviceNameEnv: 'MY_SERVICE_NAME',

@@ -203,11 +203,128 @@ const parse = (canonicalArgv, callback, args = {}) => {
             description: 'Allow public account registration - NB: this allows public tunnel creation!'
         })
         .group([
-            'redis-url',
-        ], 'Storage configuration')
+            'cluster',
+            'cluster-udp-discovery',
+            'cluster-udp-discovery-multicast-group',
+            'cluster-udp-discovery-kubernetes-service',
+            'cluster-udp-discovery-kubernetes-namespace',
+            'cluster-udp-discovery-kubernetes-service-env',
+            'cluster-udp-discovery-kubernetes-namespace-env',
+            'cluster-udp-discovery-kubernetes-cluster-domain',
+            'cluster-redis-url',
+        ], 'Cluster configuration')
+        .option('cluster', {
+            type: 'string',
+            default: 'auto',
+            choices: ['auto', 'single-node', 'udp', 'redis'],
+            description: 'Set which clustering method to use',
+            coerce: (value) => {
+                if (value == 'auto' && args) {
+                    if (args['redis-url']) {
+                        return 'redis';
+                    } else if (args['storage'] != 'none') {
+                        if (args['cluster-redis-url']) {
+                            return 'redis';
+                        } else {
+                            return 'udp';
+                        }
+                    } else {
+                        return 'single-node';
+                    }
+                }
+                return value;
+            }
+        })
+        .option('cluster-udp-discovery', {
+            type: 'string',
+            default: 'auto',
+            choices: ['auto', 'multicast', 'kubernetes'],
+            description: 'Peer discovery method to use for UDP clustering mode',
+        })
+        .option('cluster-udp-port', {
+            type: 'number',
+            default: 1025,
+            description: 'Port to use for UDP based pub/sub'
+        })
+        .option('cluster-udp-discovery-multicast-group', {
+            type: 'string',
+            default: '239.0.0.1',
+            hidden: true,
+            description: 'Set multicast group to use for multicast based peer discovery'
+        })
+        .option('cluster-udp-discovery-kubernetes-service', {
+            type: 'string',
+            hidden: true,
+            description: 'Headless service name'
+        })
+        .option('cluster-udp-discovery-kubernetes-namespace', {
+            type: 'string',
+            hidden: true,
+            description: 'Kubernetes namespace'
+        })
+        .option('cluster-udp-discovery-kubernetes-service-env', {
+            type: 'string',
+            hidden: true,
+            default: 'SERVICE_NAME',
+            description: 'Pod environment variable to read the headless service name from'
+        })
+        .option('cluster-udp-discovery-kubernetes-namespace-env', {
+            type: 'string',
+            hidden: true,
+            default: 'POD_NAMESPACE',
+            description: 'Pod environment variable to read namespace from'
+        })
+        .option('cluster-udp-discovery-kubernetes-cluster-domain', {
+            type: 'string',
+            hidden: true,
+            default: 'cluster.local',
+            description: 'The cluster domain suffix'
+        })
+        .option('cluster-redis-url', {
+            type: 'string',
+            description: 'Redis connection URL for cluster pub/sub',
+            default: args['redis-url'],
+            required: args['cluster'] == 'redis',
+            coerce: (url) => {
+                return typeof url == 'string' ? new URL(url) : url;
+            },
+        })
+        .group([
+            'storage',
+            'storage-redis-url',
+        ], 'Persistent storage configuration')
+        .option('storage', {
+            type: 'string',
+            default: 'none',
+            choices: ['none', 'redis'],
+            description: 'Set which persistent storage method to use',
+            coerce: (value) => {
+                if (value == 'none' && args) {
+                    if (args['redis-url']) {
+                        return 'redis';
+                    } else if (args['storage-redis-url']) {
+                        return 'redis';
+                    }
+                }
+                return value;
+            }
+        })
+        .option('storage-redis-url', {
+            type: 'string',
+            description: 'Redis connection URL for persistent storage',
+            default: args['redis-url'],
+            required: args['storage'] == 'redis',
+            coerce: (url) => {
+                return typeof url == 'string' ? new URL(url) : url;
+            },
+        })
+        .group([
+            'redis-url'
+        ], 'Deprecated options')
         .option('redis-url', {
             type: 'string',
-            description: 'Redis connection URL, enables Redis persistance layer',
+            hidden: true,
+            description: '[DEPRECATED] Redis connection URL. Use --storage-redis-url and/or --cluster-redis-url',
             coerce: (url) => {
                 return typeof url == 'string' ? new URL(url) : url;
             },
@@ -224,6 +341,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
             choices: ['json'],
         })
         .scriptName('exposr-server')
+        .wrap(120)
         .parse(canonicalArgv, callback);
 }
 
@@ -238,6 +356,7 @@ class Config {
 
         const cb = (err, _, output) => {
             if (err) {
+                this._error = err;
                 if (process.env.NODE_ENV === 'test') {
                     return;
                 }
