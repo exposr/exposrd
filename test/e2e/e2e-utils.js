@@ -2,6 +2,7 @@ import http from 'http';
 import child_process from 'child_process';
 import ssh from 'ssh2';
 import net from 'net';
+import crypto from 'crypto';
 
 const defaultBaseApi = "http://localhost:8080";
 
@@ -98,8 +99,12 @@ export const getTunnel = async(authToken, tunnelId, baseApi = defaultBaseApi) =>
 };
 
 export const startExposr = (args, port) => {
+    const name = crypto.randomBytes(20).toString('hex');
     port ??= 8080;
-    const obj = child_process.spawn("docker", ["run", "--rm", "-t", "--add-host", "host.docker.internal:host-gateway", "exposr/exposr:latest",
+    const obj = child_process.spawn("docker", [
+        "run", "--rm", "-t", "--add-host", "host.docker.internal:host-gateway",
+        "--name", name,
+        "exposr/exposr:latest",
         "--non-interactive",
         "-s", `http://host.docker.internal:${port}`,
     ].concat(args), {detached: true});
@@ -115,6 +120,6 @@ export const startExposr = (args, port) => {
     })
 
     return () => {
-        process.kill(-obj.pid, 'SIGKILL');
+        child_process.spawnSync("docker", ["kill", name]);
     };
 };
