@@ -17,7 +17,7 @@ class ClusterService {
         ClusterService.ref = 1;
 
         this.logger = Logger("cluster-service");
-        this._key = 'cb8f34580bd6179cfe1b3db1f08a13704899eab3380f7a79444cceb0aefed010';
+        this._key = opts.key || 'cb8f34580bd6179cfe1b3db1f08a13704899eab3380f7a79444cceb0aefed010';
         this._nodes = {};
 
         this._staleTimeout = opts.staleTimeout || 30000;

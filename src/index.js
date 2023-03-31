@@ -50,6 +50,7 @@ export default async (argv) => {
                 callback: (err) => {
                     err ? reject(err) : resolve(clusterService);
                 },
+                key: config.get('cluster-key'),
                 redis: {
                     redisUrl: config.get('cluster-redis-url'),
                 },

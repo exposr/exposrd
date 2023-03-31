@@ -204,6 +204,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
         })
         .group([
             'cluster',
+            'cluster-key',
             'cluster-udp-discovery',
             'cluster-udp-discovery-multicast-group',
             'cluster-udp-discovery-kubernetes-service',
@@ -234,6 +235,11 @@ const parse = (canonicalArgv, callback, args = {}) => {
                 }
                 return value;
             }
+        })
+        .option('cluster-key', {
+            type: 'string',
+            default: 'secret-signing-key',
+            description: "HMAC key used by nodes to sign pub/sub requests",
         })
         .option('cluster-udp-discovery', {
             type: 'string',
