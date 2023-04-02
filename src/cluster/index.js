@@ -19,6 +19,16 @@ class ClusterService {
         this.logger = Logger("cluster-service");
         this._key = opts.key || 'cb8f34580bd6179cfe1b3db1f08a13704899eab3380f7a79444cceb0aefed010';
         this._nodes = {};
+        this._nodes[Node.identifier] = {
+            seq: 0,
+            seq_win: 0,
+            id: Node.identifier,
+            host: Node.hostname,
+            ip: Node.address,
+            stale: false,
+        };
+        this._seq = 0;
+        this._window_size = 16;
 
         this._staleTimeout = opts.staleTimeout || 30000;
         this._removalTimeout = opts.removalTimeout || 60000;
@@ -95,7 +105,13 @@ class ClusterService {
             });
         }
 
-        this._nodes[node.id] = node;
+        this._nodes[node.id] ??= {
+            seq: 0,
+            seq_win: 0,
+        };
+        this._nodes[node.id].id = node.id;
+        this._nodes[node.id].host = node.host;
+        this._nodes[node.id].ip = node.ip;
         this._nodes[node.id].stale = false;
 
         this._nodes[node.id]._staleTimer = setTimeout(() => {
@@ -136,7 +152,11 @@ class ClusterService {
     getNode(id) {
         const node = this._nodes[id];
         if (node?.stale === false) {
-            return node;
+            return {
+                id: node.id,
+                host: node.host,
+                ip: node.ip,
+            };
         } else {
             return undefined;
         }
@@ -153,11 +173,36 @@ class ClusterService {
                 throw new Error(`invalid message signature: ${s}`);
             }
 
-            const {event, message, node, ts} = data;
-            this._listeners.forEach((l) => l._emit(event, message, {node, ts}));
+            const {event, message, node, ts, seq} = data;
             if (event == 'cluster:heartbeat' || this.getNode(node?.id) == undefined) {
                 this._learnNode(node);
             }
+
+            if (this.getNode(node?.id) == undefined) {
+                throw new Error(`The node ${node?.id} is not in set of learnt nodes`);
+            }
+
+            const low = this._nodes[node.id].seq - this._window_size;
+            if (low > seq || seq < 0) {
+                throw new Error(`unexpected sequence number ${seq}, window=${this._nodes[node.id].seq}`);
+            }
+
+            if (seq > this._nodes[node.id].seq) {
+                const diff = seq - this._nodes[node.id].seq;
+
+                this._nodes[node.id].seq = seq;
+
+                this._nodes[node.id].seq_win <<= diff;
+                this._nodes[node.id].seq_win &= (1 << this._window_size) - 1;
+            }
+
+            const rel_seq = this._nodes[node.id].seq - seq;
+            if (this._nodes[node.id].seq_win & (1 << rel_seq)) {
+                throw new Error(`message ${seq} already received, window=${this._nodes[node.id].seq}`);
+            }
+            this._nodes[node.id].seq_win |= (1 << rel_seq);
+
+            this._listeners.forEach((l) => l._emit(event, message, {node, ts}));
             return true;
         } catch (e) {
             this.logger.debug({
@@ -178,6 +223,7 @@ class ClusterService {
                 ip: Node.address,
             },
             ts: new Date().getTime(),
+            seq: this._seq,
         };
 
         const data_s = JSON.stringify(payload);
@@ -187,7 +233,7 @@ class ClusterService {
             ...payload,
             s: signature
         };
-
+        this._seq++;
         return this._bus.publish(JSON.stringify(msg));
     }
 
