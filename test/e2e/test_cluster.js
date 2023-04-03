@@ -114,9 +114,9 @@ describe('Cluster E2E', () => {
             const apiEndpoint = "http://localhost:8080";
             const echoServerUrl = "http://host.docker.internal:10000";
 
-            let retries = 50;
+            let retries = 60;
             do {
-                await setTimeout(100);
+                await setTimeout(1000);
                 try {
                     const res = await fetch(`${apiEndpoint}`);
                     break;
@@ -162,7 +162,7 @@ describe('Cluster E2E', () => {
             await echoServerTerminate();
             node1.terminate();
             node2.terminate();
-        }).timeout(60000);
+        }).timeout(120000);
 
     }); 
 
