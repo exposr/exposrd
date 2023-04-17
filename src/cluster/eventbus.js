@@ -26,12 +26,13 @@ class EventBus extends EventEmitter {
     }
 
     _emit(event, message, meta) {
-        super.emit(event, message);
+        super.emit(event, message, meta);
         this.logger.isTraceEnabled() &&
            this.logger.trace({
                operation: 'emit',
                event,
-               message
+               message,
+               meta
            });
     }
 
@@ -42,8 +43,8 @@ class EventBus extends EventEmitter {
     async waitFor(channel, predicate, timeout = undefined) {
         return new Promise((resolve, reject) => {
             let timer;
-            const fun = (message) => {
-                if (!predicate(message)) {
+            const fun = (message, meta) => {
+                if (!predicate(message, meta)) {
                     return;
                 }
                 this.removeListener(channel, fun);

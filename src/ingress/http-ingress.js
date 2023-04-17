@@ -1,3 +1,4 @@
+import assert from 'assert/strict';
 import http, { Agent } from 'http';
 import net from 'net';
 import NodeCache from 'node-cache';
@@ -40,7 +41,8 @@ class HttpIngress {
 
         this.destroyed = false;
         this.altNameService = new AltNameService();
-        this.tunnelService = new TunnelService();
+        this.tunnelService = opts.tunnelService;
+        assert(this.tunnelService instanceof TunnelService);
         this.httpListener = Listener.acquire('http', opts.port);
         this._requestHandler = this.httpListener.use('request', { logger: this.logger, prio: 1 }, async (ctx, next) => {
             if (!await this.handleRequest(ctx.req, ctx.res, ctx.baseUrl)) {
@@ -414,13 +416,15 @@ class HttpIngress {
     }
 
     async destroy() {
+        if (this.destroyed) {
+            return;
+        }
         this.destroyed = true;
         this.httpListener.removeHandler('request', this._requestHandler);
         this.httpListener.removeHandler('upgrade', this._upgradeHandler);
         return Promise.allSettled([
             this.altNameService.destroy(),
             this.eventBus.destroy(),
-            this.tunnelService.destroy(),
             Listener.release('http', this.opts.port),
         ]);
     }

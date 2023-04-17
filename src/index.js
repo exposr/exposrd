@@ -81,32 +81,9 @@ export default async (argv) => {
         ])
         .catch((err) => {
             logger.error(`Failed to start up: ${err.message}`);
+            logger.debug(err.stack);
             process.exit(-1);
         });
-
-    const transportReady = new Promise((resolve, reject) => {
-        try {
-            // Setup tunnel transport connection endpoints (for clients to establish tunnels)
-            const transport = new TransportService({
-                callback: (err) => {
-                    err ? reject(err) : resolve(transport);
-                },
-                ws: {
-                  enabled: config.get('transport').includes('ws'),
-                  baseUrl: config.get('api-url'),
-                  port: config.get('api-port'),
-                },
-                ssh: {
-                  enabled: config.get('transport').includes('ssh'),
-                  hostKey: config.get('transport-ssh-key'),
-                  host: config.get('transport-ssh-host'),
-                  port: config.get('transport-ssh-port'),
-                },
-            });
-        } catch (e) {
-            reject(e);
-        }
-    });
 
     // Setup tunnel data ingress (incoming tunnel data)
     const ingressReady = new Promise((resolve, reject) => {
@@ -127,6 +104,30 @@ export default async (argv) => {
                     cert: config.get('ingress-sni-cert'),
                     key: config.get('ingress-sni-key'),
                 }
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+
+    const transportReady = new Promise((resolve, reject) => {
+        try {
+            // Setup tunnel transport connection endpoints (for clients to establish tunnels)
+            const transport = new TransportService({
+                callback: (err) => {
+                    err ? reject(err) : resolve(transport);
+                },
+                ws: {
+                  enabled: config.get('transport').includes('ws'),
+                  baseUrl: config.get('api-url'),
+                  port: config.get('api-port'),
+                },
+                ssh: {
+                  enabled: config.get('transport').includes('ssh'),
+                  hostKey: config.get('transport-ssh-key'),
+                  host: config.get('transport-ssh-host'),
+                  port: config.get('transport-ssh-port'),
+                },
             });
         } catch (e) {
             reject(e);

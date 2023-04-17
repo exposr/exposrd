@@ -2,15 +2,12 @@ import { Socket } from 'net';
 import Node from '../cluster/cluster-node.js';
 import ClusterService from '../cluster/index.js';
 import { Logger } from '../logger.js';
-import TunnelService from '../tunnel/tunnel-service.js';
-import Tunnel from '../tunnel/tunnel.js';
 
 class NodeSocket extends Socket {
     constructor(opts) {
         super();
-        this.logger = Logger("tunnel-service");
+        this.logger = Logger("node-socket");
         this._opts = opts;
-        this._tunnelService = new TunnelService();
         this._clusterService = new ClusterService();
         this._canonicalConnect = this.connect;
         this.connect = (_opt, callback) => {
@@ -24,7 +21,6 @@ class NodeSocket extends Socket {
     async destroy() {
         super.destroy();
         await this._clusterService.destroy();
-        return this._tunnelService.destroy();
     }
 
     static createConnection(opts, callback) {
@@ -34,7 +30,7 @@ class NodeSocket extends Socket {
     }
 
     toString() {
-        return `<${NodeSocket.name} tunnel=${this._opts.tunnelId} target=${this?.nextNode?.id}>`;
+        return `<${NodeSocket.name} tunnel=${this._opts.tunnelId} target=${this._opts.node}>`;
     }
 
     async _doConnect(callback) {
@@ -43,12 +39,7 @@ class NodeSocket extends Socket {
             this.destroy();
         };
 
-        const tunnel = await this._tunnelService.lookup(this._opts.tunnelId);
-        if (!(tunnel instanceof Tunnel)) {
-            return closeSock();
-        }
-
-        const nextNode = this._clusterService.getNode(tunnel.state().node);
+        const nextNode = this._clusterService.getNode(this._opts.node);
         if (!nextNode) {
             return closeSock();
         }
