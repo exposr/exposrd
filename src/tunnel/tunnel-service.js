@@ -33,13 +33,13 @@ class TunnelService {
         this.tunnelDeleteSweepInterval = 60 * 1000;
 
         this.logger = Logger("tunnel-service");
-        this.accountService = new AccountService();
-        this.db = new Storage("tunnel");
-        this.eventBus = new EventBus();
-        this.clusterService = new ClusterService();
+        this._accountService = new AccountService();
+        this._db = new Storage("tunnel");
+        this._eventBus = new EventBus();
+        this._clusterService = new ClusterService();
         this._ingress = new Ingress();
 
-        this.connectedTunnels = {};
+        this._connectedTunnels = {};
 
         this._tunnels = {
             state: {
@@ -75,7 +75,7 @@ class TunnelService {
                             node: meta.node.id,
                             alive_at: meta.ts,
                             alive: true,
-                            local: this.connectedTunnels[tunnelId]?.connections?.[con.id] != undefined,
+                            local: this._connectedTunnels[tunnelId]?.connections?.[con.id] != undefined,
                         };
                     } else {
                         tunnel.connections[cid].alive = false;
@@ -175,7 +175,7 @@ class TunnelService {
                     return undefined;
                 }
 
-                const localCons = Object.keys(this.connectedTunnels[tunnelId]?.connections || {});
+                const localCons = Object.keys(this._connectedTunnels[tunnelId]?.connections || {});
                 if (localCons.length > 0) {
                     const idx = (localCons.indexOf(tunnel.lastCon) + 1) % localCons.length;
                     const nextCon = localCons[idx];
@@ -205,7 +205,7 @@ class TunnelService {
             },
         };
 
-        this.eventBus.on('tunnel:announce', (state, meta) => {
+        this._eventBus.on('tunnel:announce', (state, meta) => {
             const tunnelIds = Object.keys(state);
             tunnelIds.forEach((tunnelId) => {
                 setImmediate(() => {
@@ -215,7 +215,7 @@ class TunnelService {
             });
         });
 
-        this.eventBus.on('tunnel:disconnect', (message, meta) => {
+        this._eventBus.on('tunnel:disconnect', (message, meta) => {
             const tunnelId = message?.tunnel;
             if (!tunnelId) {
                 return;
@@ -234,16 +234,16 @@ class TunnelService {
         if (--TunnelService.ref == 0) {
             this.destroyed = true;
             clearTimeout(this._announceTimer);
-            const tunnels = Object.keys(this.connectedTunnels).map(async (tunnelId) => {
+            const tunnels = Object.keys(this._connectedTunnels).map(async (tunnelId) => {
                 const tunnel = await this.lookup(tunnelId);
                 return this._disconnect(tunnel);
             });
             await Promise.allSettled(tunnels);
             await Promise.allSettled([
-                this.db.destroy(),
-                this.clusterService.destroy(),
-                this.eventBus.destroy(),
-                this.accountService.destroy(),
+                this._db.destroy(),
+                this._clusterService.destroy(),
+                this._eventBus.destroy(),
+                this._accountService.destroy(),
                 this._ingress.destroy(),
             ]);
             delete TunnelService.instance;
@@ -260,7 +260,7 @@ class TunnelService {
     async _get(tunnelId) {
         assert(tunnelId != undefined);
 
-        const tunnel = await this.db.read(tunnelId, Tunnel);
+        const tunnel = await this._db.read(tunnelId, Tunnel);
         if (tunnel instanceof Array) {
             Promise.allSettled(tunnel.map((t) => {
                 return new Promise(async (resolve) => {
@@ -303,7 +303,7 @@ class TunnelService {
     }
 
     async list(cursor = 0, count = 10, verbose = false) {
-        const res = await this.db.list(cursor, count);
+        const res = await this._db.list(cursor, count);
         const data = verbose ? await this._get(res.data) : res.data.map((id) => { return {tunnel_id: id}; });
         return {
             cursor: res.cursor,
@@ -319,12 +319,12 @@ class TunnelService {
         tunnel.created_at = new Date().toISOString();
         tunnel.updated_at = tunnel.created_at;
         tunnel.transport.token = crypto.randomBytes(64).toString('base64url');
-        const created = await this.db.create(tunnelId, tunnel);
+        const created = await this._db.create(tunnelId, tunnel);
         if (!created) {
             return false;
         }
 
-        await this.accountService.update(accountId, (account) => {
+        await this._accountService.update(accountId, (account) => {
             if (!account.tunnels.includes(tunnelId)) {
                 account.tunnels.push(tunnelId);
             }
@@ -341,7 +341,7 @@ class TunnelService {
     async update(tunnelId, accountId, cb) {
         assert(tunnelId != undefined);
         assert(accountId != undefined);
-        return this.db.update(tunnelId, Tunnel, async (tunnel) => {
+        return this._db.update(tunnelId, Tunnel, async (tunnel) => {
             if (!this._isPermitted(tunnel, accountId)) {
                 return false;
             }
@@ -387,7 +387,7 @@ class TunnelService {
             return false;
         };
 
-        const updateAccount = this.accountService.update(accountId, (account) => {
+        const updateAccount = this._accountService.update(accountId, (account) => {
             const pos = account.tunnels.indexOf(tunnelId);
             if (pos >= 0) {
                 account.tunnels.splice(pos, 1);
@@ -397,7 +397,7 @@ class TunnelService {
         try {
             await Promise.all([
                 this._ingress.deleteIngress(tunnel),
-                this.db.delete(tunnelId),
+                this._db.delete(tunnelId),
                 updateAccount,
             ]);
         } catch (e) {
@@ -446,10 +446,10 @@ class TunnelService {
                 connected_at: Date.now(),
             }
         };
-        this.connectedTunnels[tunnelId] ??= {
+        this._connectedTunnels[tunnelId] ??= {
             connections: {}
         };
-        this.connectedTunnels[tunnelId].connections[connection.id] = connection;
+        this._connectedTunnels[tunnelId].connections[connection.id] = connection;
 
         transport.once('close', async () => {
             this._closeTunnelConnection(tunnelId, connection.id);
@@ -472,7 +472,7 @@ class TunnelService {
     }
 
     _announceTunnel(tunnelId) {
-        const tunnel = this.connectedTunnels[tunnelId];
+        const tunnel = this._connectedTunnels[tunnelId];
         if (!tunnel) {
             return false;
         }
@@ -488,11 +488,11 @@ class TunnelService {
                 };
             }),
         };
-        return this.eventBus.publish("tunnel:announce", announce);
+        return this._eventBus.publish("tunnel:announce", announce);
     }
 
     _announceTunnels() {
-        const tunnelIds = Object.keys(this.connectedTunnels);
+        const tunnelIds = Object.keys(this._connectedTunnels);
         const batchsize = this.tunnelAnnounceBatchSize;
 
         return new Promise((resolve) => {
@@ -500,7 +500,7 @@ class TunnelService {
                 const chunk = tunnelIds.splice(0, batchsize);
 
                 const tunnels = chunk.map((tunnelId) => {
-                    const tunnel = this.connectedTunnels[tunnelId];
+                    const tunnel = this._connectedTunnels[tunnelId];
                     return {
                         tunnel: tunnelId,
                         connections: Object.keys(tunnel?.connections || {}).map((cid) => {
@@ -519,7 +519,7 @@ class TunnelService {
                     return acc;
                 }, {});
 
-                await this.eventBus.publish("tunnel:announce", tunnels);
+                await this._eventBus.publish("tunnel:announce", tunnels);
                 if (tunnelIds.length > 0) {
                     setImmediate(processChunk);
                 } else {
@@ -536,7 +536,7 @@ class TunnelService {
     }
 
     async _closeTunnelConnection(tunnelId, cid) {
-        const tunnel = this.connectedTunnels[tunnelId];
+        const tunnel = this._connectedTunnels[tunnelId];
         if (!tunnel) {
             return;
         }
@@ -572,7 +572,7 @@ class TunnelService {
         await this._announceTunnel(tunnelId);
 
         if (Object.keys(tunnel.connections).length == 0) {
-            delete this.connectedTunnels[tunnelId];
+            delete this._connectedTunnels[tunnelId];
         }
     }
 
@@ -588,12 +588,12 @@ class TunnelService {
         const announces = Array.from(new Set(Object.keys(state.connections)
             .map(cid => state.connections[cid].node)))
             .map(node => {
-                return this.eventBus.waitFor('tunnel:announce', (announce, meta) => {
+                return this._eventBus.waitFor('tunnel:announce', (announce, meta) => {
                     return announce.tunnel == tunnelId && node == meta.node.id
                 }, 500);
             });
 
-        this.eventBus.publish('tunnel:disconnect', {
+        this._eventBus.publish('tunnel:disconnect', {
             tunnel: tunnelId
         });
 
@@ -625,7 +625,7 @@ class TunnelService {
             if (!(tunnel instanceof Tunnel)) {
                 return result;
             }
-            const account = await this.accountService.get(tunnel.account);
+            const account = await this._accountService.get(tunnel.account);
             if (!(account instanceof Account)) {
                 return result;
             }
@@ -645,7 +645,7 @@ class TunnelService {
     }
 
     isLocalConnected(tunnelId) {
-        return this.connectedTunnels[tunnelId] != undefined;
+        return this._connectedTunnels[tunnelId] != undefined;
     }
 
     createConnection(tunnelId, ctx, callback) {
@@ -655,7 +655,7 @@ class TunnelService {
         }
 
         if (next.cid) {
-            const connection = this.connectedTunnels[tunnelId].connections[next.cid];
+            const connection = this._connectedTunnels[tunnelId].connections[next.cid];
             return connection.transport.createConnection(ctx.opts, callback);
         }
 

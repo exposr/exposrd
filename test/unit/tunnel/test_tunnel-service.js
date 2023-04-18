@@ -177,7 +177,7 @@ describe('tunnel service', () => {
             const nodeId = crypto.randomBytes(20).toString('hex');
 
             const connected_at = Date.now();
-            tunnelService.connectedTunnels[tunnelId] = {
+            tunnelService._connectedTunnels[tunnelId] = {
                 connections: {
                     "con-1": {}
                 }
@@ -233,7 +233,7 @@ describe('tunnel service', () => {
             const nodeId = crypto.randomBytes(20).toString('hex');
 
             const connected_at = Date.now();
-            tunnelService.connectedTunnels[tunnelId] = {
+            tunnelService._connectedTunnels[tunnelId] = {
                 connections: {
                     "local-con-1": {}
                 }
@@ -260,7 +260,7 @@ describe('tunnel service', () => {
             const nodeId = crypto.randomBytes(20).toString('hex');
 
             const connected_at = Date.now();
-            tunnelService.connectedTunnels[tunnelId] = {
+            tunnelService._connectedTunnels[tunnelId] = {
                 connections: {
                     "local-con-1": {},
                     "local-con-2": {},
@@ -292,7 +292,7 @@ describe('tunnel service', () => {
             const nodeId = crypto.randomBytes(20).toString('hex');
 
             const connected_at = Date.now();
-            tunnelService.connectedTunnels[tunnelId] = {
+            tunnelService._connectedTunnels[tunnelId] = {
                 connections: {}
             };
 
@@ -316,7 +316,7 @@ describe('tunnel service', () => {
             const nodeId2 = crypto.randomBytes(20).toString('hex');
 
             const connected_at = Date.now();
-            tunnelService.connectedTunnels[tunnelId] = {
+            tunnelService._connectedTunnels[tunnelId] = {
                 connections: {}
             };
 
@@ -371,12 +371,12 @@ describe('tunnel service', () => {
                         connected_at: connected_at,
                     }
                 };
-                tunnelService.connectedTunnels[tunnelId] = {
+                tunnelService._connectedTunnels[tunnelId] = {
                     connections
                 }
             }
 
-            const expectedAnnouncements = Math.ceil(Object.keys(tunnelService.connectedTunnels).length / tunnelService.tunnelAnnounceBatchSize);
+            const expectedAnnouncements = Math.ceil(Object.keys(tunnelService._connectedTunnels).length / tunnelService.tunnelAnnounceBatchSize);
             let announcements = 0;
             bus.on('tunnel:announce', (msg) => {
                 announcements++;
@@ -385,7 +385,7 @@ describe('tunnel service', () => {
             await clock.tickAsync(tunnelService.tunnelAnnounceInterval + 1000);
             assert(announcements == expectedAnnouncements, `expected ${expectedAnnouncements} batch announcements, got ${announcements}`);
 
-            Object.keys(tunnelService.connectedTunnels).forEach((tunnelId) => {
+            Object.keys(tunnelService._connectedTunnels).forEach((tunnelId) => {
                 const tunnel = tunnelService._tunnels.get(tunnelId);
                 assert(tunnel != undefined, `tunnel ${tunnelId} not learnt in the global state`);
                 assert(tunnel.connected == true, `tunnel ${tunnelId} not marked as connected in global state`);
