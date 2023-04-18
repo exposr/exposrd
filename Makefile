@@ -1,5 +1,5 @@
 registry?=exposr
-node_version=18.5.0
+node_version=18.15.0
 node_image?=$(node_version)-alpine3.16
 platforms?=linux/amd64,linux/arm64,linux/arm/v7
 # Available build targets https://github.com/vercel/pkg-fetch
