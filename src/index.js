@@ -2,13 +2,13 @@ import Config from './config.js';
 import AdminApiController from './controller/admin-api-controller.js';
 import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
-import { EventBusService } from './eventbus/index.js';
+import ClusterService from './cluster/index.js';
 import Ingress from './ingress/index.js';
 import { Logger } from './logger.js';
 import { StorageService } from './storage/index.js';
 import TransportService from './transport/transport-service.js';
-import Node, { NodeService } from './utils/node.js';
 import Version from './version.js';
+import Node from './cluster/cluster-node.js';
 
 export default async (argv) => {
     const config = new Config(argv);
@@ -26,72 +26,64 @@ export default async (argv) => {
         process.exit(-1);
     });
 
-    // Initialize storage and eventbus
+    // Initialize storage and cluster service
     const storageServiceReady = new Promise((resolve, reject) => {
         try {
-            const mode = config.get('redis-url') ? 'redis' : 'mem';
+            const type = config.get('storage');
 
-            const storage = new StorageService(mode, {
+            const storage = new StorageService(type, {
                 callback: (err) => {
                     err ? reject(err) : resolve(storage);
                 },
-                redisUrl: config.get('redis-url'),
+                redisUrl: config.get('storage-redis-url'),
             });
         } catch (e) {
             reject(e);
         }
     });
 
-    const eventBusServiceReady = new Promise((resolve, reject) => {
+    const clusterServiceReady = new Promise((resolve, reject) => {
         try {
-            const mode = config.get('redis-url') ? 'redis' : 'mem';
+            const type = config.get('cluster');
 
-            const eventBusService = new EventBusService(mode, {
+            const clusterService = new ClusterService(type, {
                 callback: (err) => {
-                    err ? reject(err) : resolve(eventBusService);
+                    err ? reject(err) : resolve(clusterService);
                 },
-                redisUrl: config.get('redis-url'),
+                key: config.get('cluster-key'),
+                redis: {
+                    redisUrl: config.get('cluster-redis-url'),
+                },
+                udp: {
+                    port: config.get('cluster-udp-port'),
+                    discoveryMethod: config.get('cluster-udp-discovery') != 'auto' ? config.get('cluster-udp-discovery'): undefined,
+                    multicast: {
+                        group: config.get('cluster-udp-discovery-multicast-group')
+                    },
+                    kubernetes: {
+                        serviceNameEnv: config.get('cluster-udp-discovery-kubernetes-service-env'),
+                        namespaceEnv: config.get('cluster-udp-discovery-kubernetes-namespace-env'),
+                        serviceName: config.get('cluster-udp-discovery-kubernetes-service'),
+                        namespace: config.get('cluster-udp-discovery-kubernetes-namespace'),
+                        clusterDomain: config.get('cluster-udp-discovery-kubernetes-cluster-domain'),
+                    }
+                }
             });
         } catch (e) {
             reject(e);
         }
     });
 
-    const [storageService, eventBusService] = await Promise
+    const [storageService, clusterService] = await Promise
         .all([
             storageServiceReady,
-            eventBusServiceReady
+            clusterServiceReady
         ])
         .catch((err) => {
             logger.error(`Failed to start up: ${err.message}`);
+            logger.debug(err.stack);
             process.exit(-1);
         });
-
-    const nodeService = new NodeService();
-
-    const transportReady = new Promise((resolve, reject) => {
-        try {
-            // Setup tunnel transport connection endpoints (for clients to establish tunnels)
-            const transport = new TransportService({
-                callback: (err) => {
-                    err ? reject(err) : resolve(transport);
-                },
-                ws: {
-                  enabled: config.get('transport').includes('ws'),
-                  baseUrl: config.get('api-url'),
-                  port: config.get('api-port'),
-                },
-                ssh: {
-                  enabled: config.get('transport').includes('ssh'),
-                  hostKey: config.get('transport-ssh-key'),
-                  host: config.get('transport-ssh-host'),
-                  port: config.get('transport-ssh-port'),
-                },
-            });
-        } catch (e) {
-            reject(e);
-        }
-    });
 
     // Setup tunnel data ingress (incoming tunnel data)
     const ingressReady = new Promise((resolve, reject) => {
@@ -112,6 +104,30 @@ export default async (argv) => {
                     cert: config.get('ingress-sni-cert'),
                     key: config.get('ingress-sni-key'),
                 }
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+
+    const transportReady = new Promise((resolve, reject) => {
+        try {
+            // Setup tunnel transport connection endpoints (for clients to establish tunnels)
+            const transport = new TransportService({
+                callback: (err) => {
+                    err ? reject(err) : resolve(transport);
+                },
+                ws: {
+                  enabled: config.get('transport').includes('ws'),
+                  baseUrl: config.get('api-url'),
+                  port: config.get('api-port'),
+                },
+                ssh: {
+                  enabled: config.get('transport').includes('ssh'),
+                  hostKey: config.get('transport-ssh-key'),
+                  host: config.get('transport-ssh-host'),
+                  port: config.get('transport-ssh-port'),
+                },
             });
         } catch (e) {
             reject(e);
@@ -172,6 +188,7 @@ export default async (argv) => {
         });
 
     adminController.setReady();
+    clusterService.setReady();
     logger.info("exposr-server ready");
 
     const shutdown = async (signal) => {
@@ -185,9 +202,8 @@ export default async (argv) => {
             adminController.destroy(),
             transport.destroy(),
             ingress.destroy(),
-            nodeService.destroy(),
             storageService.destroy(),
-            eventBusService.destroy(),
+            clusterService.destroy(),
             config.destroy(),
         ]);
 

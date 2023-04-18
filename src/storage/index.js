@@ -27,6 +27,7 @@ class StorageService {
                     ...opts,
                 });
                 break;
+            case 'none':
             case 'mem':
                 this._storage = new MemoryStorageProvider({
                     callback: ready,

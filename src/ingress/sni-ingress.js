@@ -1,3 +1,4 @@
+import assert from 'assert/strict';
 import crypto, { X509Certificate } from 'crypto';
 import fs from 'fs';
 import tls from 'tls';
@@ -18,7 +19,8 @@ class SNIIngress {
             throw new Error("No key provided for SNI ingress");
         }
 
-        this.tunnelService = new TunnelService();
+        this.tunnelService = opts.tunnelService;
+        assert(this.tunnelService instanceof TunnelService);
 
         this.port = this.opts.port || 4430;
 
@@ -85,7 +87,6 @@ class SNIIngress {
     async destroy() {
         return new Promise((resolve) => {
             this.server.once('close', async () => {
-                await this.tunnelService.destroy();
                 resolve();
             });
             this.server.close();

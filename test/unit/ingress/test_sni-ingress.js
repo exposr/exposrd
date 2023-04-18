@@ -3,23 +3,36 @@ import Tunnel from '../../../src/tunnel/tunnel.js';
 import assert from 'assert/strict';
 import { X509Certificate } from 'crypto';
 import fs from 'fs';
-import { initEventBusService, initStorageService } from '../test-utils.js'
+import { initClusterService, initStorageService } from '../test-utils.js'
 import Config from '../../../src/config.js';
+import Ingress from '../../../src/ingress/index.js';
+import TunnelService from '../../../src/tunnel/tunnel-service.js';
 
 describe('sni ingress', () => {
     let storageService;
-    let eventbusService;
+    let clusterService;
+    let tunnelService;
     let config;
+    let ingress;
 
-    before(() => {
+    before(async () => {
         config = new Config();
         storageService = initStorageService();
-        eventbusService = initEventBusService();
+        clusterService = initClusterService();
+        ingress = new Ingress({
+            tunnelService,
+            http: {
+                enabled: true,
+                subdomainUrl: new URL("https://example.com"),
+                port: 8080,
+            }
+        });
     });
 
-    after(() => {
-        storageService.destroy();
-        eventbusService.destroy();
+    after(async () => {
+        await storageService.destroy();
+        await clusterService.destroy();
+        await ingress.destroy();
         config.destroy()
     });
 
@@ -48,10 +61,13 @@ describe('sni ingress', () => {
     });
 
     it("construct instance with valid certificates", async () => {
+        const tunnelService = new TunnelService();
         const sni = new SNIIngress({
+            tunnelService,
             cert: new URL('../fixtures/cn-public-cert.pem', import.meta.url),
             key: new URL('../fixtures/cn-private-key.pem', import.meta.url),
         });
+        await tunnelService.destroy();
         return sni.destroy();
     });
 
@@ -93,14 +109,20 @@ describe('sni ingress', () => {
 
     urlTests.forEach(({args, expected}) => {
         it(`getIngress() for ${JSON.stringify(args)} returns ${expected}`, async () => {
+            const tunnelService = new TunnelService();
             const tunnel = new Tunnel();
             tunnel.id = 'test';
 
-            const ingress = new SNIIngress(args);
+            const ingress = new SNIIngress({
+                tunnelService,
+                ...args
+            });
             const ing = ingress.getIngress(tunnel);
             await ingress.destroy();
 
             assert(ing.url == expected, `got ${ing.url}`);
+
+            await tunnelService.destroy();
             return true;
         });
     });

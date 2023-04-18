@@ -1,3 +1,4 @@
+import assert from 'assert/strict';
 import RedisLock from './redis-lock.js';
 import InmemLock from './inmem-lock.js';
 import { Logger } from '../logger.js';
@@ -54,6 +55,7 @@ class LockService {
                     }
                 });
                 break;
+            case 'none':
             case 'mem':
                 this._lockType = new InmemLock();
                 typeof opts.callback === 'function' && process.nextTick(() => opts.callback());

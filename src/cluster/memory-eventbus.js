@@ -11,15 +11,17 @@ class MemoryEventBus {
         return true;
     }
 
-    async publish(event, message) {
+    async publish(message) {
         return new Promise((resolve) => {
-            this._handler(event, message);
-            this.logger.debug({
-                operation: 'publish',
-                channel: event,
-                message,
+            process.nextTick(() => {
+                this._handler(message);
+                this.logger.debug({
+                    operation: 'publish',
+                    channel: message.event,
+                    message,
+                });
+                resolve();
             });
-            resolve();
         });
     }
 }

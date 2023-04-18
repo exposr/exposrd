@@ -1,12 +1,19 @@
 replicaCount: 1
 
-
 exposr:
   logLevel: info
   allowRegistration: false
   admin:
     enabled: false
     apiKey: ""
+  cluster:
+    key: "cluster-signing-key-change-me"
+    type: udp
+    udp:
+      discovery: kubernetes
+  storage:
+    type: redis
+    redis: {}
   transport:
     ws:
       enabled: true

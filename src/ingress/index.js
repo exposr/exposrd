@@ -4,15 +4,22 @@ import { ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES } from '../utils/errors.js';
 import { difference, symDifference } from '../utils/misc.js';
 import HttpIngress from './http-ingress.js';
 import SNIIngress from './sni-ingress.js';
+import TunnelService from '../tunnel/tunnel-service.js';
 
 class Ingress {
     constructor(opts) {
-        if (Ingress.instance !== undefined) {
+        if (Ingress.instance instanceof Ingress) {
+            Ingress.ref++;
             return Ingress.instance;
         }
+        // There is a circular dependency between Ingress and TunnelService, we set the initial
+        // reference to 0, as it will be increased to 1 when creating the TunnelService instance.
+        Ingress.ref = 0;
         Ingress.instance = this;
+
         assert(opts != undefined);
         this.opts = opts;
+        this._tunnelService = new TunnelService();
         this.ingress = {};
 
         const p = [];
@@ -20,6 +27,7 @@ class Ingress {
         if (opts.http?.enabled == true) {
             p.push(new Promise((resolve) => {
                 this.ingress.http = new HttpIngress({
+                    tunnelService: this._tunnelService,
                     ...opts.http,
                     callback: resolve,
                 });
@@ -29,6 +37,7 @@ class Ingress {
         if (opts.sni?.enabled == true) {
             p.push(new Promise((resolve, reject) => {
                 this.ingress.sni = new SNIIngress({
+                    tunnelService: this._tunnelService,
                     ...opts.sni,
                     callback: (e) => {
                         e ? reject(e) : resolve()
@@ -47,11 +56,15 @@ class Ingress {
     }
 
     async destroy() {
-        const promises = Object.keys(this.ingress)
-            .map(k => this.ingress[k].destroy())
-            .concat([this.altNameService.destroy()]);
-        delete Ingress.instance;
-        return Promise.allSettled(promises);
+        if (--Ingress.ref == 0) {
+            this.destroyed = true;
+            const promises = Object.keys(this.ingress)
+                .map(k => this.ingress[k].destroy())
+                .concat([this.altNameService.destroy()]);
+            const res = await Promise.allSettled(promises);
+            await this._tunnelService.destroy();
+            delete Ingress.instance;
+        }
     }
 
     async updateIngress(tunnel, prevTunnel) {

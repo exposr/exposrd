@@ -1,15 +1,12 @@
 import { Socket } from 'net';
-import { Logger } from '../logger.js';
-import TunnelService from '../tunnel/tunnel-service.js';
-import Tunnel from '../tunnel/tunnel.js';
-import Node, { NodeService } from '../utils/node.js';
 
 class NodeSocket extends Socket {
     constructor(opts) {
         super();
-        this.logger = Logger("tunnel-service");
-        this._opts = opts;
-        this._tunnelService = new TunnelService();
+        const {tunnelId, node, port} = opts;
+        this._tunnelId = tunnelId;
+        this._node = node;
+        this._port = port;
         this._canonicalConnect = this.connect;
         this.connect = (_opt, callback) => {
             this.connecting = true;
@@ -21,7 +18,7 @@ class NodeSocket extends Socket {
 
     async destroy() {
         super.destroy();
-        return this._tunnelService.destroy();
+        await this._clusterService.destroy();
     }
 
     static createConnection(opts, callback) {
@@ -31,40 +28,13 @@ class NodeSocket extends Socket {
     }
 
     toString() {
-        return `<${NodeSocket.name} tunnel=${this._opts.tunnelId} target=${this?.nextNode?.id}>`;
+        return `<${NodeSocket.name} tunnel=${this._tunnelId} target=${this._node.id}>`;
     }
 
     async _doConnect(callback) {
-
-        const closeSock = () => {
-            this.destroy();
-        };
-
-        const tunnel = await this._tunnelService.lookup(this._opts.tunnelId);
-        if (!(tunnel instanceof Tunnel)) {
-            return closeSock();
-        }
-
-        const nodeService = new NodeService();
-        const nextNode = await nodeService.get(tunnel.state().node);
-        nodeService.destroy();
-        if (!nextNode) {
-            return closeSock();
-        }
-
-        if (nextNode.id == Node.identifier) {
-            return closeSock();
-        }
-
-        this.nextNode = nextNode;
-        this.logger.isDebugEnabled() && this.logger.withContext('tunnel', this._opts.tunnelId).debug({
-            operation: 'connection-redirect',
-            next: nextNode,
-        });
-
         this._canonicalConnect({
-            host: nextNode.address,
-            port: this._opts.port,
+            host: this._node.ip,
+            port: this._port,
             setDefaultEncoding: 'binary'
         }, () => {
             typeof callback ==='function' && callback();

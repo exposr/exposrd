@@ -1,7 +1,5 @@
 import crypto from 'crypto';
-import NodeCache from 'node-cache';
 import os from 'os';
-import Storage from '../storage/index.js';
 
 class Node {
     static hostname = `${process.pid}@${os.hostname}`;
@@ -59,61 +57,3 @@ class Node {
 }
 
 export default Node;
-class NodeService {
-    constructor() {
-        if (NodeService.instance instanceof NodeService) {
-            NodeService.ref++;
-            return NodeService.instance;
-        }
-        NodeService.instance = this;
-        NodeService.ref = 1;
-        this._storage = new Storage("node");
-
-        const reportNode = async () => {
-            const obj = {
-                ...await this.get(),
-                _ts: new Date().getTime(),
-            }
-            return this._storage.set(Node.identifier, obj, { TTL: 120 });
-        };
-
-        this._reporter = setInterval(reportNode, 60000);
-        setTimeout(reportNode, 10);
-
-        this._peerCache = new NodeCache({
-            useClones: false,
-            deleteOnExpire: true,
-        });
-    }
-
-    async destroy() {
-        if (--NodeService.ref == 0) {
-            clearInterval(this._reporter);
-            delete this._reporter;
-            delete NodeService.instance;
-            return this._storage.destroy();
-        }
-    }
-
-    async get(id) {
-        if (id == undefined) {
-            return {
-                id: Node.identifier,
-                host: Node.hostname,
-                address: Node.getIP(),
-            }
-        }
-
-        let peer;
-        peer = this._peerCache.get(id);
-        if (peer == undefined) {
-            peer = await this._storage.get(id);
-            if (peer) {
-                this._peerCache.set(id, peer, 60);
-            }
-        }
-        return peer;
-    }
-}
-
-export { NodeService };
