@@ -206,6 +206,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
             'cluster',
             'cluster-key',
             'cluster-udp-discovery',
+            'cluster-udp-port',
             'cluster-udp-discovery-multicast-group',
             'cluster-udp-discovery-kubernetes-service',
             'cluster-udp-discovery-kubernetes-namespace',
