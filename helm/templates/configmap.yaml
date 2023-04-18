@@ -34,8 +34,16 @@ data:
   EXPOSR_ADMIN_API_KEY: "{{ .Values.exposr.admin.apiKey }}"
 {{- end }}
 {{- end }}
-{{- if .Values.exposr.redisUrl }}
-  EXPOSR_REDIS_URL: "{{ .Values.exposr.redisUrl }}"
+  EXPOSR_CLUSTER: "{{ .Values.exposr.cluster.type }}"
+  EXPOSR_CLUSTER_KEY: "{{ .Values.exposr.cluster.key }}"
+{{- if eq .Values.exposr.cluster.type "udp"}}
+  EXPOSR_CLUSTER_UDP_DISCOVERY: "{{ .Values.exposr.cluster.udp.discovery }}"
+{{- end }}
+  EXPOSR_STORAGE: "{{ .Values.exposr.storage.type }}"
+{{- if eq .Values.exposr.storage.type "redis" }}
+{{- if eq .Values.exposr.storage.redis.url "redis" }}
+  EXPOSR_STORAGE_REDIS_URL: "{{ .Values.exposr.storage.redis.url }}"
+{{- end }}
 {{- end }}
   EXPOSR_INGRESS: "{{ join "," $exposrIngress }}"
   EXPOSR_TRANSPORT: "{{ join "," $exposrTransport }}"
