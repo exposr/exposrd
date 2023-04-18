@@ -1,6 +1,6 @@
 registry?=exposr
-node_version=18.5.0
-node_image?=$(node_version)-alpine3.16
+node_version=18.15.0
+node_image?=$(node_version)-alpine3.17
 platforms?=linux/amd64,linux/arm64,linux/arm/v7
 # Available build targets https://github.com/vercel/pkg-fetch
 pkg_linux_dist?=node$(node_version)-linuxstatic-arm64,node$(node_version)-linuxstatic-armv7,node$(node_version)-linuxstatic-x64
@@ -40,11 +40,11 @@ dist.clean:
 
 dist.linux.build:
 	yarn install --no-default-rc --frozen-lockfile
-	PKG_CACHE_PATH=.pkg-cache yarn run dist $(pkg_linux_dist)
+	PKG_CACHE_PATH=.pkg-cache yarn run dist linux $(pkg_linux_dist)
 
 dist.macos.build:
 	yarn install --no-default-rc --frozen-lockfile
-	PKG_CACHE_PATH=.pkg-cache yarn run dist $(pkg_macos_dist)
+	PKG_CACHE_PATH=.pkg-cache yarn run dist macos $(pkg_macos_dist)
 
 # Builder image
 builder.build:

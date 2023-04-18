@@ -39,10 +39,14 @@
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-json": "^6.0.0",
     "mocha": "^10.2.0",
-    "pkg": "^5.8.0",
+    "pkg": "^5.8.1",
+    "pkg-fetch": "^3.5.2",
     "rollup": "^3.18.0",
     "standard-version": "^9.3.2",
     "yaml": "^2.2.1"
+  },
+  "resolutions": {
+    "pkg-fetch": "3.5.2"
   },
   "scripts": {
     "prepack": "yarn run version && yarn run bundle",
