@@ -40,11 +40,11 @@ dist.clean:
 
 dist.linux.build:
 	yarn install --no-default-rc --frozen-lockfile
-	PKG_CACHE_PATH=.pkg-cache yarn run dist $(pkg_linux_dist)
+	PKG_CACHE_PATH=.pkg-cache yarn run dist linux $(pkg_linux_dist)
 
 dist.macos.build:
 	yarn install --no-default-rc --frozen-lockfile
-	PKG_CACHE_PATH=.pkg-cache yarn run dist $(pkg_macos_dist)
+	PKG_CACHE_PATH=.pkg-cache yarn run dist macos $(pkg_macos_dist)
 
 # Builder image
 builder.build:

@@ -2,7 +2,8 @@
 SCRIPTS=$(dirname "$0")
 ROOT=${SCRIPTS}/..
 
-targets=$1
+platform=$1
+targets=$2
 
 env="${ROOT}/build.env"
 if [ ! -f "${env}" ]; then
@@ -15,7 +16,7 @@ source ${env}
 yarn run pkg -d \
     --options 'no-warnings' \
     --public-packages 'node_modules/*' \
-    -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-linux \
+    -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-${platform} \
     -t ${targets} \
     exposr-server.cjs
 
