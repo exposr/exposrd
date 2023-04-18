@@ -354,6 +354,46 @@ describe('tunnel service', () => {
 
             await tunnelService.destroy();
         });
+
+        it(`local tunnels are periodically announced`, async () => {
+            const tunnelService = new TunnelService();
+            const bus = new EventBus();
+
+            const connected_at = Date.now();
+            for (let i = 0; i < tunnelService.tunnelAnnounceBatchSize * 1.5; i++) {
+                const tunnelId = crypto.randomBytes(20).toString('hex');
+                const connections = {};
+                const cid = `${tunnelId}-con-1`;
+                connections[cid] = {
+                    id: cid,
+                    state: {
+                        peer: "127.0.0.1",
+                        connected_at: connected_at,
+                    }
+                };
+                tunnelService.connectedTunnels[tunnelId] = {
+                    connections
+                }
+            }
+
+            const expectedAnnouncements = Math.ceil(Object.keys(tunnelService.connectedTunnels).length / tunnelService.tunnelAnnounceBatchSize);
+            let announcements = 0;
+            bus.on('tunnel:announce', (msg) => {
+                announcements++;
+            });
+
+            await clock.tickAsync(tunnelService.tunnelAnnounceInterval + 1000);
+            assert(announcements == expectedAnnouncements, `expected ${expectedAnnouncements} batch announcements, got ${announcements}`);
+
+            Object.keys(tunnelService.connectedTunnels).forEach((tunnelId) => {
+                const tunnel = tunnelService._tunnels.get(tunnelId);
+                assert(tunnel != undefined, `tunnel ${tunnelId} not learnt in the global state`);
+                assert(tunnel.connected == true, `tunnel ${tunnelId} not marked as connected in global state`);
+            });
+
+            await bus.destroy();
+            await tunnelService.destroy();
+        });
     });
 
     it(`can create new tunnel`, async () => {
@@ -416,7 +456,7 @@ describe('tunnel service', () => {
 
         const msg = new Promise((resolve) => {
             bus.once('tunnel:announce', (msg) => {
-                resolve(msg);
+                setImmediate(() => { resolve(msg) });
             })
         });
 

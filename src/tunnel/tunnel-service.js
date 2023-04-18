@@ -26,6 +26,7 @@ class TunnelService {
         TunnelService.instance = this;
 
         this.tunnelAnnounceInterval = 5000;
+        this.tunnelAnnounceBatchSize = 50;
         this.tunnelConnectionAliveThreshold = 15000;
         this.tunnelDeadSweepInterval = 1000;
         this.tunnelConnectionDeleteThreshold = 300 * 1000;
@@ -205,11 +206,13 @@ class TunnelService {
         };
 
         this.eventBus.on('tunnel:announce', (state, meta) => {
-            const tunnelId = state?.tunnel;
-            if (!tunnelId) {
-                return;
-            }
-            this._tunnels.learn(tunnelId, state.connections, meta)
+            const tunnelIds = Object.keys(state);
+            tunnelIds.forEach((tunnelId) => {
+                setImmediate(() => {
+                    const tunnel = state[tunnelId];
+                    this._tunnels.learn(tunnelId, tunnel.connections, meta)
+                });
+            });
         });
 
         this.eventBus.on('tunnel:disconnect', (message, meta) => {
@@ -219,11 +222,18 @@ class TunnelService {
             }
             this._closeTunnelConnection(tunnelId);
         });
+
+        const announceTunnels = async () => {
+            await this._announceTunnels();
+            this._announceTimer = setTimeout(announceTunnels, this.tunnelAnnounceInterval);
+        };
+        this._announceTimer = setTimeout(announceTunnels, this.tunnelAnnounceInterval);
     }
 
     async destroy() {
         if (--TunnelService.ref == 0) {
             this.destroyed = true;
+            clearTimeout(this._announceTimer);
             const tunnels = Object.keys(this.connectedTunnels).map(async (tunnelId) => {
                 const tunnel = await this.lookup(tunnelId);
                 return this._disconnect(tunnel);
@@ -437,9 +447,6 @@ class TunnelService {
             }
         };
         this.connectedTunnels[tunnelId] ??= {
-            announceTimer: setInterval(() => {
-                this._announceTunnel(tunnelId);
-            }, this.tunnelAnnounceInterval),
             connections: {}
         };
         this.connectedTunnels[tunnelId].connections[connection.id] = connection;
@@ -470,8 +477,8 @@ class TunnelService {
             return false;
         }
 
-        return this.eventBus.publish("tunnel:announce", {
-            tunnel: tunnelId,
+        const announce = {};
+        announce[tunnelId] = {
             connections: Object.keys(tunnel.connections).map((cid) => {
                 const c = tunnel.connections[cid];
                 return {
@@ -480,6 +487,51 @@ class TunnelService {
                     connected_at: c.state.connected_at,
                 };
             }),
+        };
+        return this.eventBus.publish("tunnel:announce", announce);
+    }
+
+    _announceTunnels() {
+        const tunnelIds = Object.keys(this.connectedTunnels);
+        const batchsize = this.tunnelAnnounceBatchSize;
+
+        return new Promise((resolve) => {
+            const processChunk = async () => {
+                const chunk = tunnelIds.splice(0, batchsize);
+
+                const tunnels = chunk.map((tunnelId) => {
+                    const tunnel = this.connectedTunnels[tunnelId];
+                    return {
+                        tunnel: tunnelId,
+                        connections: Object.keys(tunnel?.connections || {}).map((cid) => {
+                            const c = tunnel.connections[cid];
+                            return {
+                                id: cid,
+                                peer: c?.state?.peer,
+                                connected_at: c?.state?.connected_at,
+                            }
+                        })
+                    }
+                }).reduce((acc, cur) => {
+                    acc[cur.tunnel] = {
+                        connections: cur.connections
+                    }
+                    return acc;
+                }, {});
+
+                await this.eventBus.publish("tunnel:announce", tunnels);
+                if (tunnelIds.length > 0) {
+                    setImmediate(processChunk);
+                } else {
+                    resolve();
+                }
+            };
+
+            if (tunnelIds.length > 0) {
+                setImmediate(processChunk);
+            } else {
+                resolve();
+            }
         });
     }
 
@@ -520,8 +572,6 @@ class TunnelService {
         await this._announceTunnel(tunnelId);
 
         if (Object.keys(tunnel.connections).length == 0) {
-            clearInterval(tunnel.announceTimer);
-            delete tunnel.announceTimer;
             delete this.connectedTunnels[tunnelId];
         }
     }
