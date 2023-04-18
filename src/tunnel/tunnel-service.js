@@ -649,7 +649,7 @@ class TunnelService {
     }
 
     createConnection(tunnelId, ctx, callback) {
-        const next = this._tunnels.getNextConnection(tunnelId);
+        let next = this._tunnels.getNextConnection(tunnelId);
         if (!next) {
             return false;
         }
@@ -659,11 +659,26 @@ class TunnelService {
             return connection.transport.createConnection(ctx.opts, callback);
         }
 
-        return NodeSocket.createConnection({
-            tunnelId,
-            node: next.node,
-            port: ctx.ingress.port,
-        }, callback);
+        do {
+            const node = this._clusterService.getNode(next.node);
+            if (node && !next.local) {
+                this.logger.withContext('tunnel', tunnelId).debug({
+                    operation: 'connection-redirect',
+                    next: node.id,
+                    ip: node.ip,
+                    port: ctx.ingress.port,
+                });
+                return NodeSocket.createConnection({
+                    tunnelId,
+                    node,
+                    port: ctx.ingress.port,
+                }, callback);
+            }
+            const prev = next;
+            next = this._tunnels.getNextConnection(tunnelId);
+        } while (next != undefined && next.id != prev.id);
+
+        return false;
     }
 
 }
