@@ -95,7 +95,7 @@ describe('Cluster E2E', () => {
                 "--storage-redis-url", redisUrl, 
                 "--allow-registration",
                 "--ingress", "http",
-                "--ingress-http-domain", "http://localhost:8080",
+                "--ingress-http-url", "http://localhost:8080",
             ].concat(args), [
                 "-p", "8080:8080"
             ]);
@@ -106,7 +106,7 @@ describe('Cluster E2E', () => {
                 "--storage-redis-url", redisUrl, 
                 "--allow-registration",
                 "--ingress", "http",
-                "--ingress-http-domain", "http://localhost:8080",
+                "--ingress-http-url", "http://localhost:8080",
             ].concat(args));
 
             const echoServerTerminate = await createEchoServer();

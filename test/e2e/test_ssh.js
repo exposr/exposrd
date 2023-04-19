@@ -19,7 +19,7 @@ describe('SSH transport E2E', () => {
             "--allow-registration",
             "--transport", "ssh",
             "--ingress", "http",
-            "--ingress-http-domain", "http://localhost:8080"
+            "--ingress-http-url", "http://localhost:8080"
         ]);
         echoServerTerminator = await createEchoServer();
     });
