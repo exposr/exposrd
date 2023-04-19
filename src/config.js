@@ -20,7 +20,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
         .showHidden('show-hidden', 'Show hidden options')
         .group([
             'ingress',
-            'ingress-http-domain',
+            'ingress-http-url',
             'ingress-http-port',
             'ingress-sni-port',
             'ingress-sni-host',
@@ -33,10 +33,11 @@ const parse = (canonicalArgv, callback, args = {}) => {
             default: 'http',
             choices: ['http', 'sni'],
         })
-        .option('ingress-http-domain', {
+        .option('ingress-http-url', {
             type: 'string',
-            describe: 'Wildcard domain for HTTP ingress',
+            describe: 'Base URL to use for the HTTP ingress',
             example: 'https://tun.example.com creates https://<tunnel-id>.tun.example.com ingress points)',
+            default: args['ingress-http-domain'],
             required: args['ingress']?.includes('http'),
             coerce: (url) => {
                 return typeof url == 'string' ? new URL(url) : url;
@@ -326,12 +327,21 @@ const parse = (canonicalArgv, callback, args = {}) => {
             },
         })
         .group([
-            'redis-url'
+            'redis-url',
+            'ingress-http-domain'
         ], 'Deprecated options')
         .option('redis-url', {
             type: 'string',
             hidden: true,
             description: '[DEPRECATED] Redis connection URL. Use --storage-redis-url and/or --cluster-redis-url',
+            coerce: (url) => {
+                return typeof url == 'string' ? new URL(url) : url;
+            },
+        })
+        .option('ingress-http-domain', {
+            type: 'string',
+            hidden: true,
+            describe: '[DEPRECATED] Use --ingress-http-url instead',
             coerce: (url) => {
                 return typeof url == 'string' ? new URL(url) : url;
             },

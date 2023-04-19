@@ -15,7 +15,7 @@ describe('API test', () => {
             "--admin-enable",
             "--allow-registration",
             "--ingress", "http",
-            "--ingress-http-domain", "http://localhost:8080"
+            "--ingress-http-url", "http://localhost:8080"
         ]);
     });
 

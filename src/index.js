@@ -95,7 +95,7 @@ export default async (argv) => {
                 http: {
                     enabled: config.get('ingress').includes('http'),
                     port: config.get('ingress-http-port'),
-                    subdomainUrl: config.get('ingress-http-domain')
+                    subdomainUrl: config.get('ingress-http-url')
                 },
                 sni: {
                     enabled: config.get('ingress').includes('sni'),
