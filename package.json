@@ -44,7 +44,7 @@
     "rollup": "^3.18.0",
     "sinon": "^15.0.3",
     "standard-version": "^9.3.2",
-    "yaml": "^2.2.1"
+    "yaml": "^2.2.2"
   },
   "resolutions": {
     "pkg-fetch": "3.5.2"
