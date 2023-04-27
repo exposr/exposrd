@@ -117,6 +117,7 @@ export default async (argv) => {
                 callback: (err) => {
                     err ? reject(err) : resolve(transport);
                 },
+                max_connections: config.get('transport-max-connections'),
                 ws: {
                   enabled: config.get('transport').includes('ws'),
                   baseUrl: config.get('api-url'),

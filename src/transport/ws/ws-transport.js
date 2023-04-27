@@ -31,7 +31,7 @@ class WebSocketTransport extends Transport {
     }
 
     constructor(opts) {
-        super();
+        super(opts);
         this._socket = opts.socket;
         assert(this._socket !== undefined);
         this._tunnelId = opts.tunnelId;
@@ -295,7 +295,7 @@ class WebSocketTransport extends Transport {
         const self = this;
         const sock = new WebSocketTransportSocket({
             ...opts,
-            open: async (sock, timeout, cb) => { return this._openChannel(sock, timeout, cb); },
+            open: async (sock, timeout, cb) => { return this._openChannel(sock, timeout, cb); },
             close: (sock, cb) => { return this._closeChannel(sock, cb); },
             send: (sock, chunk, cb) => { return this._send(sock, chunk, cb); },
             pause: (sock, cb) => { return this._pauseRemoteChannel(sock, cb); },

@@ -4,9 +4,7 @@ import { WebSocketServer } from 'ws';
 import Listener from '../../listener/index.js';
 import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
-import Tunnel from '../../tunnel/tunnel.js';
 import {
-    ERROR_TUNNEL_ALREADY_CONNECTED,
     ERROR_TUNNEL_TRANSPORT_CON_TIMEOUT
 } from '../../utils/errors.js';
 import WebSocketTransport from './ws-transport.js';
@@ -143,14 +141,6 @@ class WebSocketEndpoint {
 
         const {tunnel, account} = authResult;
 
-        if (tunnel.state().connected) {
-            return this._rawHttpResponse(sock, req, {
-                status: 503,
-                statusLine: 'Service unavailable',
-                body: JSON.stringify({error: ERROR_TUNNEL_ALREADY_CONNECTED}),
-            });
-        }
-
         const timeout = setTimeout(() => {
             this.logger.withContext("tunnel", tunnelId).debug(`HTTP upgrade on websocket timeout`);
             this._rawHttpResponse(sock, req, {
@@ -164,6 +154,7 @@ class WebSocketEndpoint {
             clearTimeout(timeout);
             const transport = new WebSocketTransport({
                 tunnelId: tunnel.id,
+                max_connections: this.opts.max_connections,
                 socket: ws,
             })
             const res = await this.tunnelService.connect(tunnel.id, account.id, transport, {

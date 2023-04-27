@@ -428,12 +428,14 @@ class TunnelService {
             return false;
         }
 
-        if (tunnel.state().connected) {
+        if (tunnel.state().connections.length >= transport.max_connections) {
             this.logger
                 .withContext('tunnel',tunnelId)
-                .error({
+                .info({
+                    message: `Refused transport connection, current connections ${tunnel.state().connections.length}, max connections ${transport.max_connections}`,
                     operation: 'connect_tunnel',
-                    msg: "Transport already connected",
+                    connections: tunnel.state().connections.length,
+                    max_connections: transport.max_connections,
                 });
             return false;
         }

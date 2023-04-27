@@ -98,20 +98,22 @@ class ApiController extends KoaController {
                 id: tunnel.id,
                 connection: {
                     connected: tunnel.state().connected,
+                    connections: tunnel.state().connections.length || 0,
                     peer: tunnel.state().peer,
                     connected_at: tunnel.state().connected_at,
                     disconnected_at: tunnel.state().disconnected_at,
                     alive_at: tunnel.state().alive_at,
                 },
-                transport: {},
+                transport: {
+                    max_connections: tunnel.transport.max_connections,
+                    ...this.transportService.getTransports(tunnel, baseUrl)
+                },
                 ingress: {},
                 target: {
                     url: tunnel.target.url,
                 },
                 created_at: tunnel.created_at,
             };
-
-            info.transport = this.transportService.getTransports(tunnel, baseUrl);
 
             Object.keys(tunnel.ingress).forEach((k) => {
                 const ingress = tunnel.ingress[k];

@@ -9,7 +9,7 @@ import Transport from '../transport.js';
 
 class SSHTransport extends Transport {
     constructor(opts) {
-        super();
+        super(opts);
 
         this.logger = Logger("ssh-transport");
         this._tunnelService = new TunnelService();
