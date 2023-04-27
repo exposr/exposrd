@@ -30,11 +30,12 @@ class RedisLock {
                     });
                 });
                 this.redlock = new Redlock([redis], {
-                    retryCount: -1,
+                    retryDelay: 200,
+                    retryCount: 25,
                 });
 
-                this.redlock.on("error", (err) => {
-                    this.logger.error({
+                this.redlock.on("clientError", (err) => {
+                    this.logger.debug({
                         operation: 'redlock',
                         message: `redis redlock error: ${err.message}`,
                         stack: err.stack,
@@ -47,15 +48,12 @@ class RedisLock {
 
     async destroy() {
         this.destroyed = true;
-        return this.redlock.quit()
+        return this._redisClient.disconnect()
             .catch((err) => {
                 this.logger.error({
                     operation: 'redlock',
-                    message: `failed to quit redlock: ${err.message}`,
+                    message: `failed to disconnect redlock: ${err.message}`,
                 });
-            })
-            .finally(() => {
-                return this._redisClient.quit();
             });
     }
 
