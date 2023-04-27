@@ -444,7 +444,7 @@ class TunnelService {
         }
 
         const connection = {
-            id: `${Node.identifier}-${crypto.randomUUID()}`,
+            id: `${Node.identifier}:${crypto.randomUUID()}`,
             transport,
             state: {
                 peer: opts.peer,
