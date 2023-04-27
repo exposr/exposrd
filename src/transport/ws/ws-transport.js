@@ -340,7 +340,7 @@ class WebSocketTransport extends Transport {
         this._eventBus.removeAllListeners('connect');
     }
 
-    destroy() {
+    async destroy() {
         if (this.destroyed) {
             return;
         }
@@ -351,12 +351,11 @@ class WebSocketTransport extends Transport {
         });
         this._keepAlive && clearInterval(this._keepAlive);
         this._keepAlive = false;
+        this._socket.close(1000, "Connection closed");
+        this._socket.removeAllListeners();
         this._eventBus.removeAllListeners('connect');
         this._socketStream.removeAllListeners('data');
         this._socketStream.destroy();
-        this._socket.removeAllListeners('close');
-        this._socket.removeAllListeners('pong');
-        this._socket.close();
         this.destroyed = true;
         this.emit('close');
     }

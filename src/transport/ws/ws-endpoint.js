@@ -57,7 +57,7 @@ class WebSocketEndpoint {
         this.destroyed = true;
         this.httpListener.removeHandler('upgrade', this._upgradeHandler);
         this.wss.clients.forEach((client) => {
-            client.close();
+            client.close(1001, "Server shutting down");
         });
         return Promise.allSettled([
             this.tunnelService.destroy(),
@@ -167,6 +167,7 @@ class WebSocketEndpoint {
                         operation: 'upgrade',
                         msg: 'failed to connect transport'
                     });
+                ws.close(1008, "unable to establish tunnel");
                 transport.destroy();
             }
         });

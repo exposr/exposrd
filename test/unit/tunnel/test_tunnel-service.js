@@ -448,7 +448,7 @@ describe('tunnel service', () => {
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
 
         const [sock1, sock2] = socketPair();
-        sock1.close = sock1.destroy;
+        sock1.close = (code, reason) => { sock1.destroy() };
         const transport = new WebSocketTransport({
             tunnelId: tunnelId,
             socket: sock1,
