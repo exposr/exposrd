@@ -153,6 +153,7 @@ class SSHEndpoint {
             const transport = new SSHTransport({
                 tunnelId: tunnel.id,
                 target: tunnel.target.url,
+                max_connections: this.opts.max_connections,
                 client,
             });
             const res = await this.tunnelService.connect(tunnel.id, account.id, transport, { peer: info.ip });

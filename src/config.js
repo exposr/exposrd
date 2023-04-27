@@ -71,6 +71,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
         })
         .group([
             'transport',
+            'transport-max-connections',
             'transport-ws-port',
             'transport-ssh-port',
             'transport-ssh-host',
@@ -84,6 +85,11 @@ const parse = (canonicalArgv, callback, args = {}) => {
             coerce: (v) => {
                 return typeof v === 'string' ? v.split(',') : v;
             }
+        })
+        .option('transport-max-connections', {
+            type: 'integer',
+            describe: 'Maximum number of client transport connections per tunnel',
+            default: 2,
         })
         .option('transport-ssh-port', {
             type: 'integer',

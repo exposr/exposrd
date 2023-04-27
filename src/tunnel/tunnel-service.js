@@ -161,8 +161,11 @@ class TunnelService {
                     .filter(con => con.alive)
                     .map((con => {
                         return {
+                            connection_id: con.id,
+                            node_id: con.node,
                             peer: con.peer,
-                            connected_at: con.connected_at,
+                            alive_at: con.alive_at ? new Date(con.alive_at).toISOString() : undefined,
+                            connected_at: con.connected_at ? new Date(con.connected_at).toISOString() : undefined,
                         }
                     }));
 
@@ -220,7 +223,7 @@ class TunnelService {
             if (!tunnelId) {
                 return;
             }
-            this._closeTunnelConnection(tunnelId);
+            this._closeTunnelConnection(tunnelId, message.connection);
         });
 
         const announceTunnels = async () => {
@@ -428,18 +431,20 @@ class TunnelService {
             return false;
         }
 
-        if (tunnel.state().connected) {
+        if (tunnel.state().connections.length >= transport.max_connections) {
             this.logger
                 .withContext('tunnel',tunnelId)
-                .error({
+                .info({
+                    message: `Refused transport connection, current connections ${tunnel.state().connections.length}, max connections ${transport.max_connections}`,
                     operation: 'connect_tunnel',
-                    msg: "Transport already connected",
+                    connections: tunnel.state().connections.length,
+                    max_connections: transport.max_connections,
                 });
             return false;
         }
 
         const connection = {
-            id: `${Node.identifier}-${crypto.randomUUID()}`,
+            id: `${Node.identifier}:${crypto.randomUUID()}`,
             transport,
             state: {
                 peer: opts.peer,
@@ -576,7 +581,7 @@ class TunnelService {
         }
     }
 
-    async _disconnect(tunnel) {
+    async _disconnect(tunnel, connection) {
         assert(tunnel instanceof Tunnel);
         const tunnelId = tunnel.id;
 
@@ -594,7 +599,8 @@ class TunnelService {
             });
 
         this._eventBus.publish('tunnel:disconnect', {
-            tunnel: tunnelId
+            tunnel: tunnelId,
+            connection
         });
 
         await Promise.allSettled(announces);

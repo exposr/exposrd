@@ -220,9 +220,9 @@ describe('tunnel service', () => {
             assert(xstate.alive_at == new Date(alive_at).toISOString(), "wrong alive_at");
             assert(xstate.connections.length == 2, "unexpected number of connections");
             assert(xstate.connections[0].peer == "127.0.0.1", "unexpected connection peer");
-            assert(xstate.connections[0].connected_at == connected_at, "unexpected connection connected_at");
+            assert(xstate.connections[0].connected_at == new Date(connected_at).toISOString(), "unexpected connection connected_at");
             assert(xstate.connections[1].peer == "127.0.0.2", "unexpected connection peer");
-            assert(xstate.connections[1].connected_at == connected_at + 50, "unexpected connection connected_at");
+            assert(xstate.connections[1].connected_at == new Date(connected_at + 50).toISOString(), "unexpected connection connected_at");
 
             await tunnelService.destroy();
         });
@@ -448,7 +448,7 @@ describe('tunnel service', () => {
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
 
         const [sock1, sock2] = socketPair();
-        sock1.close = sock1.destroy;
+        sock1.close = (code, reason) => { sock1.destroy() };
         const transport = new WebSocketTransport({
             tunnelId: tunnelId,
             socket: sock1,

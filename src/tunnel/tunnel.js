@@ -7,6 +7,7 @@ class Tunnel {
         this.account = account;
         this.transport = {
             token: undefined,
+            max_connections: undefined,
             ws: {
                 enabled: false,
             },

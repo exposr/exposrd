@@ -133,6 +133,7 @@ class AdminApiController extends KoaController {
                     disconnected_at: tunnel.state().disconnected_at,
                     alive_at: tunnel.state().alive_at,
                 },
+                connections: tunnel.state().connections,
                 created_at: tunnel.created_at,
                 updated_at: tunnel.updated_at,
             }
@@ -290,6 +291,33 @@ class AdminApiController extends KoaController {
                     };
                 } else {
                     ctx.status = 204;
+                }
+            }]
+        });
+
+        router.route({
+            method: 'post',
+            path: '/v1/admin/tunnel/:tunnel_id/disconnect/:connection_id?',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
+                    connection_id: Router.Joi.string().optional()
+                }
+            },
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
+                const tunnel = await this._tunnelService._get(ctx.params.tunnel_id);
+                if (!tunnel) {
+                    ctx.body = {
+                        error: ERROR_TUNNEL_NOT_FOUND,
+                    };
+                } else {
+                    const res = await this._tunnelService._disconnect(tunnel, ctx.params.connection_id);
+                    ctx.status = 200;
+                    ctx.body = {
+                        result: res
+                    }
                 }
             }]
         });
