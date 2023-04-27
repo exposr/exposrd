@@ -296,6 +296,33 @@ class AdminApiController extends KoaController {
         });
 
         router.route({
+            method: 'post',
+            path: '/v1/admin/tunnel/:tunnel_id/disconnect/:connection_id?',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+                params: {
+                    tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
+                    connection_id: Router.Joi.string().optional()
+                }
+            },
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
+                const tunnel = await this._tunnelService._get(ctx.params.tunnel_id);
+                if (!tunnel) {
+                    ctx.body = {
+                        error: ERROR_TUNNEL_NOT_FOUND,
+                    };
+                } else {
+                    const res = await this._tunnelService._disconnect(tunnel, ctx.params.connection_id);
+                    ctx.status = 200;
+                    ctx.body = {
+                        result: res
+                    }
+                }
+            }]
+        });
+
+        router.route({
             method: 'get',
             path: '/v1/admin/tunnel',
             validate: {

@@ -223,7 +223,7 @@ class TunnelService {
             if (!tunnelId) {
                 return;
             }
-            this._closeTunnelConnection(tunnelId);
+            this._closeTunnelConnection(tunnelId, message.connection);
         });
 
         const announceTunnels = async () => {
@@ -581,7 +581,7 @@ class TunnelService {
         }
     }
 
-    async _disconnect(tunnel) {
+    async _disconnect(tunnel, connection) {
         assert(tunnel instanceof Tunnel);
         const tunnelId = tunnel.id;
 
@@ -599,7 +599,8 @@ class TunnelService {
             });
 
         this._eventBus.publish('tunnel:disconnect', {
-            tunnel: tunnelId
+            tunnel: tunnelId,
+            connection
         });
 
         await Promise.allSettled(announces);
