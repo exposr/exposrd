@@ -161,8 +161,11 @@ class TunnelService {
                     .filter(con => con.alive)
                     .map((con => {
                         return {
+                            connection_id: con.id,
+                            node_id: con.node,
                             peer: con.peer,
-                            connected_at: con.connected_at,
+                            alive_at: con.alive_at ? new Date(con.alive_at).toISOString() : undefined,
+                            connected_at: con.connected_at ? new Date(con.connected_at).toISOString() : undefined,
                         }
                     }));
 

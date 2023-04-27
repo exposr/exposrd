@@ -133,6 +133,7 @@ class AdminApiController extends KoaController {
                     disconnected_at: tunnel.state().disconnected_at,
                     alive_at: tunnel.state().alive_at,
                 },
+                connections: tunnel.state().connections,
                 created_at: tunnel.created_at,
                 updated_at: tunnel.updated_at,
             }
