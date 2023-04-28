@@ -229,6 +229,25 @@ describe('cluster service', () => {
             await bus.destroy();
         });
 
+        it(`are not marked stale when heartbeat is received`, async () => {
+            const spy = sinon.spy(ClusterService.prototype, "_staleNode");
+            const bus = new EventBus();
+
+            await publish(bus, 'cluster:heartbeat', {});
+
+            let node = clusterservice.getNode(sendingNode);
+            assert(node?.id == sendingNode, "node not learnt");
+
+            await clock.tickAsync(clusterservice._staleTimeout / 2);
+            await publish(bus, 'cluster:heartbeat', {});
+
+            await clock.tickAsync((clusterservice._staleTimeout / 2) + 1);
+
+            assert(spy.calledOnce == false, "_staleNode called");
+            await bus.destroy();
+        });
+
+
         it(`are deleted after removal timeout`, async () => {
             const spy = sinon.spy(ClusterService.prototype, "_forgetNode");
             const bus = new EventBus();

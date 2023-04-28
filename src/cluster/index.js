@@ -103,6 +103,11 @@ class ClusterService {
                 message: `learnt node ${node.id}`,
                 node,
             });
+        } else if (this._nodes[node.id]?.stale == true) {
+            this.logger.debug({
+                message: `node ${node.id} no longer marked as stale`,
+                node,
+            });
         }
 
         this._nodes[node.id] ??= {
@@ -118,7 +123,7 @@ class ClusterService {
             this._staleNode(node);
         }, this._staleTimeout);
 
-        this._nodes[node.id]._staleTimer = setTimeout(() => {
+        this._nodes[node.id]._removalTimer = setTimeout(() => {
             this._forgetNode(node);
         }, this._removalTimeout);
 
