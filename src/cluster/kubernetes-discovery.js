@@ -1,5 +1,5 @@
 import fs from 'fs';
-import dns from 'dns';
+import dns from 'dns/promises';
 import { Logger } from '../logger.js';
 
 class KubernetesDiscovery {
@@ -42,22 +42,34 @@ class KubernetesDiscovery {
         if (this._cachedPeers && (Date.now() - this._cacheTime) < 1000) {
             return this._cachedPeers;
         }
-        const peers = await this._resolvePeers();
-        this._cachedPeers = peers;
-        this._cacheTime = Date.now();
+        const peers = await this._resolvePeers()
+            .then((p) => {
+                this._cachedPeers = p;
+                this._cacheTime = Date.now();
+                return p;
+            })
+            .catch((err) => {
+                this.logger.warn({
+                    message: `failed to resolve ${this._serviceHost}: ${err.message}`
+                });
+                return [];
+            });
         return peers;
     }
 
-    _resolvePeers() {
-        return new Promise((resolve, reject) => {
-            dns.resolve4(this._serviceHost, (err, addresses) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-
-                resolve(addresses);
-            });
+    async _resolvePeers() {
+        return Promise.allSettled([
+            dns.resolve4(this._serviceHost),
+            dns.resolve6(this._serviceHost)
+        ]).then((results) => {
+            const [result4, result6] = results;
+            if (result4.status == 'fulfilled' && result4.value?.length > 0) {
+                return result4.value;
+            } else if (result6.status == 'fulfilled' && result6.value?.length > 0) {
+                return result6.value;
+            } else {
+                throw result4?.reason || result6?.reason || new Error('unknown');
+            }
         });
     }
 }
