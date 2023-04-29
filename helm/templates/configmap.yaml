@@ -60,6 +60,9 @@ data:
   EXPOSR_INGRESS_SNI_KEY: "/etc/exposr/ingress/sni/cert/tls.key"
 {{- end }}
 {{- end }}
+{{- if .Values.exposr.transport.maxConnections }}
+  EXPOSR_TRANSPORT_MAX_CONNECTIONS: "{{ .Values.exposr.transport.maxConnections }}"
+{{- end }}
 {{- if eq .Values.exposr.transport.ssh.enabled true }}
   EXPOSR_TRANSPORT_SSH_PORT: "{{ .Values.exposr.transport.ssh.port }}"
 {{- if .Values.exposr.transport.ssh.host }}
