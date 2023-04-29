@@ -23,6 +23,17 @@ describe('UDP eventbus', () => {
         });
     };
 
+    const createUdpEventBus = async (opts = {}) => {
+        return new Promise((resolve, reject) => {
+            const res = new UdpEventBus({
+                ...opts,
+                handler: () => {},
+                callback: (err) => { err ? reject(err) : resolve(res); }
+            });
+        });
+
+    };
+
     describe('peer discovery method selection', () => {
         let config;
 
@@ -35,7 +46,7 @@ describe('UDP eventbus', () => {
         });
 
         it('selects multicast if no other is eligible', async () => {
-            const bus = new UdpEventBus({});
+            const bus = await createUdpEventBus();
 
             assert(bus._discoveryMethod instanceof MulticastDiscovery, "did not select multicast discovery method");
             await bus.destroy();
@@ -43,7 +54,7 @@ describe('UDP eventbus', () => {
 
         it('selects kubernetes if eligible', async () => {
             sinon.stub(fs, 'existsSync').withArgs('/var/run/secrets/kubernetes.io/serviceaccount/namespace').returns(true);
-            const bus = new UdpEventBus({});
+            const bus = await createUdpEventBus();
 
             assert(bus._discoveryMethod instanceof KubernetesDiscovery, "did not select kubernetes discovery method");
             await bus.destroy();
@@ -52,7 +63,9 @@ describe('UDP eventbus', () => {
 
         it('selects multicast if forced', async () => {
             sinon.stub(fs, 'existsSync').withArgs('/var/run/secrets/kubernetes.io/serviceaccount/namespace').returns(true);
-            const bus = new UdpEventBus({discoveryMethod: 'multicast'});
+            const bus = await createUdpEventBus({
+                discoveryMethod: 'multicast',
+            });
 
             assert(bus._discoveryMethod instanceof MulticastDiscovery, "did not select multicast discovery method");
             await bus.destroy();
@@ -61,7 +74,9 @@ describe('UDP eventbus', () => {
 
         it('selects kubernetes if forced', async () => {
             sinon.stub(fs, 'existsSync').withArgs('/var/run/secrets/kubernetes.io/serviceaccount/namespace').returns(true);
-            const bus = new UdpEventBus({discoveryMethod: 'kubernetes'});
+            const bus = await createUdpEventBus({
+                discoveryMethod: 'kubernetes',
+            });
 
             assert(bus._discoveryMethod instanceof KubernetesDiscovery, "did not select kubernetes discovery method");
             await bus.destroy();
@@ -73,7 +88,9 @@ describe('UDP eventbus', () => {
 
             let exceptionThrown = false;
             try {
-                const bus = new UdpEventBus({discoveryMethod: 'kubernetes'});
+                const bus = await createUdpEventBus({
+                    discoveryMethod: 'kubernetes',
+                });
                 await bus.destroy();
             } catch (e) {
                 exceptionThrown = e;

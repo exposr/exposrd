@@ -34,6 +34,12 @@ class MulticastDiscovery {
     }
 
     init(socket) {
+        if (!socket) {
+            this.logger.error({
+                message: `Unable to initialize multicast discovery, no IPv4 socket available`
+            });
+            return;
+        }
         socket.addMembership(this._multicastgroup);
         socket.setMulticastLoopback(true);
         this.logger.debug({
