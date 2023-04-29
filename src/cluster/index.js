@@ -99,8 +99,13 @@ class ClusterService {
         clearTimeout(this._nodes[node.id]?._removalTimer);
 
         if (!this._nodes[node.id]) {
+            this.logger.info({
+                message: `Discovered peer node ${node.id}, host ${node.host} (${node.ip}), total peers ${Object.keys(this._nodes).length}`,
+                total_nodes: Object.keys(this._nodes).length + 1,
+            });
+        } else if (this._nodes[node.id]?.stale == true) {
             this.logger.debug({
-                message: `learnt node ${node.id}`,
+                message: `node ${node.id} no longer marked as stale`,
                 node,
             });
         }
@@ -118,17 +123,18 @@ class ClusterService {
             this._staleNode(node);
         }, this._staleTimeout);
 
-        this._nodes[node.id]._staleTimer = setTimeout(() => {
+        this._nodes[node.id]._removalTimer = setTimeout(() => {
             this._forgetNode(node);
         }, this._removalTimeout);
 
     }
 
     _forgetNode(node) {
-        this.logger.debug({
-            message: `deleting node ${node.id}`
-        });
         delete this._nodes[node.id];
+        this.logger.info({
+            message: `Node ${node.id} ${node.host} (${node.ip}) permanently removed from peer list`,
+            total_nodes: Object.keys(this._nodes).length,
+        });
     }
 
     _staleNode(node) {

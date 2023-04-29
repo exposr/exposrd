@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "exposr.fullname" . }}-headless
+  labels:
+    {{- include "exposr.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 1025
+      targetPort: cluster
+      protocol: UDP
+      name: cluster
+  selector:
+    {{- include "exposr.selectorLabels" . | nindent 4 }}

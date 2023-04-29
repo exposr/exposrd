@@ -1,5 +1,6 @@
 import assert from 'assert/strict';
 import dgram from 'dgram';
+import net from 'net';
 import { Logger } from '../logger.js';
 import MulticastDiscovery from './multicast-discovery.js';
 import KubernetesDiscovery from './kubernetes-discovery.js';
@@ -56,9 +57,9 @@ class UdpEventBus {
         }
 
         assert(this._discoveryMethod != undefined);
+        assert(opts.handler != undefined);
 
-        this._socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-        this._socket.on('message', (data, rinfo) => {
+        const onMessage = (data, rinfo) => {
             if (data.length <= 5) {
                 return;
             }
@@ -71,32 +72,71 @@ class UdpEventBus {
             }
 
             opts.handler(msg.toString('utf-8'));
-        });
-
-        const connectError = (err) => {
-            this._socket.close();
-            typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
         };
 
-        this._socket.once('error', connectError);
-        this._socket.bind(this._port, () => {
-            this._discoveryMethod.init(this._socket);
+        const createSocket = (type) => {
+            return new Promise((resolve, reject) => {
+                const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+                sock.on('message', onMessage);
+
+                const connectError = (err) => {
+                    sock.close();
+                    reject(err);
+                };
+
+                sock.once('error', connectError);
+                sock.bind(this._port, () => {
+                    sock.removeListener('error', connectError);
+                    resolve(sock);
+                });
+            })
+        };
+
+        Promise.allSettled([
+            createSocket('udp4'),
+            createSocket('udp6')
+        ]).then((results) => {
+            const [result4, result6] = results;
+
+            let mode = '';
+            if (result4.status == 'fulfilled') {
+                this._socket = result4.value;
+                mode += 'IPv4';
+            }
+            if (result6.status == 'fulfilled') {
+                this._socket6 = result6.value;
+                mode += `${mode != '' ? '/' : ''}IPv6`;
+            }
+            if (!this._socket && !this._socket6) {
+                typeof opts.callback === 'function' && process.nextTick(() => { opts.callback(result4.reason) });
+                return;
+            }
+
+            this._discoveryMethod.init(this._socket, this._socket6);
             this.logger.info({
-                message: `Using peer discovery method: ${this._discoveryMethod.name}`,
+                message: `Cluster interface on ${this._port} (${mode}) using discovery method ${this._discoveryMethod.name}`,
             });
-            this._socket.removeListener('error', connectError);
             typeof opts.callback === 'function' && process.nextTick(opts.callback);
         });
     }
 
     async destroy() {
-        return new Promise((resolve, reject) => {
-            if (this._socket) {
-                this._socket.close(resolve);
-            } else {
-                resolve();
-            }
-        });
+        return Promise.allSettled([
+            new Promise((resolve, reject) => {
+                if (this._socket) {
+                    this._socket.close(resolve);
+                } else {
+                    resolve();
+                }
+            }),
+            new Promise((resolve, reject) => {
+                if (this._socket6) {
+                    this._socket6.close(resolve);
+                } else {
+                    resolve();
+                }
+            })
+        ])
     }
 
     async publish(message) {
@@ -109,7 +149,13 @@ class UdpEventBus {
 
         const promises = this._receivers.map((receiver) => {
             return new Promise((resolve, reject) => {
-                this._socket.send([header, message], this._port, receiver, (err) => {
+                const sock = net.isIPv6(receiver) ? this._socket6 : this._socket;
+                if (!sock) {
+                    this.logger.error({
+                        message: `Unable to send message to ${receiver}, no socket of correct family available`
+                    });
+                }
+                sock?.send([header, message], this._port, receiver, (err) => {
                     if (err) {
                         reject(err);
                     } else {

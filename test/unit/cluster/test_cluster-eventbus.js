@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 import sinon from 'sinon';
 import dgram from 'dgram';
-import dns from 'dns';
+import dns from 'dns/promises';
 import fs from 'fs';
 import ClusterService from "../../../src/cluster/index.js";
 import EventBus from "../../../src/cluster/eventbus.js";
@@ -23,6 +23,17 @@ describe('UDP eventbus', () => {
         });
     };
 
+    const createUdpEventBus = async (opts = {}) => {
+        return new Promise((resolve, reject) => {
+            const res = new UdpEventBus({
+                ...opts,
+                handler: () => {},
+                callback: (err) => { err ? reject(err) : resolve(res); }
+            });
+        });
+
+    };
+
     describe('peer discovery method selection', () => {
         let config;
 
@@ -35,7 +46,7 @@ describe('UDP eventbus', () => {
         });
 
         it('selects multicast if no other is eligible', async () => {
-            const bus = new UdpEventBus({});
+            const bus = await createUdpEventBus();
 
             assert(bus._discoveryMethod instanceof MulticastDiscovery, "did not select multicast discovery method");
             await bus.destroy();
@@ -43,7 +54,7 @@ describe('UDP eventbus', () => {
 
         it('selects kubernetes if eligible', async () => {
             sinon.stub(fs, 'existsSync').withArgs('/var/run/secrets/kubernetes.io/serviceaccount/namespace').returns(true);
-            const bus = new UdpEventBus({});
+            const bus = await createUdpEventBus();
 
             assert(bus._discoveryMethod instanceof KubernetesDiscovery, "did not select kubernetes discovery method");
             await bus.destroy();
@@ -52,7 +63,9 @@ describe('UDP eventbus', () => {
 
         it('selects multicast if forced', async () => {
             sinon.stub(fs, 'existsSync').withArgs('/var/run/secrets/kubernetes.io/serviceaccount/namespace').returns(true);
-            const bus = new UdpEventBus({discoveryMethod: 'multicast'});
+            const bus = await createUdpEventBus({
+                discoveryMethod: 'multicast',
+            });
 
             assert(bus._discoveryMethod instanceof MulticastDiscovery, "did not select multicast discovery method");
             await bus.destroy();
@@ -61,7 +74,9 @@ describe('UDP eventbus', () => {
 
         it('selects kubernetes if forced', async () => {
             sinon.stub(fs, 'existsSync').withArgs('/var/run/secrets/kubernetes.io/serviceaccount/namespace').returns(true);
-            const bus = new UdpEventBus({discoveryMethod: 'kubernetes'});
+            const bus = await createUdpEventBus({
+                discoveryMethod: 'kubernetes',
+            });
 
             assert(bus._discoveryMethod instanceof KubernetesDiscovery, "did not select kubernetes discovery method");
             await bus.destroy();
@@ -73,7 +88,9 @@ describe('UDP eventbus', () => {
 
             let exceptionThrown = false;
             try {
-                const bus = new UdpEventBus({discoveryMethod: 'kubernetes'});
+                const bus = await createUdpEventBus({
+                    discoveryMethod: 'kubernetes',
+                });
                 await bus.destroy();
             } catch (e) {
                 exceptionThrown = e;
@@ -208,9 +225,7 @@ describe('UDP eventbus', () => {
             bus = new EventBus();
             sinon.stub(dns, 'resolve4')
                 .withArgs('exposr-headless.default.svc.cluster.local')
-                .callsFake((host, callback) => {
-                    callback(null, ['127.0.0.1']);
-                });
+                .resolves(["127.0.0.1"]);
 
             const waitmsg = new Promise((resolve) => {
                 bus.once('foo', (msg) => {
@@ -287,9 +302,7 @@ describe('UDP eventbus', () => {
 
             sinon.stub(dns, 'resolve4')
                 .withArgs('exposr-headless.default.svc.cluster.local')
-                .callsFake((host, callback) => {
-                    callback(null, ['127.0.0.1']);
-                });
+                .resolves(["127.0.0.1"]);
 
             const peers = await clusterservice._bus._discoveryMethod.getPeers();
             assert(peers[0] == "127.0.0.1", "did not get expected peer");
@@ -297,9 +310,7 @@ describe('UDP eventbus', () => {
             sinon.restore();
             sinon.stub(dns, 'resolve4')
                 .withArgs('exposr-headless.default.svc.cluster.local')
-                .callsFake((host, callback) => {
-                    callback(null, ['127.0.0.2']);
-                });
+                .resolves(["127.0.0.2"]);
 
             const peers2 = await clusterservice._bus._discoveryMethod.getPeers();
             assert(peers2[0] == "127.0.0.1", "did not get expected peer");
@@ -311,6 +322,104 @@ describe('UDP eventbus', () => {
             await clusterservice.destroy();
         });
 
-    });
+        it(`getPeers with no peers available returns empty list`, async () => {
+            const clusterservice = await createClusterService({
+                discoveryMethod: 'kubernetes'
+            });
 
+            sinon.stub(dns, 'resolve4')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .rejects(new Error('error'));
+
+            const peers = await clusterservice._bus._discoveryMethod.getPeers();
+            assert(peers?.length == 0, "expected empty list of peers");
+
+            sinon.restore();
+            await clusterservice.destroy();
+        });
+
+        it(`getPeers errors are not cached`, async () => {
+            const clusterservice = await createClusterService({
+                discoveryMethod: 'kubernetes'
+            });
+
+            sinon.stub(dns, 'resolve4')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .rejects(new Error('error'));
+
+            const peers = await clusterservice._bus._discoveryMethod.getPeers();
+            assert(peers?.length == 0, "expected empty list of peers");
+
+            sinon.restore();
+            sinon.stub(dns, 'resolve4')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .resolves(["127.0.0.1"]);
+
+            const peers2 = await clusterservice._bus._discoveryMethod.getPeers();
+            assert(peers2[0] == "127.0.0.1", "did not get expected peer");
+
+            sinon.restore();
+            await clusterservice.destroy();
+        });
+
+        it(`getPeers prefers IPv4`, async () => {
+            const clusterservice = await createClusterService({
+                discoveryMethod: 'kubernetes'
+            });
+
+            sinon.stub(dns, 'resolve4')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .resolves(["127.0.0.1"]);
+
+            sinon.stub(dns, 'resolve6')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .resolves(["fe80::11:22:ee:ff"]);
+
+            const peers = await clusterservice._bus._discoveryMethod.getPeers();
+            assert(peers[0] == "127.0.0.1", `did not get expected peer, got ${peers}`);
+
+            sinon.restore();
+            await clusterservice.destroy();
+        });
+
+        it(`getPeers handles IPv4 only`, async () => {
+            const clusterservice = await createClusterService({
+                discoveryMethod: 'kubernetes'
+            });
+
+            sinon.stub(dns, 'resolve4')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .resolves(["127.0.0.1"]);
+
+            sinon.stub(dns, 'resolve6')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .rejects(new Error('error'));
+
+            const peers = await clusterservice._bus._discoveryMethod.getPeers();
+            assert(peers[0] == "127.0.0.1", `did not get expected peer, got ${peers}`);
+
+            sinon.restore();
+            await clusterservice.destroy();
+        });
+
+        it(`getPeers handles IPv6 only`, async () => {
+            const clusterservice = await createClusterService({
+                discoveryMethod: 'kubernetes'
+            });
+
+            sinon.stub(dns, 'resolve4')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .rejects(new Error('error'));
+
+            sinon.stub(dns, 'resolve6')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .resolves(["fe80::11:22:ee:ff"]);
+
+            const peers = await clusterservice._bus._discoveryMethod.getPeers();
+            assert(peers[0] == "fe80::11:22:ee:ff", `did not get expected peer, got ${peers}`);
+
+            sinon.restore();
+            await clusterservice.destroy();
+        });
+    });
 });
