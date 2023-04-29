@@ -15,6 +15,7 @@ exposr:
     type: redis
     redis: {}
   transport:
+    maxConnections: 2
     ws:
       enabled: true
     ssh:
