@@ -41,7 +41,7 @@ data:
 {{- end }}
   EXPOSR_STORAGE: "{{ .Values.exposr.storage.type }}"
 {{- if eq .Values.exposr.storage.type "redis" }}
-{{- if eq .Values.exposr.storage.redis.url "redis" }}
+{{- if .Values.exposr.storage.redis.url }}
   EXPOSR_STORAGE_REDIS_URL: "{{ .Values.exposr.storage.redis.url }}"
 {{- end }}
 {{- end }}

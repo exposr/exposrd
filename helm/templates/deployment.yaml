@@ -28,6 +28,9 @@ spec:
           image: "{{ .Values.image.repository }}:v{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
+            - name: cluster
+              containerPort: 1025
+              protocol: UDP
             - name: http
               containerPort: 8080
               protocol: TCP
@@ -55,6 +58,17 @@ spec:
             mountPath: /etc/exposr/ingress/sni/cert
             readOnly: true
 {{- end }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: SERVICE_NAME
+              value: {{ include "exposr.fullname" . }}-headless
           livenessProbe:
             httpGet:
               path: /ping
