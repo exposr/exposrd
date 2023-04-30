@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.8.1](https://github.com/exposr/exposr-server/compare/v0.8.0...v0.8.1) (2023-04-30)
+
+
+### Bug Fixes
+
+* crash in cluster node socket destroy ([01500ee](https://github.com/exposr/exposr-server/commit/01500ee045423687b7b5c557d7b9712587690848))
+
 ## [0.8.0](https://github.com/exposr/exposr-server/compare/v0.7.1...v0.8.0) (2023-04-30)
 
 This release features a redesigned cluster support, notable changes include
