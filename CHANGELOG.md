@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.8.0](https://github.com/exposr/exposr-server/compare/v0.7.1...v0.8.0) (2023-04-30)
+
+This release features a redesigned cluster support, notable changes include
+ * In-memory eventually consistent tunnel state rather than using the storage layer.
+ * Possibility to use pub/sub with native UDP networking rather than through Redis.
+ * Cluster node discovery through IP multicast or K8S headless headless service.  
+
+This release also features **client multi-connection support for tunnels**
+
+Clients can have multiple connections open to the same tunnel with incoming traffic 
+load-balanced in round-robin between connections. Requires version >= 0.8.0 of the exposr client.
+
+### Features
+
+* add cluster support to helm chart ([445a5ba](https://github.com/exposr/exposr-server/commit/445a5bac5e520740db605d052a41323fdfa09c73))
+* add multicast UDP based eventbus ([8200add](https://github.com/exposr/exposr-server/commit/8200addccb68f555cf98f47d21d388e1fd2ce2fe))
+* add native kubernetes service peer discovery to the UDP eventbus ([ce10b72](https://github.com/exposr/exposr-server/commit/ce10b724c28895e963c668ad099736493309d6f5))
+* **admin-api:** add disconnect endpoint in tunnel admin api ([ae2cbc0](https://github.com/exposr/exposr-server/commit/ae2cbc0d482959a3031743920eb422af212a0927))
+* **admin-api:** return full connection details when reading tunnel info ([a30d029](https://github.com/exposr/exposr-server/commit/a30d029e04132832ec58bd42fc739aa47301c268))
+* allow HMAC cluster message signing key to be set on command line ([3e9085d](https://github.com/exposr/exposr-server/commit/3e9085d2cabafd2509f5ebedffcd90b6c99f7d27))
+* expose cluster/storage configuration on command line ([05f4bad](https://github.com/exposr/exposr-server/commit/05f4bad8b65cff48bce3016d3314295f16cb4768))
+* fully enable tunnel transport multi-connection support ([4746eda](https://github.com/exposr/exposr-server/commit/4746eda9a8af71ed1e0803b359b9e4f860648452))
+* **helm:** add maxConnection support to helm chart ([3104648](https://github.com/exposr/exposr-server/commit/31046489d855836de7d5b46dc6fbe8e52e7d70fd))
+* reject duplicated messages from peer cluster nodes ([d9a9899](https://github.com/exposr/exposr-server/commit/d9a98997048b287b4b9f50a6aa50d84d4191e51f))
+* sign messages emitted on cluster eventbus ([8e230d5](https://github.com/exposr/exposr-server/commit/8e230d5233f7faae6a3379786feebf2b419a028a))
+* support IPv6 in UDP clustering mode ([4cfbe43](https://github.com/exposr/exposr-server/commit/4cfbe43494109ee976d62308ace0b4a223243a04))
+* **ws:** send reason when closing a websocket transport connection ([6d8632a](https://github.com/exposr/exposr-server/commit/6d8632afb3c57eeb09f36322584138e737376054))
+
+
+### Bug Fixes
+
+* add cluster-udp-port to cluster config group ([15f6f1a](https://github.com/exposr/exposr-server/commit/15f6f1a3c700a1829fd08b102b1a7c0aa09d2aab))
+* better handling of DNS kubernetes peer discovery ([78b4732](https://github.com/exposr/exposr-server/commit/78b4732f8722fa0cd75383f38ca85321997a067b))
+* do not propagate redlock unlock rejections ([9d4db47](https://github.com/exposr/exposr-server/commit/9d4db478ff65eea6fa2d2b192d780b36585f3a32))
+* **redlock:** avoid error message on shutdown ([efb2459](https://github.com/exposr/exposr-server/commit/efb2459f0aaac5dcd390eeeddb7aac0252b29dd8))
+* rename the ingress-http-domain option to ingress-http-url ([a508b18](https://github.com/exposr/exposr-server/commit/a508b18959c28f893756f1e8c191c6e818a50efd))
+* stale timer was not properly cleared on received heartbeat ([319d294](https://github.com/exposr/exposr-server/commit/319d2947bda23dc241c4215bcf08b67410ab41da))
+* update helm chart to support k8s native clustering mode ([6a5d148](https://github.com/exposr/exposr-server/commit/6a5d1485c788f1645cba0751d65a9a0573f02807))
+
 ### [0.7.1](https://github.com/exposr/exposr-server/compare/v0.7.0...v0.7.1) (2023-03-16)
 
 
