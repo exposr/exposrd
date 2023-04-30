@@ -18,7 +18,6 @@ class NodeSocket extends Socket {
 
     async destroy() {
         super.destroy();
-        await this._clusterService.destroy();
     }
 
     static createConnection(opts, callback) {
