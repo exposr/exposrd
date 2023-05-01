@@ -25,7 +25,7 @@ describe('redis storage', () => {
 
     before(async () => {
         config = new Config();
-        return new Promise((resolve) => {
+        await new Promise((resolve) => {
             storageService = new StorageService('redis', {
                 redisUrl,
                 callback: (err) => err ? rejects(err) : resolve()

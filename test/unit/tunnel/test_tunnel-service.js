@@ -3,13 +3,12 @@ import crypto from 'crypto';
 import sinon from 'sinon';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
 import Config from '../../../src/config.js';
-import { StorageService } from '../../../src/storage/index.js';
 import ClusterService from '../../../src/cluster/index.js';
 import Ingress from '../../../src/ingress/index.js';
 import AccountService from '../../../src/account/account-service.js';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
-import { socketPair } from '../test-utils.js';
+import { initStorageService, socketPair } from '../test-utils.js';
 import EventBus from '../../../src/cluster/eventbus.js';
 
 describe('tunnel service', () => {
@@ -23,12 +22,12 @@ describe('tunnel service', () => {
     beforeEach(async () => {
         clock = sinon.useFakeTimers({shouldAdvanceTime: true, now: 10000});
         config = new Config();
-        storageservice = new StorageService('mem', {});
+        storageservice = await initStorageService();
         clusterservice = new ClusterService('mem', {});
 
         ingress = await new Promise((resolve, reject) => {
             const i = new Ingress({
-                callback: (e) => { 
+                callback: (e) => {
                     e ? reject(e) : resolve(i) },
                 http: {
                     enabled: true,

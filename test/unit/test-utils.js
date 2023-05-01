@@ -2,8 +2,12 @@ import ClusterService from "../../src/cluster/index.js";
 import { StorageService } from "../../src/storage/index.js";
 import { Duplex } from 'stream';
 
-export const initStorageService = () => {
-    return new StorageService('mem', {});
+export const initStorageService = async () => {
+    return new Promise((resolve) => {
+        const storage = new StorageService('mem', {
+            callback: () => { resolve(storage) }
+        });
+    });
 };
 
 export const initClusterService = () => {

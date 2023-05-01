@@ -16,29 +16,45 @@ class StorageService {
         StorageService.ref = 1;
         StorageService.instance = this;
 
-        const ready = (err) => {
-            typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
-        };
-
+        let clazz;
         switch (type) {
             case 'redis':
-                this._storage = new RedisStorageProvider({
-                    callback: ready,
-                    ...opts,
-                });
-                break;
+                clazz = RedisStorageProvider;
+               break;
             case 'none':
             case 'mem':
-                this._storage = new MemoryStorageProvider({
-                    callback: ready,
-                    ...opts,
-                });
+                clazz = MemoryStorageProvider;
                 break;
             default:
                 assert.fail(`Unknown storage ${type}`);
         }
 
-        this._lockService = new LockService(type, opts);
+        const ready = (err) => {
+            typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
+        };
+
+        Promise.all([
+            new Promise((resolve, reject) => {
+                const storage = new clazz({
+                    ...opts,
+                    callback: (err) => { err ? reject(err) : resolve(storage) },
+                });
+            }),
+            new Promise((resolve, reject) => {
+                const lock = new LockService(type, {
+                    ...opts,
+                    callback: (err) => { err ? reject(err) : resolve(lock) },
+                });
+            })
+        ]).catch(async (err) => {
+            await this.destroy();
+            ready(err);
+        }).then((results) => {
+            const [storage, lock] = results;
+            this._storage = storage;
+            this._lockService = lock;
+            ready();
+        });
     }
 
     getStorage() {
@@ -48,7 +64,7 @@ class StorageService {
 
     async destroy() {
         if (--StorageService.ref == 0) {
-            await Promise.allSettled([this._storage.destroy(), this._lockService.destroy()]);
+            await Promise.allSettled([this._storage?.destroy(), this._lockService?.destroy()]);
             this.destroyed = true;
             delete this._storage;
             delete StorageService.instance;
