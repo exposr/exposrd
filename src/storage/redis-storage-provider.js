@@ -1,9 +1,11 @@
 import assert from 'assert/strict';
 import Redis from 'redis';
 import { Logger } from '../logger.js';
+import StorageProvider from './storage-provider.js';
 
-class RedisStorageProvider {
+class RedisStorageProvider extends StorageProvider {
     constructor(opts) {
+        super();
         this.logger = Logger("redis-storage");
         const redisUrl = opts.redisUrl;
 
@@ -100,8 +102,12 @@ class RedisStorageProvider {
         });
     }
 
-    get(key) {
-        assert(key !== undefined);
+    async init(ns) {
+        return true;
+    }
+
+    get(ns, key) {
+        key = this.compound_key(ns, key);
 
         if (!this._client.isReady) {
             this.logger.error({
@@ -132,8 +138,8 @@ class RedisStorageProvider {
             });
     }
 
-    mget(keys) {
-        assert(keys !== undefined);
+    mget(ns, keys) {
+        keys = this.compound_key(ns, keys);
 
         if (!this._client.isReady) {
             this.logger.error({
@@ -164,9 +170,9 @@ class RedisStorageProvider {
             });
     }
 
-    set(key, data, opts = {}) {
-        assert(key !== undefined);
+    set(ns, key, data, opts = {}) {
         assert(data !== undefined);
+        key = this.compound_key(ns, key);
 
         if (!this._client.isReady) {
             this.logger.error({
@@ -208,8 +214,9 @@ class RedisStorageProvider {
             });
     };
 
-    delete(key) {
+    delete(ns, key) {
         assert(key !== undefined);
+        key = this.compound_key(ns, key);
 
         if (!this._client.isReady) {
             this.logger.error({

@@ -80,6 +80,7 @@ class Storage {
         this._storageService = new StorageService();
         this._lockService = new LockService();
         this._storage = this._storageService.getStorage();
+        this._storage.init(namespace);
     }
 
     async destroy() {
@@ -87,11 +88,6 @@ class Storage {
             this._storageService.destroy(),
             this._lockService.destroy()
         ];
-    }
-
-    _key(key) {
-        assert(key !== undefined);
-        return `${this.ns}:${key}`;
     }
 
     async read(key, clazz) {
@@ -109,7 +105,7 @@ class Storage {
     }
 
     async update(key, clazz, cb, opts = {}) {
-        const lock = await this._lockService.lock(this._key(key));
+        const lock = await this._lockService.lock(this._storage.compound_key(this.ns, key));
         if (!lock) {
             return false;
         }
@@ -165,11 +161,11 @@ class Storage {
     };
 
     async _get_one(key) {
-        return this._storage.get(this._key(key));
+        return this._storage.get(this.ns, key);
     };
 
     async _get_many(keys) {
-        return this._storage.mget(keys.map((k) => { return this._key(k); }));
+        return this._storage.mget(this.ns, keys);
     };
 
     async set(key, data, opts = {}) {
@@ -180,7 +176,7 @@ class Storage {
     // String on success
     // false on storage error
     async _set(key, data, opts) {
-        return this._storage.set(this._key(key), data, opts);
+        return this._storage.set(this.ns, key, data, opts);
     }
 
     // Returns
@@ -192,7 +188,7 @@ class Storage {
             key = this.key;
         }
         assert(key !== undefined);
-        return this._storage.delete(this._key(key));
+        return this._storage.delete(this.ns, key);
     };
 
     async list(state = undefined, count = 10) {

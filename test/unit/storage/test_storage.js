@@ -1,9 +1,9 @@
-import crypto from 'crypto';
 import assert from 'assert/strict';
-import Storage, { StorageService } from '../../../src/storage/index.js';
-import { setTimeout } from 'timers/promises';
-import { REDIS_URL } from '../../env.js';
+import crypto from 'crypto';
+import { initStorageService } from '../test-utils.js';
+import Storage from '../../../src/storage/index.js';
 import Config from '../../../src/config.js';
+import { setTimeout } from 'timers/promises';
 import Redis from 'redis';
 
 class Data {
@@ -19,20 +19,13 @@ class Data {
     }
 }
 
-describe('redis storage', () => {
-    const redisUrl = REDIS_URL;
+describe('storage service', () => {
     let storageService;
     let config;
 
-
     before(async () => {
         config = new Config();
-        await new Promise((resolve, reject) => {
-            storageService = new StorageService('redis', {
-                redisUrl,
-                callback: (err) => err ? reject(err) : resolve()
-            });
-        });
+        storageService = await initStorageService();
     });
 
     after(async () => {
@@ -40,7 +33,7 @@ describe('redis storage', () => {
         await config.destroy();
     });
 
-    it('redis storage basic set/get', async () => {
+    it('basic set/get', async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -52,7 +45,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it('redis storage key namespace', async () => {
+    it('storage key namespace', async () => {
         const storage = new Storage("test");
         const storage2 = new Storage("test2");
         const key = crypto.randomBytes(20).toString('hex');
@@ -66,25 +59,7 @@ describe('redis storage', () => {
         await storage2.destroy();
     });
 
-    it('redis storage keys are on the format "ns:key"', async () => {
-        const storage = new Storage("test");
-
-        const redis = Redis.createClient({
-            url: REDIS_URL,
-        });
-        await redis.connect();
-
-        const key = crypto.randomBytes(20).toString('hex');
-        await storage.set(key, {test: 1234});
-
-        const res = await redis.get(`test:${key}`);
-        assert(res == '{"test":1234}', `failed to read key from raw redis, got ${res}`);
-
-        await storage.destroy();
-        await redis.quit();
-    });
-
-    it('redis storage multi key get: all found', async () => {
+    it('storage multi key get: all found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -101,7 +76,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it('redis storage multi key get: one found', async () => {
+    it('storage multi key get: one found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -117,7 +92,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it('redis storage multi key get: none found', async () => {
+    it('storage multi key get: none found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -131,7 +106,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it('redis storage delete', async () => {
+    it('storage delete', async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -149,7 +124,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create/read`, async () => {
+    it(`storage create/read`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -168,7 +143,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage read not found`, async () => {
+    it(`storage read not found`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -178,7 +153,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create/read complex object`, async () => {
+    it(`storage create/read complex object`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -201,7 +176,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create exclusive`, async () => {
+    it(`storage create exclusive`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -215,7 +190,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create non-exclusive`, async () => {
+    it(`storage create non-exclusive`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -229,7 +204,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create/delete`, async () => {
+    it(`storage create/delete`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -246,7 +221,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage update`, async () => {
+    it(`storage update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -272,7 +247,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage concurrent update`, async () => {
+    it(`storage concurrent update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -282,26 +257,26 @@ describe('redis storage', () => {
 
         const update1 = storage.update(key, Data, async (data) => {
             await setTimeout(1000);
-            assert(data.foo == 1234);
+            assert(data.foo == 1234, `expected data.foo=1234, got ${data}`);
             data.foo = 42;
             return true;
         });
 
         await setTimeout(250);
         const update2 = storage.update(key, Data, async (data) => {
-            assert(data.foo == 42);
+            assert(data.foo == 42, `expected data.foo=42, got ${JSON.stringify(data)}`);
             data.foo++;
             return true;
         });
 
         await Promise.all([update1, update2]);
         res = await storage.read(key, Data);
-        assert(res.foo == 43, `expected 42, got ${JSON.stringify(res)}`);
+        assert(res.foo == 43, `expected 43, got ${JSON.stringify(res)}`);
 
         await storage.destroy();
     });
 
-    it(`redis storage long-running update`, async () => {
+    it(`storage long-running update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -322,7 +297,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage list`, async () => {
+    it(`storage list`, async () => {
         const keyPrefix = crypto.randomBytes(20).toString('hex');
         const storage = new Storage(keyPrefix);
 
