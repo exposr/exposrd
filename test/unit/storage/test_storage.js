@@ -309,7 +309,7 @@ describe('storage service', () => {
         }
 
         let result = 0;
-        let cursor = 0;
+        let cursor;
         while (true) {
             const res = await storage.list(cursor, 1);
             assert(res != undefined, "failed to list");
@@ -321,7 +321,7 @@ describe('storage service', () => {
                 result += keys.length;
             }
 
-            if (!cursor) {
+            if (cursor == null) {
                 break;
             }
         }

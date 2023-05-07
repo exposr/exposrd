@@ -84,10 +84,11 @@ class MemoryStorageProvider extends StorageProvider {
 
     async list(ns, cursor, count = 10) {
         cursor ??= 0;
-        const keys = Object.keys(this.db).filter((k) => k.startsWith(ns));
+        cursor = Number(cursor);
+        const keys = Object.keys(this.db).filter((k) => k.startsWith(ns)).map((k) => this.key_only(ns, k));
         const data = keys.slice(cursor, cursor + count);
         return {
-            cursor: data.length > 0 ? cursor + data.length : 0,
+            cursor: data.length > 0 ? String(cursor + data.length) : null,
             data,
         }
     }

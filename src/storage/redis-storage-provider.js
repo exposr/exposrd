@@ -261,6 +261,7 @@ class RedisStorageProvider extends StorageProvider {
             return undefined;
         }
 
+        cursor = Number(cursor);
         return this._client.scan(cursor, {
             MATCH: `${ns}*`,
             COUNT: count,
@@ -277,7 +278,7 @@ class RedisStorageProvider extends StorageProvider {
             return undefined;
         }).then((res) => {
             const nextCursor = res.cursor;
-            const keys = res.keys;
+            const keys = res.keys.map((k) => this.key_only(ns, k));
 
             this.logger.isTraceEnabled() && this.logger.trace({
                 operation: 'list',
@@ -288,7 +289,7 @@ class RedisStorageProvider extends StorageProvider {
             });
 
             return {
-                cursor: nextCursor,
+                cursor: nextCursor != 0 ? String(nextCursor) : null,
                 data: keys,
             }
         });

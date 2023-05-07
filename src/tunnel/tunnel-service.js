@@ -305,7 +305,7 @@ class TunnelService {
         return this._get(tunnelId);
     }
 
-    async list(cursor = 0, count = 10, verbose = false) {
+    async list(cursor, count = 10, verbose = false) {
         const res = await this._db.list(cursor, count);
         const data = verbose ? await this._get(res.data) : res.data.map((id) => { return {tunnel_id: id}; });
         return {

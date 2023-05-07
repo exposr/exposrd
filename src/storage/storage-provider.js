@@ -22,6 +22,10 @@ class StorageProvider {
         }
     }
 
+    key_only(ns, key) {
+        return key.slice(key.indexOf(ns) + ns.length + 1);
+    }
+
     async get(ns, key) {
         assert.fail("StorageProvider get not implemented");
     }

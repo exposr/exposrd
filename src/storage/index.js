@@ -1,8 +1,9 @@
 import assert from 'assert/strict';
 import LockService from '../lock/index.js';
+import Serializer from './serializer.js';
 import MemoryStorageProvider from './memory-storage-provider.js';
 import RedisStorageProvider from './redis-storage-provider.js';
-import Serializer from './serializer.js';
+import SqliteStorageProvider from './sqlite-storage-provider.js';
 
 class StorageService {
     constructor(type, opts) {
@@ -17,13 +18,20 @@ class StorageService {
         StorageService.instance = this;
 
         let clazz;
+        let locktype;
         switch (type) {
             case 'redis':
                 clazz = RedisStorageProvider;
-               break;
+                locktype = 'redis';
+                break;
+            case 'sqlite':
+                clazz = SqliteStorageProvider;
+                locktype = 'mem';
+                break;
             case 'none':
             case 'mem':
                 clazz = MemoryStorageProvider;
+                locktype = 'mem';
                 break;
             default:
                 assert.fail(`Unknown storage ${type}`);
@@ -41,7 +49,7 @@ class StorageService {
                 });
             }),
             new Promise((resolve, reject) => {
-                const lock = new LockService(type, {
+                const lock = new LockService(locktype, {
                     ...opts,
                     callback: (err) => { err ? reject(err) : resolve(lock) },
                 });
@@ -194,33 +202,28 @@ class Storage {
     async list(state = undefined, count = 10) {
         let data = [];
 
-        if (state?.data?.length > 0) {
-            data = state.data.slice(0, count);
-            state.data = state.data.slice(count);
+        if (state?.queue?.length > 0) {
             return {
-                cursor: state,
-                data
+                cursor: state.cursor,
+                queue: state.queue?.slice(count),
+                data: state.queue?.slice(0, count)
             }
         }
 
-        let cursor = state?.cursor;
+        let cursor = typeof state == 'string' ? state : state?.cursor;
+        cursor = cursor != undefined ? Buffer.from(cursor, 'base64url').toString('utf-8') : undefined;
         do {
             const requested = count - data.length;
-            const res = await this._storage.list(`${this.ns}:`, cursor, requested);
+            const res = await this._storage.list(this.ns, cursor, requested);
             cursor = res.cursor;
             data.push(...res.data);
-        } while (data.length < count && cursor != 0);
-
-        data = data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1));
-        state = {
-            cursor,
-            data: data.slice(count)
-        };
+        } while (data.length < count && cursor != null);
 
         return {
-            cursor: state.cursor > 0 || state.data.length > 0 ? state : null,
-            data: data.slice(0, count)
-        }
+            cursor: cursor ? Buffer.from(cursor).toString('base64url') : null,
+            queue: data.slice(count),
+            data: data.slice(0, count),
+        };
     }
 }
 

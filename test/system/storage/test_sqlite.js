@@ -1,10 +1,11 @@
-import crypto from 'crypto';
 import assert from 'assert/strict';
+import sinon from 'sinon';
+import crypto from 'crypto';
 import Storage, { StorageService } from '../../../src/storage/index.js';
 import { setTimeout } from 'timers/promises';
-import { REDIS_URL } from '../../env.js';
 import Config from '../../../src/config.js';
-import Redis from 'redis';
+import { rm } from 'fs/promises';
+import Sqlite from 'better-sqlite3';
 
 class Data {
     constructor(foo, bar) {
@@ -19,17 +20,18 @@ class Data {
     }
 }
 
-describe('redis storage', () => {
-    const redisUrl = REDIS_URL;
+describe('sqlite storage', () => {
+    const sqlitedb = "testdb.sqlite";
     let storageService;
     let config;
-
+    let clock;
 
     before(async () => {
         config = new Config();
+        clock = sinon.useFakeTimers({shouldAdvanceTime: true});
         await new Promise((resolve, reject) => {
-            storageService = new StorageService('redis', {
-                redisUrl,
+            storageService = new StorageService('sqlite', {
+                sqlitePath: sqlitedb,
                 callback: (err) => err ? reject(err) : resolve()
             });
         });
@@ -38,21 +40,36 @@ describe('redis storage', () => {
     after(async () => {
         await storageService.destroy();
         await config.destroy();
+        await rm(sqlitedb);
+        clock.restore();
+        sinon.restore();
     });
 
-    it('redis storage basic set/get', async () => {
+    it('sqlite storage basic set/get', async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         await storage.set(key, {test: 1234});
         const data = await storage.get(key);
 
-        assert(data.test == 1234, `set/get key=${key} got=${data}`);
+        assert(data?.test == 1234, `set/get key=${key} got=${data}`);
 
         await storage.destroy();
     });
 
-    it('redis storage key namespace', async () => {
+    it('sqlite storage basic set/get ns with special characters', async () => {
+        const storage = new Storage("test-namespace");
+        const key = crypto.randomBytes(20).toString('hex');
+
+        await storage.set(key, {test: 1234});
+        const data = await storage.get(key);
+
+        assert(data?.test == 1234, `set/get key=${key} got=${data}`);
+
+        await storage.destroy();
+    });
+
+    it('sqlite storage key namespace', async () => {
         const storage = new Storage("test");
         const storage2 = new Storage("test2");
         const key = crypto.randomBytes(20).toString('hex');
@@ -66,25 +83,7 @@ describe('redis storage', () => {
         await storage2.destroy();
     });
 
-    it('redis storage keys are on the format "ns:key"', async () => {
-        const storage = new Storage("test");
-
-        const redis = Redis.createClient({
-            url: REDIS_URL,
-        });
-        await redis.connect();
-
-        const key = crypto.randomBytes(20).toString('hex');
-        await storage.set(key, {test: 1234});
-
-        const res = await redis.get(`test:${key}`);
-        assert(res == '{"test":1234}', `failed to read key from raw redis, got ${res}`);
-
-        await storage.destroy();
-        await redis.quit();
-    });
-
-    it('redis storage multi key get: all found', async () => {
+    it('sqlite storage multi key get: all found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -101,7 +100,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it('redis storage multi key get: one found', async () => {
+    it('sqlite storage multi key get: one found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -117,7 +116,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it('redis storage multi key get: none found', async () => {
+    it('sqlite storage multi key get: none found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -131,7 +130,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it('redis storage delete', async () => {
+    it('sqlite storage delete', async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -149,7 +148,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create/read`, async () => {
+    it(`sqlite storage create/read`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -168,7 +167,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage read not found`, async () => {
+    it(`sqlite storage read not found`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -178,7 +177,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create/read complex object`, async () => {
+    it(`sqlite storage create/read complex object`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -201,7 +200,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create exclusive`, async () => {
+    it(`sqlite storage create exclusive`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -215,7 +214,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create non-exclusive`, async () => {
+    it(`sqlite storage create non-exclusive`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -229,7 +228,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create/delete`, async () => {
+    it(`sqlite storage create/delete`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -246,7 +245,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage update`, async () => {
+    it(`sqlite storage update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -272,7 +271,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage concurrent update`, async () => {
+    it(`sqlite storage concurrent update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -301,7 +300,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage long-running update`, async () => {
+    it(`sqlite storage long-running update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
@@ -322,7 +321,7 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage list`, async () => {
+    it(`sqlite storage list`, async () => {
         const keyPrefix = crypto.randomBytes(20).toString('hex');
         const storage = new Storage(keyPrefix);
 
@@ -351,6 +350,46 @@ describe('redis storage', () => {
         }
 
         assert(result == 10, `unexpected number of results, got ${result}`);
+        await storage.destroy();
+    });
+
+    it(`sqlite can auto-expire entries`, async () => {
+        const storage = new Storage("test");
+        const key = crypto.randomBytes(20).toString('hex');
+
+        const data = new Data(1234, "string")
+        let res = await storage.create(key, data, {TTL: 1});
+        assert(res instanceof Data, `unexpected create result ${res}`);
+
+        await clock.tickAsync(2000);
+
+        res = await storage.get(key);
+        assert(res == null, `storage returned expired entry, got ${res}`);
+
+        await storage.destroy();
+    });
+
+    it(`sqlite expired entries are removed from database`, async () => {
+        const storage = new Storage("test");
+        const key = crypto.randomBytes(20).toString('hex');
+
+        const data = new Data(1234, "string")
+        let res = await storage.create(key, data, {TTL: 1});
+        assert(res instanceof Data, `unexpected create result ${res}`);
+
+        await clock.tickAsync(2000);
+
+        res = await storage.get(key);
+        assert(res == null, `storage returned expired entry, got ${res}`);
+
+        await clock.tickAsync(storage._storage.expiryCleanInterval + 1000);
+
+        const db = new Sqlite(sqlitedb, { readonly: true });
+        const stm = db.prepare(`SELECT key FROM test WHERE key = ?`);
+        res = stm.get(key);
+        assert(res == undefined);
+
+        db.close();
         await storage.destroy();
     });
 
