@@ -2,7 +2,7 @@
 SCRIPTS=$(dirname "$0")
 ROOT=${SCRIPTS}/..
 ${SCRIPTS}/gen-build-env.sh > ${ROOT}/build.env
-source ${ROOT}/build.env
+. ${ROOT}/build.env
 export EXPOSR_BUILD_VERSION
 export EXPOSR_BUILD_GIT_BRANCH
 export EXPOSR_BUILD_GIT_COMMIT
