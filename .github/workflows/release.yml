@@ -76,22 +76,21 @@ jobs:
       - name: Extract package
         run:  |
             tar xvf exposr-server-*.tgz --strip-components=1
+            mkdir -p dist
+            mv exposr-server-*.tgz dist/
 
-      - name: Setup builder
-        run: make builder.build
-
-      - name: Build distribution
+      - name: Build binary dist files
         run:  |
-            make dist.linux.build.container
+            make dist.xbuild
 
       - name: Save artifacts
         uses: actions/upload-artifact@v3
         with:
           name: linux-dist
-          path: dist
+          path: dist/exposr-server-*-linux-*
           retention-days: 1
 
-      - name: Log in to Docker Hub
+      - name: Login to hub.docker.com
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -99,13 +98,13 @@ jobs:
 
       - name: Publish versioned container
         run:  |
-          make publish=true image.buildx
+          make publish=true image.xbuild
 
       - name: Publish latest container
         run: |
-          make image.buildx.latest
+          make image.xbuild.latest
 
-      - name: Log in to ghcr.io
+      - name: Login to ghcr.io
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
@@ -118,7 +117,7 @@ jobs:
 
       - name: Publish latest container to ghcr.io
         run: |
-          make registry=ghcr.io/exposr image.buildx.latest
+          make registry=ghcr.io/exposr image.xbuild.latest
 
   release:
     runs-on: ubuntu-latest

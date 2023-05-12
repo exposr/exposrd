@@ -1,5 +1,4 @@
 import assert from 'assert/strict';
-import { setTimeout } from 'timers/promises';
 import Config from '../../../src/config.js';
 import LockService, { Lock } from '../../../src/lock/index.js';
 import { REDIS_URL } from '../../env.js';

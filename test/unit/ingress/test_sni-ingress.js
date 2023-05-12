@@ -17,7 +17,7 @@ describe('sni ingress', () => {
 
     before(async () => {
         config = new Config();
-        storageService = initStorageService();
+        storageService = await initStorageService();
         clusterService = initClusterService();
         ingress = new Ingress({
             tunnelService,

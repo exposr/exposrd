@@ -38,7 +38,7 @@ describe('ssh endpoint', () => {
     endpointTests.forEach(({args, baseUrl, expected}) => {
         it(`getEndpoint() for ${JSON.stringify(args)}, ${baseUrl} returns ${expected}`, async () => {
             const config = new Config();
-            const storageService = initStorageService();
+            const storageService = await initStorageService();
             const clusterService = initClusterService();
             const ingress = new Ingress({
                 http: {

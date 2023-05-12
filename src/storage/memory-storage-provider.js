@@ -1,8 +1,10 @@
 import assert from 'assert/strict';
 import { Logger } from '../logger.js';
+import StorageProvider from './storage-provider.js';
 
-class MemoryStorageProvider {
+class MemoryStorageProvider extends StorageProvider {
     constructor(opts) {
+        super();
         this.logger = Logger("memory-storage");
         this.db = {};
         this.timers = {};
@@ -14,29 +16,35 @@ class MemoryStorageProvider {
         return true;
     }
 
-    async get(key) {
-        assert(key !== undefined);
+    async init(ns) {
+        return true;
+    }
+
+    async get(ns, key) {
+        key = this.compound_key(ns, key);
         this.logger.isTraceEnabled() &&
             this.logger.trace({
                 operation: 'get',
                 key,
                 data: this.db[key],
             });
-        return this.db[key];
+        return this.db[key] ?? null;
     };
 
-    async mget(keys) {
+    async mget(ns, keys) {
         assert(keys !== undefined);
+        keys = this.compound_key(ns, keys);
         this.logger.isTraceEnabled() &&
             this.logger.trace({
                 operation: 'mget',
                 keys,
             });
-        return keys.map((k) => { return this.db[k]; });
+        return keys.map((k) => { return this.db[k] ?? null; });
     }
 
-    async set(key, data, opts = {}) {
+    async set(ns, key, data, opts = {}) {
         assert(key !== undefined);
+        key = this.compound_key(ns, key);
         this.logger.isTraceEnabled() &&
             this.logger.trace({
                 operation: 'set',
@@ -55,24 +63,32 @@ class MemoryStorageProvider {
                 delete this.db[key];
             }, opts.TTL * 1000);
         }
-        return this.db[key];
+        return this.db[key] ?? null;
     };
 
-    async delete(key) {
+    async delete(ns, key) {
         assert(key !== undefined);
+        key = this.compound_key(ns, key);
         this.logger.isTraceEnabled() &&
             this.logger.trace({
                 operation: 'delete',
                 key
             });
-        delete this.db[key];
+        if (this.db[key]) {
+            delete this.db[key];
+            return true;
+        } else {
+            return false;
+        }
     };
 
     async list(ns, cursor, count = 10) {
-        const keys = Object.keys(this.db).filter((k) => k.startsWith(ns));
+        cursor ??= 0;
+        cursor = Number(cursor);
+        const keys = Object.keys(this.db).filter((k) => k.startsWith(ns)).map((k) => this.key_only(ns, k));
         const data = keys.slice(cursor, cursor + count);
         return {
-            cursor: data.length > 0 ? cursor + data.length : 0,
+            cursor: data.length > 0 ? String(cursor + data.length) : null,
             data,
         }
     }

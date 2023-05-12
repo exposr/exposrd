@@ -36,6 +36,7 @@ export default async (argv) => {
                     err ? reject(err) : resolve(storage);
                 },
                 redisUrl: config.get('storage-redis-url'),
+                sqlitePath: config.get('storage-sqlite-path'),
             });
         } catch (e) {
             reject(e);

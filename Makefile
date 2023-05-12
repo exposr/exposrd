@@ -1,17 +1,30 @@
 registry?=exposr
 node_version=18.15.0
-node_image?=$(node_version)-alpine3.17
-platforms?=linux/amd64,linux/arm64,linux/arm/v7
-# Available build targets https://github.com/vercel/pkg-fetch
-pkg_linux_dist?=node$(node_version)-linuxstatic-arm64,node$(node_version)-linuxstatic-armv7,node$(node_version)-linuxstatic-x64
-pkg_macos_dist?=node$(node_version)-macos-x64
+node_image?=$(node_version)-bullseye
+platforms?=linux/amd64,linux/arm64
 
 project:=exposr-server
 version=$(shell [ -e build.env ] && . ./build.env 2> /dev/null && echo $${EXPOSR_BUILD_VERSION} || git describe --tags --always --dirty 2> /dev/null || git rev-parse --short HEAD)
 package_name=$(project)-$(version).tgz
+os:=$(shell uname)
+ifeq (Linux, $(os))
+tar_flags="--wildcards"
+endif
 
-all: package.build.container bundle.build.container dist.linux.build.container image.build
+#
+# Available make targets
+#
+# all - Defaults to building a release tarball and a container image for the host platform.
+#
+# package.build - Creates release tarball
+# dist.build - Build release binary for host platform
+# dist.xbuild - Cross-build release binaries for supported platforms
+# image.build - Build container image for host platform
+# image.xbuild - Build container images for supported platforms
+
+all: package.build.container image.build
 clean: dist.clean
+	docker buildx rm exposr-server-builder || true
 	rm -fr node_modules
 
 define docker.run
@@ -31,6 +44,9 @@ package.build:
 	mkdir -p dist
 	yarn pack --no-default-rc --frozen-lockfile --filename dist/$(package_name)
 
+dist/exposr-server-$(version).tgz:
+	make package.build.container
+
 bundle.build:
 	yarn install --no-default-rc --frozen-lockfile
 	yarn run bundle
@@ -39,42 +55,75 @@ dist.clean:
 	rm -fr dist
 
 dist.linux.build:
+	@echo Building for $(dist_target)
 	yarn install --no-default-rc --frozen-lockfile
-	PKG_CACHE_PATH=.pkg-cache yarn run dist linux $(pkg_linux_dist)
+	PKG_CACHE_PATH=.pkg-cache yarn run dist $(dist_platform) $(dist_target)
 
+pkg_macos_dist?=node$(node_version)-macos-x64
 dist.macos.build:
 	yarn install --no-default-rc --frozen-lockfile
-	PKG_CACHE_PATH=.pkg-cache yarn run dist macos $(pkg_macos_dist)
+	PKG_CACHE_PATH=.pkg-cache yarn run dist macos-x64 $(pkg_macos_dist)
 
 # Builder image
 builder.build:
 	docker build --build-arg NODE_IMAGE=$(node_image) -t $(project)-builder --target builder .
 
-# Docker package
+# Dist build targets
+dist.build: dist/exposr-server-$(version).tgz
+	docker build \
+		--build-arg NODE_IMAGE=$(node_image) \
+		--build-arg VERSION=${version} \
+		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
+		--output type=tar,dest=dist/dist-build-$(version).tar \
+		--target distbuild \
+		.
+	tar xf dist/dist-build-$(version).tar $(tar_flags) "dist/exposr-server-$(version)-*"
+	rm dist/dist-build-$(version).tar
+
+dist.xbuild:
+	docker buildx create --name exposr-server-builder --driver docker-container || true
+	docker buildx build \
+		--builder exposr-server-builder \
+		--platform $(platforms) \
+		--target distbuild \
+		--output type=tar,dest=dist/dist-build-$(version).tar \
+		--progress=plain \
+		--build-arg NODE_IMAGE=$(node_image) \
+		--build-arg VERSION=${version} \
+		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
+		.
+	tar xf dist/dist-build-$(version).tar --strip 1 $(tar_flags) "*/dist/exposr-server-$(version)-*"
+	rm dist/dist-build-$(version).tar
+
+# Docker image build targets
 image.build:
 	docker build \
 		--build-arg NODE_IMAGE=$(node_image) \
 		--build-arg VERSION=${version} \
+		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
+		--target imagebuild \
 		--pull -t $(project):$(version) .
 
 ifneq (, $(publish))
 push_flag=--push
 endif
-image.buildx:
+
+image.xbuild:
 	docker buildx create --name exposr-server-builder --driver docker-container || true
 	docker buildx build \
 		--builder exposr-server-builder \
 		--platform $(platforms) \
+		--target imagebuild \
 		$(push_flag) \
 		--build-arg NODE_IMAGE=$(node_image) \
 		--build-arg VERSION=${version} \
+		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
 		-t $(registry)/$(project):$(version) .
-	docker buildx rm exposr-server-builder
 
-image.buildx.latest:
+image.xbuild.latest:
 	docker buildx imagetools create --tag $(registry)/$(project):latest $(registry)/$(project):$(version)
 
-image.buildx.unstable:
+image.xbuild.unstable:
 	docker buildx imagetools create --tag $(registry)/$(project):unstable $(registry)/$(project):$(version)
 
-.PHONY: release release.publish builder.build image.build image.buildx image.buildx.latest image.buildx.unstable
+.PHONY: release release.publish builder.build image.build image.xbuild image.xbuild.latest image.xbuild.unstable

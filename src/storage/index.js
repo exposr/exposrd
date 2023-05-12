@@ -1,8 +1,9 @@
 import assert from 'assert/strict';
 import LockService from '../lock/index.js';
+import Serializer from './serializer.js';
 import MemoryStorageProvider from './memory-storage-provider.js';
 import RedisStorageProvider from './redis-storage-provider.js';
-import Serializer from './serializer.js';
+import SqliteStorageProvider from './sqlite-storage-provider.js';
 
 class StorageService {
     constructor(type, opts) {
@@ -16,29 +17,52 @@ class StorageService {
         StorageService.ref = 1;
         StorageService.instance = this;
 
-        const ready = (err) => {
-            typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
-        };
-
+        let clazz;
+        let locktype;
         switch (type) {
             case 'redis':
-                this._storage = new RedisStorageProvider({
-                    callback: ready,
-                    ...opts,
-                });
+                clazz = RedisStorageProvider;
+                locktype = 'redis';
+                break;
+            case 'sqlite':
+                clazz = SqliteStorageProvider;
+                locktype = 'mem';
                 break;
             case 'none':
             case 'mem':
-                this._storage = new MemoryStorageProvider({
-                    callback: ready,
-                    ...opts,
-                });
+                clazz = MemoryStorageProvider;
+                locktype = 'mem';
                 break;
             default:
                 assert.fail(`Unknown storage ${type}`);
         }
 
-        this._lockService = new LockService(type, opts);
+        const ready = (err) => {
+            typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
+        };
+
+        Promise.all([
+            new Promise((resolve, reject) => {
+                const storage = new clazz({
+                    ...opts,
+                    callback: (err) => { err ? reject(err) : resolve(storage) },
+                });
+            }),
+            new Promise((resolve, reject) => {
+                const lock = new LockService(locktype, {
+                    ...opts,
+                    callback: (err) => { err ? reject(err) : resolve(lock) },
+                });
+            })
+        ]).catch(async (err) => {
+            await this.destroy();
+            ready(err);
+        }).then((results) => {
+            const [storage, lock] = results;
+            this._storage = storage;
+            this._lockService = lock;
+            ready();
+        });
     }
 
     getStorage() {
@@ -48,7 +72,7 @@ class StorageService {
 
     async destroy() {
         if (--StorageService.ref == 0) {
-            await Promise.allSettled([this._storage.destroy(), this._lockService.destroy()]);
+            await Promise.allSettled([this._storage?.destroy(), this._lockService?.destroy()]);
             this.destroyed = true;
             delete this._storage;
             delete StorageService.instance;
@@ -64,6 +88,7 @@ class Storage {
         this._storageService = new StorageService();
         this._lockService = new LockService();
         this._storage = this._storageService.getStorage();
+        this._storage.init(namespace);
     }
 
     async destroy() {
@@ -71,11 +96,6 @@ class Storage {
             this._storageService.destroy(),
             this._lockService.destroy()
         ];
-    }
-
-    _key(key) {
-        assert(key !== undefined);
-        return `${this.ns}:${key}`;
     }
 
     async read(key, clazz) {
@@ -93,7 +113,7 @@ class Storage {
     }
 
     async update(key, clazz, cb, opts = {}) {
-        const lock = await this._lockService.lock(this._key(key));
+        const lock = await this._lockService.lock(this._storage.compound_key(this.ns, key));
         if (!lock) {
             return false;
         }
@@ -149,11 +169,11 @@ class Storage {
     };
 
     async _get_one(key) {
-        return this._storage.get(this._key(key));
+        return this._storage.get(this.ns, key);
     };
 
     async _get_many(keys) {
-        return this._storage.mget(keys.map((k) => { return this._key(k); }));
+        return this._storage.mget(this.ns, keys);
     };
 
     async set(key, data, opts = {}) {
@@ -164,7 +184,7 @@ class Storage {
     // String on success
     // false on storage error
     async _set(key, data, opts) {
-        return this._storage.set(this._key(key), data, opts);
+        return this._storage.set(this.ns, key, data, opts);
     }
 
     // Returns
@@ -176,39 +196,34 @@ class Storage {
             key = this.key;
         }
         assert(key !== undefined);
-        return this._storage.delete(this._key(key));
+        return this._storage.delete(this.ns, key);
     };
 
     async list(state = undefined, count = 10) {
         let data = [];
 
-        if (state?.data?.length > 0) {
-            data = state.data.slice(0, count);
-            state.data = state.data.slice(count);
+        if (state?.queue?.length > 0) {
             return {
-                cursor: state,
-                data
+                cursor: state.cursor,
+                queue: state.queue?.slice(count),
+                data: state.queue?.slice(0, count)
             }
         }
 
-        let cursor = state?.cursor;
+        let cursor = typeof state == 'string' ? state : state?.cursor;
+        cursor = cursor != undefined ? Buffer.from(cursor, 'base64url').toString('utf-8') : undefined;
         do {
             const requested = count - data.length;
-            const res = await this._storage.list(`${this.ns}:`, cursor, requested);
+            const res = await this._storage.list(this.ns, cursor, requested);
             cursor = res.cursor;
             data.push(...res.data);
-        } while (data.length < count && cursor != 0);
-
-        data = data.map((v) => v.slice(v.indexOf(this.ns) + this.ns.length + 1));
-        state = {
-            cursor,
-            data: data.slice(count)
-        };
+        } while (data.length < count && cursor != null);
 
         return {
-            cursor: state.cursor > 0 || state.data.length > 0 ? state : null,
-            data: data.slice(0, count)
-        }
+            cursor: cursor ? Buffer.from(cursor).toString('base64url') : null,
+            queue: data.slice(count),
+            data: data.slice(0, count),
+        };
     }
 }
 

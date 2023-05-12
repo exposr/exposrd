@@ -231,7 +231,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
                 if (value == 'auto' && args) {
                     if (args['redis-url']) {
                         return 'redis';
-                    } else if (args['storage'] != 'none') {
+                    } else if (args['storage'] != 'none' && args['storage'] != 'sqlite') {
                         if (args['cluster-redis-url']) {
                             return 'redis';
                         } else {
@@ -306,11 +306,12 @@ const parse = (canonicalArgv, callback, args = {}) => {
         .group([
             'storage',
             'storage-redis-url',
+            'storage-sqlite-path'
         ], 'Persistent storage configuration')
         .option('storage', {
             type: 'string',
             default: 'none',
-            choices: ['none', 'redis'],
+            choices: ['none', 'redis', 'sqlite'],
             description: 'Set which persistent storage method to use',
             coerce: (value) => {
                 if (value == 'none' && args) {
@@ -331,6 +332,12 @@ const parse = (canonicalArgv, callback, args = {}) => {
             coerce: (url) => {
                 return typeof url == 'string' ? new URL(url) : url;
             },
+        })
+        .option('storage-sqlite-path', {
+            type: 'string',
+            description: 'Path to SQlite database',
+            default: 'db.sqlite',
+            required: args['storage'] == 'sqlite',
         })
         .group([
             'redis-url',
@@ -362,6 +369,17 @@ const parse = (canonicalArgv, callback, args = {}) => {
             hidden: true,
             default: 'json',
             choices: ['json'],
+        })
+        .check((argv) => {
+            if (Object.keys(args) == 0) {
+                return true;
+            }
+
+            if (argv['storage'] == 'sqlite' && argv['cluster'] != 'single-node') {
+                throw new Error("SQlite storage can only be used in single-node mode");
+            }
+
+            return true;
         })
         .scriptName('exposr-server')
         .wrap(120)

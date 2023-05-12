@@ -80,7 +80,7 @@ describe('Cluster E2E', () => {
     const clusterModes = [
         {mode: "UDP/multicast", args: ["--cluster", "udp"]},
         {mode: "Redis pub/sub", args: ["--cluster", "redis", "--cluster-redis-url", redisUrl, ]}
-    ]
+    ];
 
     // Test will
     // Spawn two nodes, with the given cluster method

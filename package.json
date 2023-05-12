@@ -21,6 +21,7 @@
     "scripts/build-dist.sh"
   ],
   "dependencies": {
+    "better-sqlite3": "^8.3.0",
     "content-type": "^1.0.5",
     "koa": "^2.14.1",
     "koa-joi-router": "^8.0.0",
@@ -57,5 +58,10 @@
     "bundle": "rollup exposr-server.js --file exposr-server.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
     "dist": "scripts/build-dist.sh",
     "test": "scripts/run-test.sh"
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
+    ]
   }
 }

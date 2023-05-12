@@ -11,11 +11,12 @@ if [ ! -f "${env}" ]; then
     cleanup=1
 fi
 
-source ${env}
+. ${env}
 
-yarn run pkg -d \
+yarn run pkg \
     --options 'no-warnings' \
     --public-packages 'node_modules/*' \
+    --config package.json \
     -o dist/exposr-server-${EXPOSR_BUILD_VERSION}-${platform} \
     -t ${targets} \
     exposr-server.cjs
