@@ -3,6 +3,7 @@ import Serializer from './serializer.js';
 import MemoryStorageProvider from './memory-storage-provider.js';
 import RedisStorageProvider from './redis-storage-provider.js';
 import SqliteStorageProvider from './sqlite-storage-provider.js';
+import PgsqlStorageProvider from './pgsql-storage-provider.js';
 
 class StorageService {
     constructor(type, opts) {
@@ -23,7 +24,9 @@ class StorageService {
                 break;
             case 'sqlite':
                 clazz = SqliteStorageProvider;
-                locktype = 'mem';
+                break;
+            case 'pgsql':
+                clazz = PgsqlStorageProvider;
                 break;
             case 'none':
             case 'mem':
