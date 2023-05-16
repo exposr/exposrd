@@ -2,6 +2,7 @@ import assert from 'assert/strict';
 import Redis from 'redis';
 import { Logger } from '../logger.js';
 import StorageProvider from './storage-provider.js';
+import LockService from '../lock/index.js';
 
 class RedisStorageProvider extends StorageProvider {
     constructor(opts) {
@@ -43,43 +44,58 @@ class RedisStorageProvider extends StorageProvider {
                 });
         });
 
-        this._client.connect()
-            .catch((err) => {
-                this.logger.error({
-                    message: `Failed to connect to ${redisUrl}: ${err.message}`,
-                    operation: 'connect',
+        Promise.all([
+            this._client.connect()
+                .catch((err) => {
+                    this.logger.error({
+                        message: `Failed to connect to ${redisUrl}: ${err.message}`,
+                        operation: 'connect',
+                    });
+                    throw err;
+                })
+                .then(() => {
+
+                    this._client.on('error', (err) => {
+
+                        if (this._client_error?.message != err?.message) {
+                            this.logger.error({
+                                message: `redis client error: ${err.message}`,
+                            });
+                            this.logger.debug({
+                                message: err.message,
+                                stack: err.stack
+                            });
+
+                            this._client_error = err;
+                        }
+
+                        if (!this._client.isReady && this._client_was_ready) {
+                            this.logger.warn({
+                                message: `disconnected from redis ${redisUrl}: ${err.message}`,
+                                operation: 'disconnect',
+                                server: redisUrl,
+                            });
+                            this._client_was_ready = false;
+                        }
+                    });
+                }),
+            new Promise((resolve, reject) => {
+                const lock = new LockService("redis", {
+                    ...opts,
+                    callback: (err) => { err ? reject(err) : resolve(lock) },
                 });
-                typeof opts.callback === 'function' &&
-                    process.nextTick(() => opts.callback(new Error(`failed to initialize redis storage provider`)));
             })
-            .then(() => {
-
-                this._client.on('error', (err) => {
-
-                    if (this._client_error?.message != err?.message) {
-                        this.logger.error({
-                            message: `redis client error: ${err.message}`,
-                        });
-                        this.logger.debug({
-                            message: err.message,
-                            stack: err.stack
-                        });
-
-                        this._client_error = err;
-                    }
-
-                    if (!this._client.isReady && this._client_was_ready) {
-                        this.logger.warn({
-                            message: `disconnected from redis ${redisUrl}: ${err.message}`,
-                            operation: 'disconnect',
-                            server: redisUrl,
-                        });
-                        this._client_was_ready = false;
-                    }
-                });
-
-                typeof opts.callback === 'function' && process.nextTick(() => opts.callback());
-            });
+            .catch((err) => {
+                throw err;
+            }).then((lock) => {
+                this._lockService = lock;
+            })
+        ]).catch((err) => {
+            typeof opts.callback === 'function' &&
+                process.nextTick(() => opts.callback(new Error(`failed to initialize redis storage provider`)));
+        }).then(() => {
+            typeof opts.callback === 'function' && process.nextTick(() => opts.callback());
+        });
     }
 
     async destroy() {
@@ -92,6 +108,8 @@ class RedisStorageProvider extends StorageProvider {
             operation: 'destroy',
             message: 'initiated'
         });
+
+        await this._lockService?.destroy();
 
         return this._client.quit().then((res) => {
             this.logger.trace({
@@ -106,7 +124,8 @@ class RedisStorageProvider extends StorageProvider {
         return true;
     }
 
-    get(ns, key) {
+    async get(ns, key, opts) {
+        const orig_key = key;
         key = this.compound_key(ns, key);
 
         if (!this._client.isReady) {
@@ -118,6 +137,23 @@ class RedisStorageProvider extends StorageProvider {
             return false;
         }
 
+        let lock;
+        if (opts.EX) {
+            lock = await this._lockService.lock(key)
+            if (!lock) {
+                return [null, lock];
+            }
+        }
+
+        const done = async (value) => {
+            let res;
+            if (value) {
+                res = await this.set(ns, orig_key, value);
+            }
+            lock.unlock();
+            return res;
+        };
+
         return this._client.get(key)
             .catch((err) => {
                 this.logger.error({
@@ -126,6 +162,7 @@ class RedisStorageProvider extends StorageProvider {
                     key,
                     err
                 });
+                lock?.unlock();
                 return false;
             }).then((value) => {
                 this.logger.isTraceEnabled() &&
@@ -134,7 +171,7 @@ class RedisStorageProvider extends StorageProvider {
                         key,
                         data,
                     });
-                return value;
+                return lock ? [value, done] : value;
             });
     }
 

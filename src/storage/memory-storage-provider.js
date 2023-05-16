@@ -1,6 +1,7 @@
 import assert from 'assert/strict';
 import { Logger } from '../logger.js';
 import StorageProvider from './storage-provider.js';
+import LockService from '../lock/index.js';
 
 class MemoryStorageProvider extends StorageProvider {
     constructor(opts) {
@@ -9,10 +10,22 @@ class MemoryStorageProvider extends StorageProvider {
         this.db = {};
         this.timers = {};
         this._ttl = {};
-        typeof opts.callback === 'function' && process.nextTick(opts.callback);
+
+        new Promise((resolve, reject) => {
+            const lock = new LockService("mem", {
+                ...opts,
+                callback: (err) => { err ? reject(err) : resolve(lock) },
+            });
+        }).catch((err) => {
+            typeof opts.callback === 'function' && process.nextTick(() => { opts.callback(err) });
+        }).then((lock) => {
+            this._lockService = lock;
+            typeof opts.callback === 'function' && process.nextTick(() => { opts.callback() });
+        });
     }
 
     async destroy() {
+        await this._lockService.destroy();
         return true;
     }
 
@@ -20,15 +33,36 @@ class MemoryStorageProvider extends StorageProvider {
         return true;
     }
 
-    async get(ns, key) {
+    async get(ns, key, opts) {
+        const orig_key = key;
         key = this.compound_key(ns, key);
+
         this.logger.isTraceEnabled() &&
             this.logger.trace({
                 operation: 'get',
                 key,
                 data: this.db[key],
             });
-        return this.db[key] ?? null;
+
+        let lock;
+        if (opts.EX) {
+            lock = await this._lockService.lock(key)
+            if (!lock) {
+                return [null, lock];
+            }
+        }
+
+        const done = async (value) => {
+            let res;
+            if (value) {
+                res = await this.set(ns, orig_key, value);
+            }
+            lock.unlock();
+            return res;
+        };
+
+        const data = this.db[key] ?? null;
+        return lock ? [data, done] : data;
     };
 
     async mget(ns, keys) {
