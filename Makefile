@@ -27,6 +27,9 @@ clean: dist.clean
 	docker buildx rm exposr-server-builder || true
 	rm -fr node_modules
 
+get.version:
+	@echo $(version)
+
 define docker.run
 	docker run --rm -i \
 		-u $(shell id -u):$(shell id -g) \
@@ -103,6 +106,9 @@ image.build:
 		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
 		--target imagebuild \
 		--pull -t $(project):$(version) .
+
+get.image:
+	@echo $(project):$(version)
 
 ifneq (, $(publish))
 push_flag=--push
