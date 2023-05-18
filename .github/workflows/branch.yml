@@ -25,3 +25,9 @@ jobs:
       - name: Build package
         run:  |
             make package.build.container
+
+      - name: Build and smoke test docker image
+        run:  |
+            make image.build
+            docker run --rm -t $(make get.image) --version | grep $(make get.version)
+            docker run --rm -t -e EXPOSR_SELF_TEST=1 $(make get.image)

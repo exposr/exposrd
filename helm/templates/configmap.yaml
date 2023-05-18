@@ -45,6 +45,14 @@ data:
   EXPOSR_STORAGE_REDIS_URL: "{{ .Values.exposr.storage.redis.url }}"
 {{- end }}
 {{- end }}
+{{- if eq .Values.exposr.storage.type "pgsql" }}
+{{- if .Values.exposr.storage.pgsql.url }}
+  EXPOSR_STORAGE_PGSQL_URL: "{{ .Values.exposr.storage.pgsql.url }}"
+{{- end }}
+{{- if .Values.exposr.storage.pgsql.connectionPoolSize }}
+  EXPOSR_STORAGE_PGSQL_CONNECTION_POOL_SIZE: "{{ .Values.exposr.storage.pgsql.connectionPoolSize }}"
+{{- end }}
+{{- end }}
   EXPOSR_INGRESS: "{{ join "," $exposrIngress }}"
   EXPOSR_TRANSPORT: "{{ join "," $exposrTransport }}"
 {{- if eq .Values.exposr.ingress.http.enabled true }}

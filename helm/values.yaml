@@ -14,6 +14,7 @@ exposr:
   storage:
     type: redis
     redis: {}
+    pgsql: {}
   transport:
     maxConnections: 2
     ws:

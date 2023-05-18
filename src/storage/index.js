@@ -1,9 +1,9 @@
 import assert from 'assert/strict';
-import LockService from '../lock/index.js';
 import Serializer from './serializer.js';
 import MemoryStorageProvider from './memory-storage-provider.js';
 import RedisStorageProvider from './redis-storage-provider.js';
 import SqliteStorageProvider from './sqlite-storage-provider.js';
+import PgsqlStorageProvider from './pgsql-storage-provider.js';
 
 class StorageService {
     constructor(type, opts) {
@@ -18,20 +18,19 @@ class StorageService {
         StorageService.instance = this;
 
         let clazz;
-        let locktype;
         switch (type) {
             case 'redis':
                 clazz = RedisStorageProvider;
-                locktype = 'redis';
                 break;
             case 'sqlite':
                 clazz = SqliteStorageProvider;
-                locktype = 'mem';
+                break;
+            case 'pgsql':
+                clazz = PgsqlStorageProvider;
                 break;
             case 'none':
             case 'mem':
                 clazz = MemoryStorageProvider;
-                locktype = 'mem';
                 break;
             default:
                 assert.fail(`Unknown storage ${type}`);
@@ -41,28 +40,19 @@ class StorageService {
             typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
         };
 
-        Promise.all([
-            new Promise((resolve, reject) => {
-                const storage = new clazz({
-                    ...opts,
-                    callback: (err) => { err ? reject(err) : resolve(storage) },
-                });
-            }),
-            new Promise((resolve, reject) => {
-                const lock = new LockService(locktype, {
-                    ...opts,
-                    callback: (err) => { err ? reject(err) : resolve(lock) },
-                });
-            })
-        ]).catch(async (err) => {
+        new Promise((resolve, reject) => {
+            const storage = new clazz({
+                ...opts,
+                callback: (err) => { err ? reject(err) : resolve(storage) },
+            });
+        }).catch(async (err) => {
             await this.destroy();
             ready(err);
-        }).then((results) => {
-            const [storage, lock] = results;
-            this._storage = storage;
-            this._lockService = lock;
+        }).then(result => {
+            this._storage = result;
             ready();
         });
+
     }
 
     getStorage() {
@@ -72,7 +62,7 @@ class StorageService {
 
     async destroy() {
         if (--StorageService.ref == 0) {
-            await Promise.allSettled([this._storage?.destroy(), this._lockService?.destroy()]);
+            await this._storage?.destroy();
             this.destroyed = true;
             delete this._storage;
             delete StorageService.instance;
@@ -86,52 +76,53 @@ class Storage {
     constructor(namespace) {
         this.ns = namespace;
         this._storageService = new StorageService();
-        this._lockService = new LockService();
         this._storage = this._storageService.getStorage();
         this._storage.init(namespace);
     }
 
     async destroy() {
-        return Promise.allSettled[
-            this._storageService.destroy(),
-            this._lockService.destroy()
-        ];
+        await this._storageService.destroy()
     }
 
-    async read(key, clazz) {
-        const data = await this._get(key);
-        if (!data) {
-            return data;
+    async read(key, clazz, opts = {}) {
+        let data, lock;
+        const result = await this._get(key, opts);
+        if (opts.EX) {
+            [data, lock] = result;
+            if (!lock) {
+                return false;
+            }
+        } else {
+            data = result;
+            if (!data) {
+                return data;
+            }
         }
+
         if (data instanceof Array) {
-            return data.map((d) => {
+            data = data.map((d) => {
                 return Serializer.deserialize(d, clazz);
             });
         } else {
-            return Serializer.deserialize(data, clazz);
+            data = Serializer.deserialize(data, clazz);
         }
+        return opts.EX ? [data, lock] : data;
     }
 
     async update(key, clazz, cb, opts = {}) {
-        const lock = await this._lockService.lock(this._storage.compound_key(this.ns, key));
-        if (!lock) {
+        const result = await this.read(key, clazz, { EX: true });
+        if (!result) {
             return false;
         }
-
-        const obj = await this.read(key, clazz);
-        if (!obj) {
-            lock.unlock();
-            return false;
-        }
+        const [obj, done] = result;
 
         const res = await cb(obj);
-        if (res !== true || !lock.locked()) {
-            lock.unlock();
+        if (res !== true) {
+            done();
             return false;
         }
         const serialized = Serializer.serialize(obj);
-        await this._set(key, serialized, opts);
-        lock.unlock();
+        await done(serialized);
         return obj;
     }
 
@@ -150,9 +141,9 @@ class Storage {
             return data;
         }
         if (data instanceof Array) {
-            return data.map((d) => { return JSON.parse(d); });
+            return data.map((d) => { return typeof d == 'object' ? d : JSON.parse(d); });
         } else {
-            return JSON.parse(data);
+            return typeof data == 'object' ? data : JSON.parse(data);
         }
     };
 
@@ -160,20 +151,20 @@ class Storage {
     // String(s) on success
     // undefined on not found
     // false on storage error
-    async _get(key) {
+    async _get(key, opts = {}) {
         if (key instanceof Array) {
-            return key.length > 0 ? this._get_many(key) : key;
+            return key.length > 0 ? this._get_many(key, opts) : null;
         } else {
-            return this._get_one(key);
+            return this._get_one(key, opts);
         }
     };
 
-    async _get_one(key) {
-        return this._storage.get(this.ns, key);
+    async _get_one(key, opts) {
+        return this._storage.get(this.ns, key, opts);
     };
 
-    async _get_many(keys) {
-        return this._storage.mget(this.ns, keys);
+    async _get_many(keys, opts) {
+        return this._storage.mget(this.ns, keys, opts);
     };
 
     async set(key, data, opts = {}) {

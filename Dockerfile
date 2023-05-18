@@ -15,7 +15,8 @@ COPY ${DIST_SRC} /exposr-server.tgz
 RUN tar xvf /exposr-server.tgz
 # Available dst targets at https://github.com/vercel/pkg-fetch
 RUN cd package; \
-    if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then \
+    TARGETPLATFORM="${TARGETPLATFORM:-linux/$(uname -m)}"; \
+    if [ "${TARGETPLATFORM}" = "linux/amd64" ] || [ "${TARGETPLATFORM}" = "linux/x86_64" ]; then \
         export dist_platform=linux-glibc-amd64; \
         export dist_target=node${NODE_VERSION}-linux-x64; \
     elif [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
@@ -24,6 +25,8 @@ RUN cd package; \
     elif [ "${TARGETPLATFORM}" = "linux/arm/v7" ]; then \
         export dist_platform=linux-glibc-armv7; \
         export dist_target=node${NODE_VERSION}-linux-armv7; \
+    else \
+        echo Unknown target ${TARGETPLATFORM}; \
     fi; \
     make dist.linux.build; \
     cp dist/exposr-server-${VERSION}-${dist_platform} /dist; \
@@ -31,7 +34,7 @@ RUN cd package; \
     cp dist/exposr-server-${VERSION}-${dist_platform} /buildroot/exposr-server
 # Populate the builroot with required libraries
 RUN objdump -x /buildroot/exposr-server | grep NEEDED | awk '{print $2}' | \
-    xargs -I {} find /lib64 /lib /usr/lib -name {} | \
+    xargs -I {} find /lib64 /lib /usr/lib \( -name {} -o -name libnss* -o -name libresolv* \) | \
     xargs -I {} sh -c 'mkdir -p "/buildroot/$(dirname "{}")" && cp -aL "{}" "/buildroot/{}"';
 # Sanity check buildroot
 RUN chroot /buildroot/ /exposr-server --version | grep ${VERSION}

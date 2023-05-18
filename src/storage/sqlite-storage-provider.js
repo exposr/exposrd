@@ -1,3 +1,4 @@
+import LockService from '../lock/index.js';
 import { Logger } from '../logger.js';
 import StorageProvider from './storage-provider.js';
 import Sqlite from 'better-sqlite3';
@@ -15,7 +16,20 @@ class SqliteStorageProvider extends StorageProvider {
         this.logger.info({
             message: `SQlite storage initialized: ${db_file}`
         });
-        typeof opts.callback === 'function' && process.nextTick(opts.callback);
+
+        new Promise((resolve, reject) => {
+            const lock = new LockService("mem", {
+                ...opts,
+                callback: (err) => { err ? reject(err) : resolve(lock) },
+            });
+        }).catch((err) => {
+            console.log(err)
+            typeof opts.callback === 'function' && process.nextTick(() => { opts.callback(err) });
+        }).then((lock) => {
+            console.log("FOO")
+            this._lockService = lock;
+            typeof opts.callback === 'function' && process.nextTick(() => { opts.callback() });
+        });
     }
 
     async destroy() {
@@ -26,6 +40,7 @@ class SqliteStorageProvider extends StorageProvider {
         });
         this._ns_init = {};
         this._db.close();
+        await this._lockService?.destroy();
         return true;
     }
 
@@ -78,8 +93,27 @@ class SqliteStorageProvider extends StorageProvider {
         cleanExpired();
     }
 
-    async get(ns, key) {
+    async get(ns, key, opts) {
+        const orig_key = key;
         ns = this._get_ns(ns);
+
+        let lock;
+        if (opts.EX) {
+            lock = await this._lockService.lock(key)
+            if (!lock) {
+                return [null, lock];
+            }
+        }
+
+        const done = async (value) => {
+            let res;
+            if (value) {
+                res = await this.set(ns, orig_key, value);
+            }
+            lock.unlock();
+            return res;
+        };
+
         try {
             const stm = this._db.prepare(`
                 SELECT value from ${ns} WHERE
@@ -90,11 +124,13 @@ class SqliteStorageProvider extends StorageProvider {
                     )
             `);
             const res = stm.get(key, Math.floor(Date.now() / 1000));
-            return res?.value || null;
+            const data = res?.value || null;
+            return lock ? [data, done] : data;
         } catch (e) {
             this.logger.error({
                 message: `failed to get key ${key} from ${ns}: ${e.message}`
             });
+            lock?.unlock();
             return false;
         }
     };

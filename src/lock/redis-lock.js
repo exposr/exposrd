@@ -48,7 +48,7 @@ class RedisLock {
 
     async destroy() {
         this.destroyed = true;
-        return this._redisClient.disconnect()
+        await this._redisClient.disconnect()
             .catch((err) => {
                 this.logger.error({
                     operation: 'redlock',

@@ -37,13 +37,6 @@ export { Lock };
 
 class LockService {
     constructor(type, opts) {
-        if (LockService.instance instanceof LockService) {
-            LockService.ref++;
-            return LockService.instance;
-        }
-        LockService.ref = 1;
-        LockService.instance = this;
-
         this.logger = Logger("lock-service");
 
         switch (type) {
@@ -51,7 +44,7 @@ class LockService {
                 this._lockType = new RedisLock({
                     redisUrl: opts.redisUrl,
                     callback: (err) => {
-                        typeof opts.callback === 'function' && process.nextTick(() => opts.callback());
+                        typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
                     }
                 });
                 break;
@@ -66,10 +59,7 @@ class LockService {
     }
 
     async destroy() {
-        if (--LockService.ref == 0) {
-            delete LockService.instance;
-            return this._lockType.destroy();
-        }
+        return this._lockType.destroy();
     }
 
     async lock(resource) {

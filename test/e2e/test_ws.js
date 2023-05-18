@@ -2,7 +2,7 @@ import assert from 'assert/strict';
 import crypto from 'crypto';
 import { setTimeout } from 'timers/promises';
 import { createAccount, createEchoServer, getAuthToken, getTunnel, putTunnel, startExposr } from './e2e-utils.js';
-import { REDIS_URL } from '../env.js';
+import { PGSQL_URL, REDIS_URL } from '../env.js';
 
 const echoServerUrl = "http://host.docker.internal:10000";
 
@@ -26,6 +26,7 @@ describe('Websocket E2E', () => {
         {storage: "In-memory storage", args: []},
         {storage: "Redis storage", args: ["--storage", "redis", "--storage-redis-url", REDIS_URL ]},
         {storage: "Sqlite storage", args: ["--storage", "sqlite" ]},
+        {storage: "Pgsql storage", args: ["--storage", "pgsql", "--storage-pgsql-url", PGSQL_URL ]},
     ];
 
     storageModes.forEach(({storage, args}) => {

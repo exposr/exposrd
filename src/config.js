@@ -306,12 +306,14 @@ const parse = (canonicalArgv, callback, args = {}) => {
         .group([
             'storage',
             'storage-redis-url',
-            'storage-sqlite-path'
+            'storage-sqlite-path',
+            'storage-pgsql-url',
+            'storage-pgsql-connection-pool',
         ], 'Persistent storage configuration')
         .option('storage', {
             type: 'string',
             default: 'none',
-            choices: ['none', 'redis', 'sqlite'],
+            choices: ['none', 'redis', 'sqlite', 'pgsql'],
             description: 'Set which persistent storage method to use',
             coerce: (value) => {
                 if (value == 'none' && args) {
@@ -338,6 +340,20 @@ const parse = (canonicalArgv, callback, args = {}) => {
             description: 'Path to SQlite database',
             default: 'db.sqlite',
             required: args['storage'] == 'sqlite',
+        })
+        .option('storage-pgsql-url', {
+            type: 'string',
+            description: 'Postgres connection URL for persistent storage',
+            required: args['storage'] == 'pgsql',
+            coerce: (url) => {
+                return typeof url == 'string' ? new URL(url) : url;
+            },
+        })
+        .option('storage-pgsql-connection-pool-size', {
+            type: 'number',
+            description: 'Postgres connection pool size',
+            default: 10,
+            hidden: true,
         })
         .group([
             'redis-url',

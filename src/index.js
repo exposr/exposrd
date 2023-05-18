@@ -37,6 +37,10 @@ export default async (argv) => {
                 },
                 redisUrl: config.get('storage-redis-url'),
                 sqlitePath: config.get('storage-sqlite-path'),
+                pgsql: {
+                    url: config.get('storage-pgsql-url'),
+                    poolSize: config.get('storage-pgsql-connection-pool-size'),
+                }
             });
         } catch (e) {
             reject(e);
