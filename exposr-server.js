@@ -5,7 +5,7 @@ import ExposrServer from './src/index.js';
     const terminate = await ExposrServer();
 
     const sigHandler = async (signal) => {
-        const graceful = await terminate();
+        const graceful = await terminate(signal);
         process.exit(graceful ? 0 : -1);
     };
 
