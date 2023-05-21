@@ -409,6 +409,11 @@ class Config {
         }
         Config.instance = this;
 
+        if (process.env.EXPOSR_EMBEDDED) {
+            this._config = {};
+            return;
+        }
+
         argv ??= process.argv.slice(2);
 
         const cb = (err, _, output) => {
