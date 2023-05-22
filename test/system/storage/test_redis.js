@@ -352,6 +352,5 @@ describe('redis storage', () => {
 
         assert(result == 10, `unexpected number of results, got ${result}`);
         await storage.destroy();
-    });
-
+    }).timeout(5000);
 });

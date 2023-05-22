@@ -2,7 +2,7 @@ import Log4js from 'log4js';
 import os from 'os';
 import Config from './config.js';
 
-Log4js.addLayout('json', function(config) {
+Log4js.addLayout('json', function() {
     return function(logEvent) {
         const data = typeof logEvent.data[0] == 'string' ? {
             message: logEvent.data[0]
@@ -19,17 +19,25 @@ Log4js.addLayout('json', function(config) {
     }
 });
 
+const nullAppender = {
+    configure: (config, layouts, findAppender, levels) => {
+        return () => {}
+    },
+  };
+
 class LoggerFactory {
     constructor(namespace) {
         const logger = this._logger = Log4js.getLogger(namespace);
         const config = new Config();
 
+        const appender = process.env.EXPOSR_EMBEDDED ? 'null' : 'out';
         Log4js.configure({
             appenders: {
-              out: { type: 'stdout', layout: { type: config.get('log-format'), separator: ',' } }
+              out: { type: 'stdout', layout: { type: config?.get('log-format') || 'json', separator: ',' } },
+              null: { type: nullAppender }
             },
             categories: {
-              default: { appenders: ['out'], level: config.get("log-level") }
+              default: { appenders: [appender], level: config?.get("log-level") || 'info' }
             }
         });
 
