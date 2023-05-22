@@ -1,0 +1,16 @@
+{
+    "name": "exposr-storage-migrate",
+    "version": "0.1.0",
+    "type": "module",
+    "author": "Fredrik Lindberg <fli@fli.dev>",
+    "license": "MIT",
+    "engines": {
+        "node": ">=18"
+    },
+    "dependencies": {
+        "better-sqlite3": "^8.3.0",
+        "pg": "^8.11.0",
+        "redis": "^4.6.6",
+        "yargs": "^17.7.2"
+    }
+}
