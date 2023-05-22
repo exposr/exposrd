@@ -47,8 +47,9 @@ class PgsqlStorageProvider extends StorageProvider {
     }
 
     async destroy() {
-        Object.keys(this._ns_init).forEach((ns) => {
-            clearInterval(this._ns_init[ns].expiryTimer);
+        Object.keys(this._ns_init).forEach(async (ns) => {
+            const obj = await this._ns_init[ns];
+            clearInterval(obj.expiryTimer);
             delete this._ns_init[ns];
         });
         this._ns_init = {};
