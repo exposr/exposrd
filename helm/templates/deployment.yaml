@@ -52,11 +52,16 @@ spec:
               containerPort: {{ .Values.exposr.transport.ssh.port }}
               protocol: TCP
 {{- end }}
-{{- if .Values.exposr.ingress.sni.cert }}
           volumeMounts:
-          - name: ingress-sni-cert
-            mountPath: /etc/exposr/ingress/sni/cert
-            readOnly: true
+            - name: app
+              mountPath: /tmp/app
+            {{- with .Values.extraVolumeMounts }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+{{- if .Values.exposr.ingress.sni.cert }}
+            - name: ingress-sni-cert
+              mountPath: /etc/exposr/ingress/sni/cert
+              readOnly: true
 {{- end }}
           env:
             - name: POD_NAME
@@ -86,11 +91,16 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-{{- if .Values.exposr.ingress.sni.cert }}
       volumes:
-      - name: ingress-sni-cert
-        secret:
-          secretName: {{ .Values.exposr.ingress.sni.cert }}
+        - name: app
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- if .Values.exposr.ingress.sni.cert }}
+        - name: ingress-sni-cert
+          secret:
+            secretName: {{ .Values.exposr.ingress.sni.cert }}
 {{- end }}
     {{- with .Values.affinity }}
       affinity:
