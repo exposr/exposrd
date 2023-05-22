@@ -9,6 +9,7 @@ import { StorageService } from './storage/index.js';
 import TransportService from './transport/transport-service.js';
 import Version from './version.js';
 import Node from './cluster/cluster-node.js';
+import TunnelService from './tunnel/tunnel-service.js';
 
 export default async (argv) => {
     const config = new Config(argv);
@@ -202,7 +203,12 @@ export default async (argv) => {
         const startTime = process.hrtime.bigint();
         logger.info(`Shutdown initiated, signal=${signal}, press Ctrl-C again to force quit`);
 
+        // Drain and block new tunnel connections
+        const tunnelService = new TunnelService();
+        await tunnelService.end();
+
         const destruction = Promise.allSettled([
+            tunnelService.destroy(),
             apiController.destroy(),
             adminApiController.destroy(),
             adminController.destroy(),

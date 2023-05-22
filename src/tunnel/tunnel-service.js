@@ -38,6 +38,7 @@ class TunnelService {
         this._eventBus = new EventBus();
         this._clusterService = new ClusterService();
         this._ingress = new Ingress();
+        this._ready = true;
 
         this._connectedTunnels = {};
 
@@ -237,11 +238,7 @@ class TunnelService {
         if (--TunnelService.ref == 0) {
             this.destroyed = true;
             clearTimeout(this._announceTimer);
-            const tunnels = Object.keys(this._connectedTunnels).map(async (tunnelId) => {
-                const tunnel = await this.lookup(tunnelId);
-                return this._disconnect(tunnel);
-            });
-            await Promise.allSettled(tunnels);
+            await this.end();
             await Promise.allSettled([
                 this._db.destroy(),
                 this._clusterService.destroy(),
@@ -251,6 +248,15 @@ class TunnelService {
             ]);
             delete TunnelService.instance;
         }
+    }
+
+    async end() {
+        this._ready = false;
+        const tunnels = Object.keys(this._connectedTunnels).map(async (tunnelId) => {
+            const tunnel = await this.lookup(tunnelId);
+            return this._disconnect(tunnel);
+        });
+        await Promise.allSettled(tunnels);
     }
 
     _isPermitted(tunnel, accountId) {
@@ -425,6 +431,10 @@ class TunnelService {
     async connect(tunnelId, accountId, transport, opts) {
         assert(tunnelId != undefined);
         assert(accountId != undefined);
+
+        if (!this._ready) {
+            return false;
+        }
 
         let tunnel = await this.get(tunnelId, accountId);
         if (tunnel instanceof Tunnel == false) {
