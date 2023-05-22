@@ -300,7 +300,7 @@ class RedisStorageProvider extends StorageProvider {
 
         cursor = Number(cursor);
         return this._client.scan(cursor, {
-            MATCH: `${ns}*`,
+            MATCH: `${ns}:*`,
             COUNT: count,
         }).catch((err) => {
             this.logger.error({
