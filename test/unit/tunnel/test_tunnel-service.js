@@ -498,4 +498,50 @@ describe('tunnel service', () => {
         await tunnelService.destroy();
     });
 
+    it(`calling end() drains existing connections`, async () => {
+        const tunnelService = new TunnelService();
+        const bus = new EventBus();
+
+        const account = await accountService.create();
+        const tunnelId = crypto.randomBytes(20).toString('hex');
+
+        const tunnel = await tunnelService.create(tunnelId, account.id);
+        assert(tunnel instanceof Tunnel, `tunnel not created, got ${tunnel}`);
+        assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
+
+        const [sock1, sock2] = socketPair();
+        sock1.close = (code, reason) => { sock1.destroy() };
+        const transport = new WebSocketTransport({
+            tunnelId: tunnelId,
+            socket: sock1,
+        })
+
+        const msg = new Promise((resolve) => {
+            bus.once('tunnel:announce', (msg) => {
+                setImmediate(() => { resolve(msg) });
+            })
+        });
+
+        let res = await tunnelService.connect(tunnelId, account.id, transport, {peer: "127.0.0.1"});
+        assert(res == true, `connect did not return true, got ${res}`);
+
+        await msg;
+        assert(msg.tunnel != tunnelId, "did not get tunnel announcement");
+
+        let state = await tunnelService._tunnels.get(tunnelId);
+        assert(state.connected == true, "tunnel state is not connected");
+
+        await tunnelService.end();
+
+        state = await tunnelService._tunnels.get(tunnelId);
+        assert(state.connected == false, "tunnel state is connected after end()");
+
+        res = await tunnelService.connect(tunnelId, account.id, transport, {peer: "127.0.0.1"});
+        assert(res == false, `connect did not return false, got ${res}`);
+
+        await tunnelService.destroy();
+        await bus.destroy();
+        await transport.destroy();
+    });
+
 });
