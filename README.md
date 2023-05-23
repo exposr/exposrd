@@ -12,7 +12,8 @@ and is well suited to run in container-orchestration systems like Kubernetes.
 
 # Features
 
-* Scales horizontally - more nodes can be added to increase capacity.
+* Clustering support with horizontally scalability - more nodes can be added to increase capacity.
+* Multi-client connection - each client can maintain multiple persistent connection per tunnel.
 * No configuration files! - All configuration can be done as environment variables or command line options.
 * Designed to run behind a load balancer (HTTP/TCP) (ex. nginx or HAProxy).
 * Suitable to run in container-orchestration systems such as Kubernetes.
@@ -35,6 +36,8 @@ example at the load balancer.
 ![](https://exposr.github.io/docs/img/demo/exposr-demo-20220301.svg)
 
 ## Supported transports
+exposr supports two different transport methods. This is the way a tunnel client
+connects and establishes the tunnel.
 
 | Type       | Method                     | Endpoint   | Client support        |
 | ---------- | -------------------------- |----------- | --------------------- |
@@ -46,26 +49,46 @@ as the API. The SSH transport endpoint requires a dedicated TCP port and require
 a TCP load balancer in multi-node setups.
 
 ## Supported ingress methods
+The following ingress methods are supported. Ingress is the way clients (or users)
+connect to the tunnel to connect to the exposed services.
 
 | Type  | Method                   | Protocol support | Requirements                | Load balancer req. |
 | ----- | ------------------------ | ---------------- | --------------------------- | ------------------ |
 | HTTP  | Virtual host (subdomain) | HTTP             | Wildcard domain             | HTTP               |
 | SNI   | SNI                      | TLS              | Wildcard certificate+domain | TCP                |
 
-## Persistence
-The default persistence mode is in-memory meaning all tunnel configurations are lost
-when the server is restarted. Since tunnels (and accounts) are created by the client
-on-the-fly this works good enough for small single-node setups.
+## Supported storage options
 
-Redis is supported for multi-node support or if long-term persistance is required.
+The following storage options are supported. The default is no persistence,
+SQLite is recommended for single-node setups. Tunnel configuration and
+accounts are written to persistent storage.
 
-## Horizontal scaling
+| Type       | Single/multi-node        | Note                 |
+| ---------- | ------------------------ | -------------------- |
+| Memory     | Single-node              | Data lost on restart |
+| SQLite     | Single node              |                      |
+| PostgreSQL | Multi-node               |                      |
+| Redis      | Multi-node               |                      |
+
+## Clustering support
 exposr can be run in a multi-node setup, ingress connections are re-routed to the node
-that have the tunnel established. This allows load balancing in round-robin
-fashion without need for sticky sessions.
+that have the tunnel established. This allows for horizontal load balancing in round-robin
+fashion without the need for sticky sessions.
 
-Redis is required for a multi-node setup. No other configuration is needed, nodes
-will auto-discover each other.
+| Type        | Discovery methods                  | Note                         |
+| ----------- | ---------------------------------- | ---------------------------- |
+| Single-node | Single-node                        | No clustering                |
+| UDP         | IP Multicast or Native Kubernetes  | K8S through headless service |
+| Redis       | Redis                              |                              |
+
+To run exposr in clustering mode you need to select a cluster mode, the default
+is UDP with node discovery through IP multicast or through Kubernetes headless
+service, exposr will try to auto-detect the best discovery method to use.
+To use the UDP mode IP connectivity on UDP port 1025 (default) between nodes is required.
+
+It is also possible to use a Redis cluster with pub/sub capabilities.
+
+NB: Multi-node storage is required for clustering setup.
 
 # Architecture
 exposr have three core concepts; transports, endpoints and ingress.
@@ -130,8 +153,8 @@ Containers are available for deployments in container runtime environments.
 
 Latest release is available with the `latest` tag, latest development (master branch) is available with the `unstable` tag.
 
-### Static binaries
-For single node or ad-hoc deployments, static binaries are available for Linux (amd64, arm64 and armv7) as well as MacOS x64 (runs on M1).
+### Binaries
+For single node or ad-hoc deployments, binaries are available for Linux (amd64, arm64) as well as MacOS x64 (runs on M1).
 
 ## Quick start
 You can quickly try out exposr without installing anything.
@@ -139,7 +162,7 @@ You can quickly try out exposr without installing anything.
 Run the server, the server will listen on port 8080 and the API will be exposed at `http://host.docker.internal:8080`.
 HTTP ingress sub-domains will be allocated from `http://localhost:8080`.
 
-    docker run --rm -ti -p 8080:8080 exposr/exposr-server:latest --allow-registration --ingress-http-domain http://localhost:8080
+    docker run --rm -ti -p 8080:8080 exposr/exposr-server:latest --allow-registration --ingress-http-url http://localhost:8080
 
 Start the client with, this will create a tunnel called `example` and connect it to `http://example.com`.
 The tunnel will be available at `http://example.localhost:8080`.
@@ -191,15 +214,17 @@ wildcard DNS entry to be configured and pointed to your server or load balancer.
 
     *.example.com  IN A  10.0.0.1
 
-The domain needs to be configured with `--ingress-http-domain`.
+The domain needs to be configured with `--ingress-http-url`.
 
-    exposr-server --ingress-http --ingress-http-domain http://example.com
+    exposr-server --ingress http --ingress-http-url http://example.com
 
 Each tunnel will be allocated a subdomain, ex. `http://my-tunnel.example.com`.
 
 If you have a proxy or load balancer in-front of exposr that terminates HTTPS, pass the domain with
-the `https` protocol instead. (`--ingress-http-domain https://example.com`).
+the `https` protocol instead. (`--ingress-http-url https://example.com`).
+
 #### BYOD (Bring Your Own Domain)
+
 The HTTP ingress supports custom domain names to be assigned to a tunnel outside of the automatic one
 allocated from the wildcard domain. Assigning a custom domain name to a tunnel will make exposr
 recognize requests for the tunnel using this name.
@@ -212,7 +237,7 @@ a CNAME should be configured for `example.net` pointing to `my-tunnel.example.co
 
 Finally the altname needs to be enabled in exposr, this can be done through the cli.
 
-    exposr configure-tunnel my-tunnel ingress-http-altname example.net
+    exposr tunnel configure my-tunnel set ingress-http-altnames example.net
 
 The request will be rejected unless the CNAME is properly configured.
 
@@ -258,7 +283,7 @@ containing a SSH private key in PEM encoded OpenSSH format using `--transport-ss
 
 Start the server with SSH transport enabled
 
-    > docker run --rm -ti -p 8080:8080 -p 2200:2200 exposr/exposr-server:latest --allow-registration --ingress-http-domain http://localhost:8080 --transport ssh
+    > docker run --rm -ti -p 8080:8080 -p 2200:2200 exposr/exposr-server:latest --allow-registration --ingress-http-url http://localhost:8080 --transport ssh
 
 Create and account and configure a tunnel
 
@@ -305,23 +330,60 @@ You can also specify it as a path
 
     exposr-server [...] --transport-ssh-key /path/to/sshkey
 
-### Configuring persistance
-exposr supports persistance through Redis. To enable the persistance layer pass a Redis connection string
-using the parameter `--redis-url`.
+### Storage setup
+exposr supports persistance through SQLite, PostgreSQL or Redis.
+To enable storage, pass the `--storage-url` option together with a connection string.
 
-    exposr --redis-url redis://127.0.0.1:637
+To configure PostgreSQL use `postgres://<connection-string>`.
 
-### Multi-node setup
-To run exposr in a multi-node setup, the following is required;
+    exposr-server --storage-url postgres://db_user:db_password@postgres-host/mydatabase
 
-* Redis configured on all nodes.
-* IP connectivity between all nodes, no additional ports required.
+To configure Redis use `redis://<connection-string>`.
+
+    exposr-server --storage-url redis://:redis_password@redis-host
+
+To configure SQLite use `sqlite://<path>`.
+
+    exposr-server --storage-url sqlite://exposr.sqlite
+
+### Clustering setup
+To run exposr in a clustering setup, the following is required;
+
+* PostgreSQL or Redis for storage.
+* IP connectivity between all nodes.
 * Load balancer in-front of the nodes (ex. K8S, AWS ALB, GCP LB, nginx/haproxy/etc)
 
-No additional configuration is required. All nodes connected to the same Redis cluster will auto-discover
-each other.
+To run exposr in clustering mode the nodes needs IP connectivity between them, and
+a pub/sub bus for messages. exposr supports pub/sub through a UDP or through Redis.
 
-#### A note on scalability
+The clustering mode is configured using the `--cluster` option.
+
+    exposr-server --cluster auto|udp|redis
+
+To preserve the integrity of the message bus each message is signed using a per cluster signing key.
+The message signature is validated by each node, and messages with invalid signatures are rejected.
+
+You should configure a secret signing key using the `--cluster-key` option.
+
+#### UDP
+The UDP pub/sub bus is using a custom UDP protocol running on port 1025 (can be changed with `--cluster-udp-port`).
+The UDP clustering mode supports two modes of node discovery. IP multicast and Kubernetes headless service discovery.
+
+When using IP multicast, messages are sent to a IP multicast group, by default 239.0.0.1 (can be changed with `--cluster-udp-discovery-multicast-group`).
+When using Kubernetes discovery, each Pod IP is discovered through DNS and messages are sent using unicast directly to each node.
+
+exposr tries to auto-detect the environment and select the most appropriate discovery mode.
+You can explicitly set the discovery mode using `--cluster-udp-discovery`.
+
+    exposr-server --cluster udp --cluster-udp-discovery multicast|kubernetes
+
+#### Redis
+If using Redis as a storage option it may be convenient to use Redis as the pub/sub bus as well.
+To do so you must pass a Redis connection string to the Redis cluster to use for pub/sub using the `--cluster-redis-url` option.
+
+    exposr-server --cluster redis --cluster-redis-url redis//:redis-password@redis-host
+
+### A note on scalability
 Because of the persistent nature of the tunnel transport connections, the ingress of exposr does not
 scale linear, but rather exhibits a sub-linear scaling.
 When an ingress connection is made to a node that does not have a tunnel connected locally,
@@ -329,15 +391,18 @@ the connection is proxied internally by exposr to the node that have the tunnel 
 This means that the ingress traffic will traverse two exposr nodes and with increased number of nodes
 the probability of the ingress connection being mis-routed increases.
 
+You can decrease the likelihood of miss-routing by allowing more client per-tunnel connections
+using the `--transport-max-connections` option, at the expense of maintaining more connections per client.
+
 ### Using environment variables
 
 Each option can be given as an environment variable instead of a command line option. The environment variable
 is named the same as the command line option in upper case with `-` replaced with `_`, and prefixed with `EXPOSR_`.
 
-For example the command line option `--ingress-http-domain example.com` would be specified as `EXPOSR_INGRESS_HTTP_DOMAIN=example.com`.
+For example the command line option `--ingress-http-url http://example.com` would be specified as `EXPOSR_INGRESS_HTTP_URL=http://example.com`.
 
 Multiple value options are specified as comma separated values.
-For example `--transport ws --transport ssh` would be specifies `EXPOSR_TRANSPORT=ws,ssh`
+For example `--transport ws --transport ssh` would be specified as `EXPOSR_TRANSPORT=ws,ssh`
 
 ## Production deployment
 
