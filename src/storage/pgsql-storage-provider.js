@@ -9,8 +9,8 @@ class PgsqlStorageProvider extends StorageProvider {
         this.expiryCleanInterval = 5 * 60 * 1000;
         this._ns_init = {};
 
-        const url = typeof opts.pgsql.url == 'string' ? new URL(opts.pgsql.url) : opts.pgsql.url;
-        const poolSize = opts.pgsql.poolSize || 10;
+        const url = typeof opts.url == 'string' ? new URL(opts.url) : opts.url;
+        const poolSize = opts.poolSize || 10;
 
         this._db = new Pgsql.Pool({
             connectionString: url.href,

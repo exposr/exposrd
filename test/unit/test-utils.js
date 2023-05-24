@@ -4,7 +4,8 @@ import { Duplex } from 'stream';
 
 export const initStorageService = async () => {
     return new Promise((resolve) => {
-        const storage = new StorageService('mem', {
+        const storage = new StorageService({
+            url: new URL('memory://'),
             callback: () => { resolve(storage) }
         });
     });

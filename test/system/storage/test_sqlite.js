@@ -30,8 +30,8 @@ describe('sqlite storage', () => {
         config = new Config();
         clock = sinon.useFakeTimers({shouldAdvanceTime: true});
         await new Promise((resolve, reject) => {
-            storageService = new StorageService('sqlite', {
-                sqlitePath: sqlitedb,
+            storageService = new StorageService({
+                url: new URL(`sqlite://${sqlitedb}`),
                 callback: (err) => err ? reject(err) : resolve()
             });
         });

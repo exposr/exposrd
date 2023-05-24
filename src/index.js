@@ -30,16 +30,12 @@ export default async (argv) => {
     // Initialize storage and cluster service
     const storageServiceReady = new Promise((resolve, reject) => {
         try {
-            const type = config.get('storage');
-
-            const storage = new StorageService(type, {
+            const storage = new StorageService({
                 callback: (err) => {
                     err ? reject(err) : resolve(storage);
                 },
-                redisUrl: config.get('storage-redis-url'),
-                sqlitePath: config.get('storage-sqlite-path'),
+                url: config.get('storage-url'),
                 pgsql: {
-                    url: config.get('storage-pgsql-url'),
                     poolSize: config.get('storage-pgsql-connection-pool-size'),
                 }
             });

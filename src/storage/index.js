@@ -6,30 +6,32 @@ import SqliteStorageProvider from './sqlite-storage-provider.js';
 import PgsqlStorageProvider from './pgsql-storage-provider.js';
 
 class StorageService {
-    constructor(type, opts) {
+    constructor(opts) {
         if (StorageService.instance instanceof StorageService) {
             StorageService.ref++;
             return StorageService.instance;
         }
 
-        assert(type != undefined, "type not given");
+        const url = opts?.url;
+        assert(url instanceof URL, "No connection URL was given");
 
         StorageService.ref = 1;
         StorageService.instance = this;
 
         let clazz;
-        switch (type) {
-            case 'redis':
+        let provider_opts = {};
+        switch (url.protocol) {
+            case 'redis:':
                 clazz = RedisStorageProvider;
                 break;
-            case 'sqlite':
+            case 'sqlite:':
                 clazz = SqliteStorageProvider;
                 break;
-            case 'pgsql':
+            case 'postgres:':
                 clazz = PgsqlStorageProvider;
+                provider_opts = opts?.pgsql;
                 break;
-            case 'none':
-            case 'mem':
+            case 'memory:':
                 clazz = MemoryStorageProvider;
                 break;
             default:
@@ -42,7 +44,8 @@ class StorageService {
 
         new Promise((resolve, reject) => {
             const storage = new clazz({
-                ...opts,
+                url,
+                ...provider_opts,
                 callback: (err) => { err ? reject(err) : resolve(storage) },
             });
         }).catch(async (err) => {

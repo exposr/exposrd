@@ -39,19 +39,11 @@ data:
 {{- if eq .Values.exposr.cluster.type "udp"}}
   EXPOSR_CLUSTER_UDP_DISCOVERY: "{{ .Values.exposr.cluster.udp.discovery }}"
 {{- end }}
-  EXPOSR_STORAGE: "{{ .Values.exposr.storage.type }}"
-{{- if eq .Values.exposr.storage.type "redis" }}
-{{- if .Values.exposr.storage.redis.url }}
-  EXPOSR_STORAGE_REDIS_URL: "{{ .Values.exposr.storage.redis.url }}"
-{{- end }}
-{{- end }}
-{{- if eq .Values.exposr.storage.type "pgsql" }}
-{{- if .Values.exposr.storage.pgsql.url }}
-  EXPOSR_STORAGE_PGSQL_URL: "{{ .Values.exposr.storage.pgsql.url }}"
+{{- if .Values.exposr.storage.url }}
+  EXPOSR_STORAGE_URL: "{{ .Values.exposr.storage.url }}"
 {{- end }}
 {{- if .Values.exposr.storage.pgsql.connectionPoolSize }}
   EXPOSR_STORAGE_PGSQL_CONNECTION_POOL_SIZE: "{{ .Values.exposr.storage.pgsql.connectionPoolSize }}"
-{{- end }}
 {{- end }}
   EXPOSR_INGRESS: "{{ join "," $exposrIngress }}"
   EXPOSR_TRANSPORT: "{{ join "," $exposrTransport }}"
