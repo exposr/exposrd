@@ -91,8 +91,7 @@ describe('Cluster E2E', () => {
         it(`Cluster mode ${mode} w/ redis storage`, async () => {
             const node1 = startExposrd("node-1", network, [
                 "--log-level", "debug",
-                "--storage", "redis",
-                "--storage-redis-url", redisUrl, 
+                "--storage-url", redisUrl, 
                 "--allow-registration",
                 "--ingress", "http",
                 "--ingress-http-url", "http://localhost:8080",
@@ -102,8 +101,7 @@ describe('Cluster E2E', () => {
 
             const node2 = startExposrd("node-2", network, [
                 "--log-level", "debug",
-                "--storage", "redis",
-                "--storage-redis-url", redisUrl, 
+                "--storage-url", redisUrl, 
                 "--allow-registration",
                 "--ingress", "http",
                 "--ingress-http-url", "http://localhost:8080",

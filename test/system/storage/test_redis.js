@@ -28,8 +28,8 @@ describe('redis storage', () => {
     before(async () => {
         config = new Config();
         await new Promise((resolve, reject) => {
-            storageService = new StorageService('redis', {
-                redisUrl,
+            storageService = new StorageService({
+                url: new URL(redisUrl),
                 callback: (err) => err ? reject(err) : resolve()
             });
         });

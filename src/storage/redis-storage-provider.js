@@ -8,7 +8,7 @@ class RedisStorageProvider extends StorageProvider {
     constructor(opts) {
         super();
         this.logger = Logger("redis-storage");
-        const redisUrl = opts.redisUrl;
+        const redisUrl = opts.url;
 
         if (!redisUrl) {
             throw new Error("No Redis connection string provided");
@@ -81,7 +81,7 @@ class RedisStorageProvider extends StorageProvider {
                 }),
             new Promise((resolve, reject) => {
                 const lock = new LockService("redis", {
-                    ...opts,
+                    redisUrl,
                     callback: (err) => { err ? reject(err) : resolve(lock) },
                 });
             })

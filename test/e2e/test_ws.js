@@ -24,9 +24,9 @@ describe('Websocket E2E', () => {
 
     const storageModes = [
         {storage: "In-memory storage", args: []},
-        {storage: "Redis storage", args: ["--storage", "redis", "--storage-redis-url", REDIS_URL ]},
-        {storage: "Sqlite storage", args: ["--storage", "sqlite" ]},
-        {storage: "Pgsql storage", args: ["--storage", "pgsql", "--storage-pgsql-url", PGSQL_URL ]},
+        {storage: "Redis storage", args: ["--storage-url", REDIS_URL ]},
+        {storage: "SQLite storage", args: ["--storage-url", "sqlite://db.sqlite" ]},
+        {storage: "PostgreSQL storage", args: ["--storage-url", PGSQL_URL ]},
     ];
 
     storageModes.forEach(({storage, args}) => {

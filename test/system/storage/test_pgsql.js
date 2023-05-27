@@ -29,10 +29,8 @@ describe('pgsql storage', () => {
         config = new Config();
         clock = sinon.useFakeTimers({shouldAdvanceTime: true});
         await new Promise((resolve, reject) => {
-            storageService = new StorageService('pgsql', {
-                pgsql: {
-                    url: PGSQL_URL
-                },
+            storageService = new StorageService({
+                url: new URL(PGSQL_URL),
                 callback: (err) => err ? reject(err) : resolve()
             });
         });

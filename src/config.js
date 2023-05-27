@@ -231,12 +231,8 @@ const parse = (canonicalArgv, callback, args = {}) => {
                 if (value == 'auto' && args) {
                     if (args['redis-url']) {
                         return 'redis';
-                    } else if (args['storage'] != 'none' && args['storage'] != 'sqlite') {
-                        if (args['cluster-redis-url']) {
-                            return 'redis';
-                        } else {
-                            return 'udp';
-                        }
+                    } else if (args['storage-url']?.protocol != 'memory:' && args['storage-url']?.protocol != 'sqlite:') {
+                        return 'udp';
                     } else {
                         return 'single-node';
                     }
@@ -304,50 +300,35 @@ const parse = (canonicalArgv, callback, args = {}) => {
             },
         })
         .group([
-            'storage',
-            'storage-redis-url',
-            'storage-sqlite-path',
-            'storage-pgsql-url',
-            'storage-pgsql-connection-pool',
-        ], 'Persistent storage configuration')
-        .option('storage', {
+            'storage-url',
+            'storage-pgsql-connection-pool-size',
+        ], 'Storage configuration')
+        .option('storage-url', {
             type: 'string',
-            default: 'none',
-            choices: ['none', 'redis', 'sqlite', 'pgsql'],
-            description: 'Set which persistent storage method to use',
-            coerce: (value) => {
-                if (value == 'none' && args) {
+            default: 'memory://',
+            description: `Storage connection URL.
+Supported storage options: sqlite://, postgres://, redis://
+`, 
+            coerce: (url) => {
+                url = typeof url == 'string' ? new URL(url) : url;
+
+                if (url.protocol == 'memory:' && args) {
                     if (args['redis-url']) {
-                        return 'redis';
-                    } else if (args['storage-redis-url']) {
-                        return 'redis';
+                        return args['redis-url'];
                     }
                 }
-                return value;
+
+                switch (url.protocol) {
+                    case 'memory:':
+                    case 'redis:':
+                    case 'postgres:':
+                    case 'sqlite:':
+                        break;
+                    default:
+                        throw Error(`Unsupported storage type ${url.protocol}. Valid options are redis, postgres or sqlite`);
+                }
+                return url;
             }
-        })
-        .option('storage-redis-url', {
-            type: 'string',
-            description: 'Redis connection URL for persistent storage',
-            default: args['redis-url'],
-            required: args['storage'] == 'redis',
-            coerce: (url) => {
-                return typeof url == 'string' ? new URL(url) : url;
-            },
-        })
-        .option('storage-sqlite-path', {
-            type: 'string',
-            description: 'Path to SQlite database',
-            default: 'db.sqlite',
-            required: args['storage'] == 'sqlite',
-        })
-        .option('storage-pgsql-url', {
-            type: 'string',
-            description: 'Postgres connection URL for persistent storage',
-            required: args['storage'] == 'pgsql',
-            coerce: (url) => {
-                return typeof url == 'string' ? new URL(url) : url;
-            },
         })
         .option('storage-pgsql-connection-pool-size', {
             type: 'number',
@@ -391,7 +372,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
                 return true;
             }
 
-            if (argv['storage'] == 'sqlite' && argv['cluster'] != 'single-node') {
+            if (argv['storage-url']?.protocol == 'sqlite:' && argv['cluster'] != 'single-node') {
                 throw new Error("SQlite storage can only be used in single-node mode");
             }
 

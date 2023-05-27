@@ -8,7 +8,8 @@ class SqliteStorageProvider extends StorageProvider {
         super();
         this.logger = Logger("sqlite-storage");
 
-        const db_file = opts.sqlitePath || "db.sqlite";
+        const url = opts?.url;
+        const db_file = url ? url?.href?.slice(url?.protocol?.length + 2) : "db.sqlite";
         this._db = new Sqlite(db_file)
         this._db.pragma('journal_mode = WAL');
         this.expiryCleanInterval = 5 * 60 * 1000;
@@ -19,7 +20,6 @@ class SqliteStorageProvider extends StorageProvider {
 
         new Promise((resolve, reject) => {
             const lock = new LockService("mem", {
-                ...opts,
                 callback: (err) => { err ? reject(err) : resolve(lock) },
             });
         }).catch((err) => {
