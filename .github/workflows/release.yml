@@ -113,7 +113,7 @@ jobs:
 
       - name: Publish versioned container to ghcr.io
         run:  |
-          make publish=true registry=ghcr.io/exposr image.buildx
+          make publish=true registry=ghcr.io/exposr image.xbuild
 
       - name: Publish latest container to ghcr.io
         run: |
