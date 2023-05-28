@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.9.0](https://github.com/exposr/exposr-server/compare/v0.8.1...v0.9.0) (2023-05-28)
+
+
+### Features
+
+* add explicit embedded mode ([9317092](https://github.com/exposr/exposr-server/commit/931709241462291f597f101c3c174558c5aad825))
+* add extra volume support to helm chart ([144f8f5](https://github.com/exposr/exposr-server/commit/144f8f5566e7b2aa2ee3777a834c99bc8f793f8e))
+* add postgres storage provider ([609e056](https://github.com/exposr/exposr-server/commit/609e056f5d3df20b8a79713efe80cbb67b1512be))
+* add postgres support to helm chart ([cf44890](https://github.com/exposr/exposr-server/commit/cf448907ba1ebe2591788b77e37ba200bf81a874))
+* add support for sqlite as a storage option ([733f8a7](https://github.com/exposr/exposr-server/commit/733f8a7449b62b9784d4e0c6fdb3d561a9978713))
+* add tool to migrate data between storage options ([c39f637](https://github.com/exposr/exposr-server/commit/c39f6378d8168f53f0987273cb7ae617ebe6f943))
+
+
+### Bug Fixes
+
+* drain tunnel connections on shutdown ([58e2b9c](https://github.com/exposr/exposr-server/commit/58e2b9c3ef8d1d11c063683654b3e6a9ecbdbcb9))
+* expiry timer not properly cleared on shutdown ([ab97623](https://github.com/exposr/exposr-server/commit/ab97623fc688ba8eba23a28cfa62b5961177534d))
+* implement a proper single node lock ([54c9482](https://github.com/exposr/exposr-server/commit/54c9482054393a31dcc74e2a54df08bcc0620bf8))
+* match on <namespace>:* rather than <namespace>* ([b1c5969](https://github.com/exposr/exposr-server/commit/b1c5969343b6435dfa6fa307fdfde09678735b82))
+* pass signal to terminate function ([bd0a2fb](https://github.com/exposr/exposr-server/commit/bd0a2fb26d2f49dc321a152d83c61b65f61687bc))
+* properly wait for storage provider and lock service to be ready ([be0ee0e](https://github.com/exposr/exposr-server/commit/be0ee0ef24b83ec7fef13efbaaad048ef75f7d66))
+
 ### [0.8.1](https://github.com/exposr/exposr-server/compare/v0.8.0...v0.8.1) (2023-04-30)
 
 
