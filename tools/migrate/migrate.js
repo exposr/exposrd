@@ -99,7 +99,7 @@ const migrateNamespace = async (source, destination, namespace, dryRun) => {
         }
 
         count += keys.length;
-        console.log(`Processing records ${count - 100}...${count}`);
+        console.log(`Processing records ${count - keys.length}...${count}`);
 
         const values = await source.mget(namespace, keys);
 
@@ -142,7 +142,7 @@ const migrateNamespace = async (source, destination, namespace, dryRun) => {
         }
 
         count += keys.length;
-        console.log(`Verifying records ${count - 100}...${count}`);
+        console.log(`Verifying records ${count - keys.length}...${count}`);
 
         const values = await source.mget(namespace, keys);
 
