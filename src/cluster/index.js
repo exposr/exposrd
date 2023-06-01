@@ -47,6 +47,10 @@ class ClusterService {
             typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
         };
 
+        const getLearntPeers = () => {
+            return this._getLearntPeers();
+        };
+
         switch (type) {
             case 'redis':
                 this._bus = new RedisEventBus({
@@ -60,6 +64,7 @@ class ClusterService {
                     ...opts.udp,
                     callback: ready,
                     handler: onMessage,
+                    getLearntPeers,
                 });
                 break;
             case 'single-node':
@@ -88,6 +93,12 @@ class ClusterService {
 
     detach(bus) {
         this._listeners = this._listeners.filter((x) => x != bus);
+    }
+
+    _getLearntPeers() {
+        return Array.from(new Set(Object.keys(this._nodes)
+            .filter((k) => !this._nodes[k].stale)
+            .map((k) => this._nodes[k].ip)));
     }
 
     _learnNode(node) {

@@ -9,11 +9,13 @@ class KubernetesDiscovery {
         const serviceNameEnv = opts?.serviceNameEnv || 'SERVICE_NAME';
         const namespaceEnv = opts?.namespaceEnv || 'POD_NAMESPACE';
 
-        this._serviceName = opts?.serviceName || process.env[serviceNameEnv] || "exposr-headless"; 
+        this._serviceName = opts?.serviceName || process.env[serviceNameEnv] || "exposr-headless";
         this._namespace = opts?.namespace || process.env[namespaceEnv] || "default";
         this._clusterDomain = opts?.clusterDomain || 'cluster.local';
 
         this._serviceHost = `${this._serviceName}.${this._namespace}.svc.${this._clusterDomain}`;
+
+        this._getLearntPeers = opts.getLearntPeers;
 
         this.name = `kubernetes service ${this._serviceHost}`;
         this._cacheTime = Date.now() - 1000;
@@ -54,6 +56,14 @@ class KubernetesDiscovery {
                 });
                 return [];
             });
+
+        const learntPeers = this._getLearntPeers();
+        for (let i = 0; i < learntPeers.length; i++) {
+            if (peers.indexOf(learntPeers[i]) === -1) {
+                peers.push(learntPeers[i]);
+            }
+        }
+
         return peers;
     }
 

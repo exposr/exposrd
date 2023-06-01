@@ -26,9 +26,11 @@ describe('cluster service', () => {
     })
 
     const publish = async (bus, event, message) => {
-        const stub = sinon.stub(Node, 'identifier').value(sendingNode);
+        const idStub = sinon.stub(Node, 'identifier').value(sendingNode);
+        const ipStub = sinon.stub(Node, 'address').value("127.0.0.127");
         const send = bus.publish(event, message);
-        stub.restore();
+        idStub.restore();
+        ipStub.restore();
         await send;
     };
 
@@ -247,7 +249,6 @@ describe('cluster service', () => {
             await bus.destroy();
         });
 
-
         it(`are deleted after removal timeout`, async () => {
             const spy = sinon.spy(ClusterService.prototype, "_forgetNode");
             const bus = new EventBus();
@@ -286,6 +287,34 @@ describe('cluster service', () => {
 
             sinon.restore();
         });
+
+        it(`are returned by _getLearntPeers`, async () => {
+            const bus = new EventBus();
+            await publish(bus, 'foo', {data: 42});
+
+            const nodes = clusterservice._getLearntPeers();
+            assert(nodes.length == 2, "unexpected numbers of peers");
+
+            await bus.destroy();
+        });
+
+        it(`are not returned by _getLearntPeers if stale`, async () => {
+            const spy = sinon.spy(ClusterService.prototype, "_staleNode");
+            const bus = new EventBus();
+
+            await publish(bus, 'foo', {data: 42});
+
+            let node = clusterservice.getNode(sendingNode);
+            assert(node?.id == sendingNode, "node not learnt");
+
+            await clock.tickAsync(clusterservice._staleTimeout + 1);
+
+            const nodes = clusterservice._getLearntPeers();
+            assert(nodes.length == 1, "unexpected numbers of peers");
+
+            await bus.destroy();
+        });
+
     });
 
 });
