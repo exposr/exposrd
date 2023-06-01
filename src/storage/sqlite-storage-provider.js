@@ -23,10 +23,8 @@ class SqliteStorageProvider extends StorageProvider {
                 callback: (err) => { err ? reject(err) : resolve(lock) },
             });
         }).catch((err) => {
-            console.log(err)
             typeof opts.callback === 'function' && process.nextTick(() => { opts.callback(err) });
         }).then((lock) => {
-            console.log("FOO")
             this._lockService = lock;
             typeof opts.callback === 'function' && process.nextTick(() => { opts.callback() });
         });
