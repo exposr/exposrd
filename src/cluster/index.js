@@ -53,6 +53,7 @@ class ClusterService {
 
         switch (type) {
             case 'redis':
+                this.multiNode = true;
                 this._bus = new RedisEventBus({
                     ...opts.redis,
                     callback: ready,
@@ -60,6 +61,7 @@ class ClusterService {
                 })
                 break;
             case 'udp':
+                this.multiNode = true;
                 this._bus = new UdpEventBus({
                     ...opts.udp,
                     callback: ready,
@@ -69,6 +71,7 @@ class ClusterService {
                 break;
             case 'single-node':
             case 'mem':
+                this.multiNode = false;
                 this._bus = new MemoryEventBus({
                     callback: ready,
                     handler: onMessage,
@@ -79,12 +82,27 @@ class ClusterService {
         }
     }
 
-    setReady() {
+    async setReady() {
         const heartbeat = () => {
             this.publish("cluster:heartbeat");
         };
         heartbeat();
         this._heartbeat = setInterval(heartbeat, this._heartbeatInterval);
+
+        if (!this.multiNode) {
+            return;
+        }
+
+        const rapidHeartbeat = setInterval(heartbeat, 2000);
+        const waitTime = (this._heartbeatInterval * 2) + 1000;
+        this.logger.info({
+            message: `Waiting ${waitTime/1000} seconds for initial peer discovery to complete`
+        });
+
+        await new Promise((resolve) => {
+            setTimeout(resolve, waitTime);
+        });
+        clearInterval(rapidHeartbeat);
     }
 
     attach(bus) {
