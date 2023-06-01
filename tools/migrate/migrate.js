@@ -48,22 +48,20 @@ const createStorage = async (url) => {
         case 'redis':
             clazz = RedisStorageProvider;
             opts = {
-                redisUrl: url
+                url
             }
             break;
         case 'sqlite':
             clazz = SqliteStorageProvider;
             opts = {
-                sqlitePath: url.href.slice(url.protocol.length + 2)
+                url
             }
             break;
         case 'pgsql':
         case 'postgres':
             clazz = PgsqlStorageProvider;
             opts = {
-                pgsql: {
-                    url
-                }
+                url
             }
             break;
         default:
@@ -101,7 +99,7 @@ const migrateNamespace = async (source, destination, namespace, dryRun) => {
         }
 
         count += keys.length;
-        console.log(`Processing records ${count - 100}...${count}`);
+        console.log(`Processing records ${count - keys.length}...${count}`);
 
         const values = await source.mget(namespace, keys);
 
@@ -144,7 +142,7 @@ const migrateNamespace = async (source, destination, namespace, dryRun) => {
         }
 
         count += keys.length;
-        console.log(`Verifying records ${count - 100}...${count}`);
+        console.log(`Verifying records ${count - keys.length}...${count}`);
 
         const values = await source.mget(namespace, keys);
 
