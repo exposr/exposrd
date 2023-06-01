@@ -190,35 +190,15 @@ export default async (argv) => {
             process.exit(-1);
         });
 
+    await clusterService.setReady();
     adminController.setReady();
-    clusterService.setReady();
     logger.info("exposr-server ready");
 
-    const shutdown = async (signal) => {
-        const gracefulTimeout = 10000;
+    const shutdown = async (signal, {gracefulTimeout, drainTimeout}) => {
+        gracefulTimeout ??= 30000;
+        drainTimeout ??= 5000;
         const startTime = process.hrtime.bigint();
         logger.info(`Shutdown initiated, signal=${signal}, press Ctrl-C again to force quit`);
-
-        // Drain and block new tunnel connections
-        const tunnelService = new TunnelService();
-        await tunnelService.end();
-
-        const destruction = Promise.allSettled([
-            tunnelService.destroy(),
-            apiController.destroy(),
-            adminApiController.destroy(),
-            adminController.destroy(),
-            transport.destroy(),
-            ingress.destroy(),
-            storageService.destroy(),
-            clusterService.destroy(),
-            config.destroy(),
-        ]);
-
-        let gracefulTimer;
-        const timeout = new Promise((resolve, reject) => {
-            gracefulTimer = setTimeout(reject, gracefulTimeout);
-        });
 
         let forceListener;
         const force = new Promise((resolve, reject) => {
@@ -227,22 +207,52 @@ export default async (argv) => {
             process.once('SIGINT', forceListener);
         });
 
-        return Promise.race([
-            destruction, timeout, force
-        ]).catch((e) => {
+        let gracefulTimer;
+        const timeout = new Promise((resolve, reject) => {
+            gracefulTimer = setTimeout(reject, gracefulTimeout);
+        });
+
+        let result;
+        try {
+            const multiNode = clusterService.setReady(false);
+            adminController.setReady(false);
+
+            // Drain and block new tunnel connections
+            const tunnelService = new TunnelService();
+            await Promise.race([tunnelService.end(), timeout, force]);
+
+            if (multiNode) {
+                logger.info("Waiting for connections to drain...");
+                await Promise.race([new Promise((resolve) => {
+                    setTimeout(resolve, drainTimeout);
+                }), timeout, force]);
+            }
+
+            const destruction = Promise.allSettled([
+                tunnelService.destroy(),
+                apiController.destroy(),
+                adminApiController.destroy(),
+                adminController.destroy(),
+                transport.destroy(),
+                ingress.destroy(),
+                storageService.destroy(),
+                clusterService.destroy(),
+                config.destroy(),
+            ]);
+
+            await Promise.race([destruction, timeout, force]);
+            result = true;
+        } catch (e) {
             logger.warn('Failed to gracefully shutdown service, forcing shutdown');
-            return false;
-        })
-        .then(() => {
-            return true;
-        })
-        .finally(() => {
+            result = false;
+        } finally {
             clearTimeout(gracefulTimer);
             process.removeListener('SIGTERM', forceListener);
             process.removeListener('SIGINT', forceListener);
             const elapsedMs = Math.round(Number((process.hrtime.bigint() - BigInt(startTime))) / 1e6);
             logger.info(`Shutdown complete in ${elapsedMs} ms`);
-        });
+        }
+        return result;
     };
 
     return shutdown;

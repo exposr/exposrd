@@ -20,7 +20,7 @@ describe('API test', () => {
     });
 
     after(async () => {
-        await terminator(); 
+        await terminator(undefined, {gracefulTimeout: 1000, drainTimeout: 500});
     });
 
     it('Admin interface /ping', async () => {

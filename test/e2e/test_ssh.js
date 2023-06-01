@@ -26,7 +26,7 @@ describe('SSH transport E2E', () => {
 
     after(async () => {
         process.env.NODE_ENV = "test";
-        await terminator(); 
+        await terminator(undefined, {gracefulTimeout: 1000, drainTimeout: 500}); 
         await echoServerTerminator()
     });
 
