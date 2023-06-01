@@ -82,7 +82,12 @@ class ClusterService {
         }
     }
 
-    async setReady() {
+    async setReady(ready = true) {
+        if (!ready) {
+            clearInterval(this._heartbeat);
+            return this.multiNode;
+        }
+
         const heartbeat = () => {
             this.publish("cluster:heartbeat");
         };
