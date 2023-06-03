@@ -11,7 +11,7 @@ import selfTest from './src/self-test.js';
     const terminate = await ExposrServer();
 
     const sigHandler = async (signal) => {
-        const graceful = await terminate(signal);
+        const graceful = await terminate(signal, {gracefulTimeout: undefined, drainTimeout: undefined});
         process.exit(graceful ? 0 : -1);
     };
 

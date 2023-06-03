@@ -16,10 +16,12 @@ class UdpEventBus {
             this._discoveryMethods = {
                 multicast: new MulticastDiscovery({
                     logger: this.logger,
+                    getLearntPeers: opts.getLearntPeers,
                     ...opts.multicast,
                 }),
                 kubernetes: new KubernetesDiscovery({
                     logger: this.logger,
+                    getLearntPeers: opts.getLearntPeers,
                     ...opts.kubernetes
                 }),
             };

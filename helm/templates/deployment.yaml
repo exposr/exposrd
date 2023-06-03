@@ -74,14 +74,30 @@ spec:
                   fieldPath: metadata.namespace
             - name: SERVICE_NAME
               value: {{ include "exposr.fullname" . }}-headless
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: admin
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 1
           livenessProbe:
             httpGet:
               path: /ping
               port: admin
-          readinessProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          startupProbe:
             httpGet:
               path: /ping
               port: admin
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 10
           envFrom:
             - configMapRef:
                 name: {{ include "exposr.fullname" . }}

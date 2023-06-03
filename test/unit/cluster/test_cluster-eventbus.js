@@ -16,6 +16,7 @@ describe('UDP eventbus', () => {
         return new Promise((resolve, reject) => {
             const res = new ClusterService('udp', {
                 udp: {
+                    port: 10250,
                     ...opts,
                 },
                 callback: (err) => { err ? reject(err) : resolve(res); }
@@ -324,8 +325,11 @@ describe('UDP eventbus', () => {
 
         it(`getPeers with no peers available returns empty list`, async () => {
             const clusterservice = await createClusterService({
-                discoveryMethod: 'kubernetes'
+                discoveryMethod: 'kubernetes',
             });
+
+            sinon.stub(clusterservice._bus._discoveryMethod, '_getLearntPeers')
+                .returns([]);
 
             sinon.stub(dns, 'resolve4')
                 .withArgs('exposr-headless.default.svc.cluster.local')
@@ -342,6 +346,9 @@ describe('UDP eventbus', () => {
             const clusterservice = await createClusterService({
                 discoveryMethod: 'kubernetes'
             });
+
+            sinon.stub(clusterservice._bus._discoveryMethod, '_getLearntPeers')
+                .returns([]);
 
             sinon.stub(dns, 'resolve4')
                 .withArgs('exposr-headless.default.svc.cluster.local')
@@ -421,5 +428,48 @@ describe('UDP eventbus', () => {
             sinon.restore();
             await clusterservice.destroy();
         });
+
+        it(`getPeers returns learnt nodes`, async () => {
+            const clusterservice = await createClusterService({
+                discoveryMethod: 'kubernetes'
+            });
+
+            sinon.stub(clusterservice._bus._discoveryMethod, '_getLearntPeers')
+                .returns(["127.0.0.2"]);
+
+            sinon.stub(dns, 'resolve4')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .resolves(["127.0.0.1"]);
+
+            const peers = await clusterservice._bus._discoveryMethod.getPeers();
+            assert(peers.length == 2, "got more peers than expected");
+            assert(peers[0] == '127.0.0.1', `did not get expected peer, got ${peers}`);
+            assert(peers[1] == '127.0.0.2', `did not get expected peer, got ${peers}`);
+
+            sinon.restore();
+            await clusterservice.destroy();
+        });
+
+        it(`getPeers do not return duplicated nodes`, async () => {
+            const clusterservice = await createClusterService({
+                discoveryMethod: 'kubernetes'
+            });
+
+            sinon.stub(clusterservice._bus._discoveryMethod, '_getLearntPeers')
+                .returns(["127.0.0.1"]);
+
+            sinon.stub(dns, 'resolve4')
+                .withArgs('exposr-headless.default.svc.cluster.local')
+                .resolves(["127.0.0.1"]);
+
+            const peers = await clusterservice._bus._discoveryMethod.getPeers();
+            assert(peers.length == 1, "got more peers than expected");
+            assert(peers[0] == '127.0.0.1', `did not get expected peer, got ${peers}`);
+
+            sinon.restore();
+            await clusterservice.destroy();
+        });
+
+
     });
 });

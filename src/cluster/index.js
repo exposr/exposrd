@@ -47,8 +47,13 @@ class ClusterService {
             typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
         };
 
+        const getLearntPeers = () => {
+            return this._getLearntPeers();
+        };
+
         switch (type) {
             case 'redis':
+                this.multiNode = true;
                 this._bus = new RedisEventBus({
                     ...opts.redis,
                     callback: ready,
@@ -56,14 +61,17 @@ class ClusterService {
                 })
                 break;
             case 'udp':
+                this.multiNode = true;
                 this._bus = new UdpEventBus({
                     ...opts.udp,
                     callback: ready,
                     handler: onMessage,
+                    getLearntPeers,
                 });
                 break;
             case 'single-node':
             case 'mem':
+                this.multiNode = false;
                 this._bus = new MemoryEventBus({
                     callback: ready,
                     handler: onMessage,
@@ -74,12 +82,32 @@ class ClusterService {
         }
     }
 
-    setReady() {
+    async setReady(ready = true) {
+        if (!ready) {
+            clearInterval(this._heartbeat);
+            return this.multiNode;
+        }
+
         const heartbeat = () => {
             this.publish("cluster:heartbeat");
         };
         heartbeat();
         this._heartbeat = setInterval(heartbeat, this._heartbeatInterval);
+
+        if (!this.multiNode) {
+            return;
+        }
+
+        const rapidHeartbeat = setInterval(heartbeat, 2000);
+        const waitTime = (this._heartbeatInterval * 2) + 1000;
+        this.logger.info({
+            message: `Waiting ${waitTime/1000} seconds for initial peer discovery to complete`
+        });
+
+        await new Promise((resolve) => {
+            setTimeout(resolve, waitTime);
+        });
+        clearInterval(rapidHeartbeat);
     }
 
     attach(bus) {
@@ -88,6 +116,12 @@ class ClusterService {
 
     detach(bus) {
         this._listeners = this._listeners.filter((x) => x != bus);
+    }
+
+    _getLearntPeers() {
+        return Array.from(new Set(Object.keys(this._nodes)
+            .filter((k) => !this._nodes[k].stale)
+            .map((k) => this._nodes[k].ip)));
     }
 
     _learnNode(node) {

@@ -17,12 +17,20 @@ class AdminController extends KoaController {
 
         super({...opts, logger});
 
-        this.appReady = false;
+        this.appReady = undefined;
 
         this.setRoutes((router) => {
             router.route({
                 method: 'get',
                 path: '/ping',
+                handler: async (ctx, next) => {
+                    ctx.status = this.appReady != undefined ? 200 : 404;
+                },
+            });
+
+            router.route({
+                method: 'get',
+                path: '/health',
                 handler: async (ctx, next) => {
                     ctx.status = this.appReady ? 200 : 404;
                 },
@@ -30,12 +38,13 @@ class AdminController extends KoaController {
         });
     }
 
-    setReady() {
-        this.appReady = true;
+    setReady(ready) {
+        ready ??= true;
+        this.appReady = ready;
     }
 
     async _destroy() {
-        this.appReady = false;
+        this.appReady = undefined;
     }
 }
 

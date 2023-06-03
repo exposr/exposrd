@@ -74,7 +74,7 @@ describe('Websocket E2E', () => {
             assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`);
 
             exposrCliTerminator();
-            await terminator();
+            await terminator(undefined, {gracefulTimeout: 10000, drainTimeout: 500});
         }).timeout(60000);
     });
 });
