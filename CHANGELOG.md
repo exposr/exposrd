@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.9.1](https://github.com/exposr/exposr-server/compare/v0.9.0...v0.9.1) (2023-06-03)
+
+
+### Features
+
+* add /health admin endpoint that can be used as a readiness probe ([499fdc6](https://github.com/exposr/exposr-server/commit/499fdc6a5756a7accaa18b592175a9d9008ef205))
+* add ability to disable cluster ready state ([600d414](https://github.com/exposr/exposr-server/commit/600d414f740c4edbbc91d5f1e979a8d72aef2f41))
+* **helm:** add proper lifecycle probes to deployment ([f4b23ea](https://github.com/exposr/exposr-server/commit/f4b23eaab62e8ca4a2263766cb04ae17d5c39aad))
+* use learnt nodes as peers for k8s peer discovery ([e1e92ca](https://github.com/exposr/exposr-server/commit/e1e92ca993b2e60be0513a6c837e319b16116759))
+* wait 2 * heartbeat interval during startup for peer discovery ([3af7012](https://github.com/exposr/exposr-server/commit/3af701202fbe5dc33d3b6d74a937e9e61e7cdc45))
+
+
+### Bug Fixes
+
+* init of storage provider in migration tool ([8c727e7](https://github.com/exposr/exposr-server/commit/8c727e7555c9f28a7c2f9b9117d19269dff79a25))
+* make shutdown more graceful ([b39a866](https://github.com/exposr/exposr-server/commit/b39a8666949cf67572f14aab308a5e407baddb41))
+* remove debug output ([ff36c0c](https://github.com/exposr/exposr-server/commit/ff36c0ca51bf82c6bd9939f82532f5d753c4dadd))
+* use the obtained number of entires rather than a hard coded value in status output ([537d9a3](https://github.com/exposr/exposr-server/commit/537d9a3bdb055060912b7dc8c0368e26aabd9c3a))
+
 ## [0.9.0](https://github.com/exposr/exposr-server/compare/v0.8.1...v0.9.0) (2023-05-28)
 
 
