@@ -3,7 +3,7 @@ node_version=18.15.0
 node_image?=$(node_version)-bullseye
 platforms?=linux/amd64,linux/arm64
 
-project:=exposr-server
+project:=exposrd
 version=$(shell [ -e build.env ] && . ./build.env 2> /dev/null && echo $${EXPOSR_BUILD_VERSION} || git describe --tags --always --dirty 2> /dev/null || git rev-parse --short HEAD)
 package_name=$(project)-$(version).tgz
 os:=$(shell uname)
@@ -24,7 +24,7 @@ endif
 
 all: package.build.container image.build
 clean: dist.clean
-	docker buildx rm exposr-server-builder || true
+	docker buildx rm exposrd-builder || true
 	rm -fr node_modules
 
 get.version:
@@ -47,7 +47,7 @@ package.build:
 	mkdir -p dist
 	yarn pack --no-default-rc --frozen-lockfile --filename dist/$(package_name)
 
-dist/exposr-server-$(version).tgz:
+dist/exposrd-$(version).tgz:
 	make package.build.container
 
 bundle.build:
@@ -72,30 +72,30 @@ builder.build:
 	docker build --build-arg NODE_IMAGE=$(node_image) -t $(project)-builder --target builder .
 
 # Dist build targets
-dist.build: dist/exposr-server-$(version).tgz
+dist.build: dist/exposrd-$(version).tgz
 	docker build \
 		--build-arg NODE_IMAGE=$(node_image) \
 		--build-arg VERSION=${version} \
-		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
+		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
 		--output type=tar,dest=dist/dist-build-$(version).tar \
 		--target distbuild \
 		.
-	tar xf dist/dist-build-$(version).tar $(tar_flags) "dist/exposr-server-$(version)-*"
+	tar xf dist/dist-build-$(version).tar $(tar_flags) "dist/exposrd-$(version)-*"
 	rm dist/dist-build-$(version).tar
 
 dist.xbuild:
-	docker buildx create --name exposr-server-builder --driver docker-container || true
+	docker buildx create --name exposrd-builder --driver docker-container || true
 	docker buildx build \
-		--builder exposr-server-builder \
+		--builder exposrd-builder \
 		--platform $(platforms) \
 		--target distbuild \
 		--output type=tar,dest=dist/dist-build-$(version).tar \
 		--progress=plain \
 		--build-arg NODE_IMAGE=$(node_image) \
 		--build-arg VERSION=${version} \
-		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
+		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
 		.
-	tar xf dist/dist-build-$(version).tar --strip 1 $(tar_flags) "*/dist/exposr-server-$(version)-*"
+	tar xf dist/dist-build-$(version).tar --strip 1 $(tar_flags) "*/dist/exposrd-$(version)-*"
 	rm dist/dist-build-$(version).tar
 
 # Docker image build targets
@@ -103,7 +103,7 @@ image.build:
 	docker build \
 		--build-arg NODE_IMAGE=$(node_image) \
 		--build-arg VERSION=${version} \
-		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
+		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
 		--target imagebuild \
 		--pull -t $(project):$(version) .
 
@@ -115,15 +115,15 @@ push_flag=--push
 endif
 
 image.xbuild:
-	docker buildx create --name exposr-server-builder --driver docker-container || true
+	docker buildx create --name exposrd-builder --driver docker-container || true
 	docker buildx build \
-		--builder exposr-server-builder \
+		--builder exposrd-builder \
 		--platform $(platforms) \
 		--target imagebuild \
 		$(push_flag) \
 		--build-arg NODE_IMAGE=$(node_image) \
 		--build-arg VERSION=${version} \
-		--build-arg DIST_SRC=dist/exposr-server-$(version).tgz \
+		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
 		-t $(registry)/$(project):$(version) .
 
 image.xbuild.latest:

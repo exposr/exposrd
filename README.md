@@ -162,7 +162,7 @@ You can quickly try out exposr without installing anything.
 Run the server, the server will listen on port 8080 and the API will be exposed at `http://host.docker.internal:8080`.
 HTTP ingress sub-domains will be allocated from `http://localhost:8080`.
 
-    docker run --rm -ti -p 8080:8080 exposr/exposr-server:latest --allow-registration --ingress-http-url http://localhost:8080
+    docker run --rm -ti -p 8080:8080 exposr/exposrd:latest --allow-registration --ingress-http-url http://localhost:8080
 
 Start the client with, this will create a tunnel called `example` and connect it to `http://example.com`.
 The tunnel will be available at `http://example.localhost:8080`.
@@ -201,7 +201,7 @@ The API can be enabled by passing the flag `--admin-api-enable true`.
 
 To further enable the administration API an API key must be configured.
 
-    exposr-server --admin-api-enable true --admin-api-key <insert key>
+    exposrd --admin-api-enable true --admin-api-key <insert key>
 
 > ⚠️ Warning: The API key allows full privileged access to all accounts and tunnels.
 
@@ -216,7 +216,7 @@ wildcard DNS entry to be configured and pointed to your server or load balancer.
 
 The domain needs to be configured with `--ingress-http-url`.
 
-    exposr-server --ingress http --ingress-http-url http://example.com
+    exposrd --ingress http --ingress-http-url http://example.com
 
 Each tunnel will be allocated a subdomain, ex. `http://my-tunnel.example.com`.
 
@@ -267,7 +267,7 @@ For testing a self-signed can be generated with openssl.
 
 #### Example
 
-    exposr-server --ingress sni --ingress-sni-cert certificate.pem --ingress-sni-key private-key.pem
+    exposrd --ingress sni --ingress-sni-cert certificate.pem --ingress-sni-key private-key.pem
 
 ### Configuring SSH transport
 
@@ -283,7 +283,7 @@ containing a SSH private key in PEM encoded OpenSSH format using `--transport-ss
 
 Start the server with SSH transport enabled
 
-    > docker run --rm -ti -p 8080:8080 -p 2200:2200 exposr/exposr-server:latest --allow-registration --ingress-http-url http://localhost:8080 --transport ssh
+    > docker run --rm -ti -p 8080:8080 -p 2200:2200 exposr/exposrd:latest --allow-registration --ingress-http-url http://localhost:8080 --transport ssh
 
 Create and account and configure a tunnel
 
@@ -324,11 +324,11 @@ Generate an SSH key with (only the private key is required)
 
 The content of the file can be passed through environment variables
 
-    EXPOSR_TRANSPORT_SSH_KEY=$(<sshkey) exposr-server [...]
+    EXPOSR_TRANSPORT_SSH_KEY=$(<sshkey) exposrd [...]
 
 You can also specify it as a path
 
-    exposr-server [...] --transport-ssh-key /path/to/sshkey
+    exposrd [...] --transport-ssh-key /path/to/sshkey
 
 ### Storage setup
 exposr supports persistance through SQLite, PostgreSQL or Redis.
@@ -336,15 +336,15 @@ To enable storage, pass the `--storage-url` option together with a connection st
 
 To configure PostgreSQL use `postgres://<connection-string>`.
 
-    exposr-server --storage-url postgres://db_user:db_password@postgres-host/mydatabase
+    exposrd --storage-url postgres://db_user:db_password@postgres-host/mydatabase
 
 To configure Redis use `redis://<connection-string>`.
 
-    exposr-server --storage-url redis://:redis_password@redis-host
+    exposrd --storage-url redis://:redis_password@redis-host
 
 To configure SQLite use `sqlite://<path>`.
 
-    exposr-server --storage-url sqlite://exposr.sqlite
+    exposrd --storage-url sqlite://exposr.sqlite
 
 ### Clustering setup
 To run exposr in a clustering setup, the following is required;
@@ -358,7 +358,7 @@ a pub/sub bus for messages. exposr supports pub/sub through a UDP or through Red
 
 The clustering mode is configured using the `--cluster` option.
 
-    exposr-server --cluster auto|udp|redis
+    exposrd --cluster auto|udp|redis
 
 To preserve the integrity of the message bus each message is signed using a per cluster signing key.
 The message signature is validated by each node, and messages with invalid signatures are rejected.
@@ -375,13 +375,13 @@ When using Kubernetes discovery, each Pod IP is discovered through DNS and messa
 exposr tries to auto-detect the environment and select the most appropriate discovery mode.
 You can explicitly set the discovery mode using `--cluster-udp-discovery`.
 
-    exposr-server --cluster udp --cluster-udp-discovery multicast|kubernetes
+    exposrd --cluster udp --cluster-udp-discovery multicast|kubernetes
 
 #### Redis
 If using Redis as a storage option it may be convenient to use Redis as the pub/sub bus as well.
 To do so you must pass a Redis connection string to the Redis cluster to use for pub/sub using the `--cluster-redis-url` option.
 
-    exposr-server --cluster redis --cluster-redis-url redis//:redis-password@redis-host
+    exposrd --cluster redis --cluster-redis-url redis//:redis-password@redis-host
 
 ### A note on scalability
 Because of the persistent nature of the tunnel transport connections, the ingress of exposr does not

@@ -11,8 +11,8 @@ ARG NODE_VERSION
 ARG TARGETPLATFORM
 ARG VERSION=*
 ARG DIST_SRC
-COPY ${DIST_SRC} /exposr-server.tgz
-RUN tar xvf /exposr-server.tgz
+COPY ${DIST_SRC} /exposrd.tgz
+RUN tar xvf /exposrd.tgz
 # Available dst targets at https://github.com/vercel/pkg-fetch
 RUN cd package; \
     TARGETPLATFORM="${TARGETPLATFORM:-linux/$(uname -m)}"; \
@@ -29,20 +29,20 @@ RUN cd package; \
         echo Unknown target ${TARGETPLATFORM}; \
     fi; \
     make dist.linux.build; \
-    cp dist/exposr-server-${VERSION}-${dist_platform} /dist; \
+    cp dist/exposrd-${VERSION}-${dist_platform} /dist; \
     mkdir -p /buildroot/lib; \
-    cp dist/exposr-server-${VERSION}-${dist_platform} /buildroot/exposr-server
+    cp dist/exposrd-${VERSION}-${dist_platform} /buildroot/exposrd
 # Populate the builroot with required libraries
-RUN objdump -x /buildroot/exposr-server | grep NEEDED | awk '{print $2}' | \
+RUN objdump -x /buildroot/exposrd | grep NEEDED | awk '{print $2}' | \
     xargs -I {} find /lib64 /lib /usr/lib \( -name {} -o -name libnss* -o -name libresolv* \) | \
     xargs -I {} sh -c 'mkdir -p "/buildroot/$(dirname "{}")" && cp -aL "{}" "/buildroot/{}"';
 # Sanity check buildroot
-RUN chroot /buildroot/ /exposr-server --version | grep ${VERSION}
+RUN chroot /buildroot/ /exposrd --version | grep ${VERSION}
 
 FROM scratch AS imagebuild
 ARG VERSION
-LABEL org.opencontainers.image.description exposr-server ${VERSION}
+LABEL org.opencontainers.image.description exposrd ${VERSION}
 COPY --from=distbuild /buildroot/ /
 EXPOSE 8080
 EXPOSE 8081
-ENTRYPOINT ["/exposr-server"]
+ENTRYPOINT ["/exposrd"]

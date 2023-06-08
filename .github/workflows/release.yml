@@ -40,7 +40,7 @@ jobs:
 
       - name: Extract package
         run:  |
-            tar xvf exposr-server-*.tgz --strip-components=1
+            tar xvf exposrd-*.tgz --strip-components=1
 
       - name: Build distribution
         run:  |
@@ -75,9 +75,9 @@ jobs:
 
       - name: Extract package
         run:  |
-            tar xvf exposr-server-*.tgz --strip-components=1
+            tar xvf exposrd-*.tgz --strip-components=1
             mkdir -p dist
-            mv exposr-server-*.tgz dist/
+            mv exposrd-*.tgz dist/
 
       - name: Build binary dist files
         run:  |
@@ -87,7 +87,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: linux-dist
-          path: dist/exposr-server-*-linux-*
+          path: dist/exposrd-*-linux-*
           retention-days: 1
 
       - name: Login to hub.docker.com
@@ -141,7 +141,7 @@ jobs:
 
       - name: Generate SHA256 sums for artifacts
         run: |
-          ls exposr-server-* | xargs -L 1 -I {} sh -c "sha256sum  {} > {}.sha256"
+          ls exposrd-* | xargs -L 1 -I {} sh -c "sha256sum  {} > {}.sha256"
 
       - name: Build artifacts
         run: |
@@ -152,4 +152,4 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: ${{ startsWith(github.ref, '/refs/tags/v0') }}
           files: |
-            exposr-server-*
+            exposrd-*

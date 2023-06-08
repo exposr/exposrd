@@ -40,7 +40,7 @@ jobs:
 
       - name: Extract package
         run:  |
-            tar xvf exposr-server-*.tgz --strip-components=1
+            tar xvf exposrd-*.tgz --strip-components=1
 
       - name: Build distribution
         run:  |
@@ -75,9 +75,9 @@ jobs:
 
       - name: Extract package
         run:  |
-            tar xvf exposr-server-*.tgz --strip-components=1
+            tar xvf exposrd-*.tgz --strip-components=1
             mkdir -p dist
-            mv exposr-server-*.tgz dist/
+            mv exposrd-*.tgz dist/
 
       - name: Build binary dist files
         run:  |
@@ -87,7 +87,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: linux-dist
-          path: dist/exposr-server-*-linux-*
+          path: dist/exposrd-*-linux-*
           retention-days: 1
 
       - name: Login to hub.docker.com
@@ -131,6 +131,6 @@ jobs:
       - name: Save artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: exposr-server-unstable
+          name: exposrd-unstable
           path: exposr-*
           retention-days: 7

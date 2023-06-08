@@ -1,4 +1,4 @@
-exposr-server {{ .Chart.AppVersion }} deployed
+exposrd {{ .Chart.AppVersion }} deployed
 {{ if .Values.ingress.enabled }}
 Kubernetes ingress:
 {{- range $host := .Values.ingress.hosts }}
