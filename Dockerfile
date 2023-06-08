@@ -41,7 +41,6 @@ RUN chroot /buildroot/ /exposrd --version | grep ${VERSION}
 
 FROM scratch AS imagebuild
 ARG VERSION
-LABEL org.opencontainers.image.description exposrd ${VERSION}
 COPY --from=distbuild /buildroot/ /
 EXPOSE 8080
 EXPOSE 8081

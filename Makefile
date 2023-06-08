@@ -94,6 +94,9 @@ dist.xbuild:
 		--build-arg NODE_IMAGE=$(node_image) \
 		--build-arg VERSION=${version} \
 		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
+		--label "org.opencontainers.image.version=$(version)" \
+		--label "org.opencontainers.image.revision=$(shell git rev-parse HEAD)" \
+		--label "org.opencontainers.image.description=exposrd version $(version) commit $(shell git rev-parse HEAD)" \
 		.
 	tar xf dist/dist-build-$(version).tar --strip 1 $(tar_flags) "*/dist/exposrd-$(version)-*"
 	rm dist/dist-build-$(version).tar
