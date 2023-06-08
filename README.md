@@ -162,12 +162,12 @@ You can quickly try out exposr without installing anything.
 Run the server, the server will listen on port 8080 and the API will be exposed at `http://host.docker.internal:8080`.
 HTTP ingress sub-domains will be allocated from `http://localhost:8080`.
 
-    docker run --rm -ti -p 8080:8080 exposr/exposrd:latest --allow-registration --ingress-http-url http://localhost:8080
+    docker run --rm -ti -p 8080:8080 ghcr.io/exposr/exposrd:latest --allow-registration --ingress-http-url http://localhost:8080
 
 Start the client with, this will create a tunnel called `example` and connect it to `http://example.com`.
 The tunnel will be available at `http://example.localhost:8080`.
 
-    docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ tunnel connect example http://example.com
+    docker run --rm -ti ghcr.io/exposr/exposr:latest -s http://host.docker.internal:8080/ tunnel connect example http://example.com
 
 Try the tunnel
 
@@ -283,15 +283,15 @@ containing a SSH private key in PEM encoded OpenSSH format using `--transport-ss
 
 Start the server with SSH transport enabled
 
-    > docker run --rm -ti -p 8080:8080 -p 2200:2200 exposr/exposrd:latest --allow-registration --ingress-http-url http://localhost:8080 --transport ssh
+    > docker run --rm -ti -p 8080:8080 -p 2200:2200 ghcr.io/exposr/exposrd:latest --allow-registration --ingress-http-url http://localhost:8080 --transport ssh
 
 Create and account and configure a tunnel
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ account create
+    > docker run --rm -ti ghcr.io/exposr/exposr:latest -s http://host.docker.internal:8080/ account create
      ✔ 2022-02-24 19:00:00 +0100 - Creating account...success
     ✨ Created account DE94-JTNJ-FX5W-YWKY
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a DE94-JTNJ-FX5W-YWKY tunnel create my-tunnel transport-ssh on ingress-http on
+    > docker run --rm -ti ghcr.io/exposr/exposr:latest -s http://host.docker.internal:8080/ -a DE94-JTNJ-FX5W-YWKY tunnel create my-tunnel transport-ssh on ingress-http on
      ✔ 2022-02-24 19:00:10 +0100 - Creating tunnel...success (my-tunnel)
      ✔ 2022-02-24 19:00:20 +0100 - Setting transport-ssh to 'true'...done
      ✔ 2022-02-24 19:00:20 +0100 - Setting ingress-http to 'true'...done
@@ -299,7 +299,7 @@ Create and account and configure a tunnel
 
 Fetch the SSH endpoint URL
 
-    > docker run --rm -ti exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVC" tunnel info my-tunnel
+    > docker run --rm -ti ghcr.io/exposr/exposr:latest -s http://host.docker.internal:8080/ -a MNF4-P6Y6-M2MR-RVC" tunnel info my-tunnel
     [...]
       Transports
         SSH: ssh://my-tunnel:kXBnFV6Z1YoZPhoVLmxn9UO-Cp2qh7R19CGRrA_ylYfiiZ32N-CR9LWyHtaHxXn8UXGPNSt5xXUxf-5DlZOvLg@localhost:2200

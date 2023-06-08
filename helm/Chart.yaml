@@ -1,6 +1,6 @@
 apiVersion: v2
 name: exposr
-description: exposr tunnel server
+description: exposrd tunnel daemon
 type: application
 version: 0.9.1
 appVersion: 0.9.1
