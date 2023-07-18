@@ -378,7 +378,7 @@ Supported storage options: sqlite://, postgres://, redis://
 
             return true;
         })
-        .scriptName('exposr-server')
+        .scriptName('exposrd')
         .wrap(120)
         .parse(canonicalArgv, callback);
 }

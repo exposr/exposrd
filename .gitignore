@@ -2,6 +2,6 @@ node_modules
 *.tgz
 build.env
 build.js
-exposr-server.cjs
+exposrd.cjs
 dist
 .pkg-cache

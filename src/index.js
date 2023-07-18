@@ -14,7 +14,7 @@ import TunnelService from './tunnel/tunnel-service.js';
 export default async (argv) => {
     const config = new Config(argv);
     const logger = Logger();
-    logger.info(`exposr-server ${Version.version.version}`);
+    logger.info(`exposrd ${Version.version.version}`);
     logger.info({
         node_id: Node.identifier,
         host: Node.hostname,
@@ -192,7 +192,7 @@ export default async (argv) => {
 
     await clusterService.setReady();
     adminController.setReady();
-    logger.info("exposr-server ready");
+    logger.info("exposrd ready");
 
     const shutdown = async (signal, {gracefulTimeout, drainTimeout}) => {
         gracefulTimeout ??= 30000;

@@ -1,16 +1,16 @@
 {
-  "name": "exposr-server",
+  "name": "exposrd",
   "version": "0.9.1",
   "type": "module",
-  "main": "exposr-server.cjs",
-  "bin": "exposr-server.cjs",
+  "main": "exposrd.cjs",
+  "bin": "exposrd.cjs",
   "author": "Fredrik Lindberg <fli@fli.dev>",
   "license": "MIT",
   "engines": {
     "node": ">=16"
   },
   "files": [
-    "exposr-server.cjs",
+    "exposrd.cjs",
     "README.md",
     "LICENSE",
     "yarn.lock",
@@ -40,12 +40,12 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-json": "^6.0.0",
+    "commit-and-tag-version": "^11.2.1",
     "mocha": "^10.2.0",
     "pkg": "^5.8.1",
     "pkg-fetch": "^3.5.2",
     "rollup": "^3.18.0",
     "sinon": "^15.0.3",
-    "standard-version": "^9.3.2",
     "yaml": "^2.2.2"
   },
   "resolutions": {
@@ -53,10 +53,10 @@
   },
   "scripts": {
     "prepack": "yarn run version && yarn run bundle",
-    "postpack": "rm build.env exposr-server.cjs",
+    "postpack": "rm build.env exposrd.cjs",
     "release": "standard-version",
     "version": "scripts/build-version.sh",
-    "bundle": "rollup exposr-server.js --file exposr-server.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
+    "bundle": "rollup exposrd.js --file exposrd.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
     "dist": "scripts/build-dist.sh",
     "test": "scripts/run-test.sh"
   },
