@@ -147,7 +147,7 @@ nodist.image.build: dist/exposrd-$(version).tgz
 		--label "org.opencontainers.image.version=$(version)" \
 		--label "org.opencontainers.image.revision=$(commit)" \
 		--label "org.opencontainers.image.description=exposrd version $(version) commit $(commit)" \
-		-t $(project)-nodist:$(version) \
+		-t $(project):nodist-$(version) \
 		.
 
 nodist.image.xbuild: dist/exposrd-$(version).tgz
@@ -164,11 +164,11 @@ nodist.image.xbuild: dist/exposrd-$(version).tgz
 		--label "org.opencontainers.image.version=$(version)" \
 		--label "org.opencontainers.image.revision=$(commit)" \
 		--label "org.opencontainers.image.description=exposrd version $(version) commit $(commit)" \
-		-t $(project)-nodist:$(version) \
+		-t $(project):nodist-$(version) \
 		.
 
 nodist.image.xbuild.unstable:
-	docker buildx imagetools create --tag $(registry)/$(project)-nodist:unstable $(registry)/$(project)-nodist:$(version)
+	docker buildx imagetools create --tag $(registry)/$(project)-nodist:unstable $(registry)/$(project):nodist-$(version)
 
 
 .PHONY: release release.publish builder.build image.build image.xbuild image.xbuild.latest image.xbuild.unstable
