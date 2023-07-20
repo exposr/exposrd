@@ -168,7 +168,7 @@ nodist.image.xbuild:
 		.
 
 nodist.image.xbuild.unstable:
-	docker buildx imagetools create --tag $(registry)/$(project)-nodist:unstable $(registry)/$(project):nodist-$(version)
+	docker buildx imagetools create --tag $(registry)/$(project):nodist-unstable $(registry)/$(project):nodist-$(version)
 
 
 .PHONY: release release.publish builder.build image.build image.xbuild image.xbuild.latest image.xbuild.unstable
