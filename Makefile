@@ -53,6 +53,7 @@ dist/exposrd-$(version).tgz:
 bundle.build:
 	yarn install --no-default-rc --frozen-lockfile
 	yarn run bundle
+	yarn run bundle-es
 
 dist.clean:
 	rm -fr dist
@@ -134,5 +135,39 @@ image.xbuild.latest:
 
 image.xbuild.unstable:
 	docker buildx imagetools create --tag $(registry)/$(project):unstable $(registry)/$(project):$(version)
+
+nodist.image.build: dist/exposrd-$(version).tgz
+	docker build \
+		-f Dockerfile.nodist \
+		--progress plain \
+		--build-arg VERSION=${version} \
+		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
+		--label "org.opencontainers.image.source=https://github.com/exposr/exposrd" \
+		--label "org.opencontainers.image.version=$(version)" \
+		--label "org.opencontainers.image.revision=$(shell git rev-parse HEAD)" \
+		--label "org.opencontainers.image.description=exposrd version $(version) commit $(shell git rev-parse HEAD)" \
+		-t $(project)-nodist:$(version) \
+		.
+
+nodist.image.xbuild: dist/exposrd-$(version).tgz
+	docker buildx create --name exposrd-builder --driver docker-container || true
+	docker buildx build \
+		--builder exposrd-builder \
+		-f Dockerfile.nodist \
+		--progress plain \
+		--platform $(platforms) \
+		$(push_flag) \
+		--build-arg VERSION=${version} \
+		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
+		--label "org.opencontainers.image.source=https://github.com/exposr/exposrd" \
+		--label "org.opencontainers.image.version=$(version)" \
+		--label "org.opencontainers.image.revision=$(shell git rev-parse HEAD)" \
+		--label "org.opencontainers.image.description=exposrd version $(version) commit $(shell git rev-parse HEAD)" \
+		-t $(project)-nodist:$(version) \
+		.
+
+nodist.image.xbuild.unstable:
+	docker buildx imagetools create --tag $(registry)/$(project)-nodist:unstable $(registry)/$(project)-nodist:$(version)
+
 
 .PHONY: release release.publish builder.build image.build image.xbuild image.xbuild.latest image.xbuild.unstable

@@ -100,10 +100,12 @@ jobs:
       - name: Publish versioned container to ghcr.io
         run:  |
           make publish=true registry=ghcr.io/exposr image.xbuild
+          make publish=true registry=ghcr.io/exposr nodist.image.xbuild
 
-      - name: Publish latest container to ghcr.io
+      - name: Publish unstable container to ghcr.io
         run: |
           make registry=ghcr.io/exposr image.xbuild.unstable
+          make registry=ghcr.io/exposr nodist.image.xbuild.unstable
 
   summary:
     runs-on: ubuntu-latest

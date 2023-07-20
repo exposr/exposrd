@@ -11,6 +11,7 @@
   },
   "files": [
     "exposrd.cjs",
+    "exposrd.mjs",
     "README.md",
     "LICENSE",
     "yarn.lock",
@@ -52,11 +53,12 @@
     "pkg-fetch": "3.5.2"
   },
   "scripts": {
-    "prepack": "yarn run version && yarn run bundle",
+    "prepack": "yarn run version && yarn run bundle && yarn run bundle-es",
     "postpack": "rm build.env exposrd.cjs",
     "release": "standard-version",
     "version": "scripts/build-version.sh",
     "bundle": "rollup exposrd.js --file exposrd.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
+    "bundle-es": "rollup exposrd.js --file exposrd.mjs --format es -p @rollup/plugin-commonjs  -p @rollup/plugin-json",
     "dist": "scripts/build-dist.sh",
     "test": "scripts/run-test.sh"
   },
