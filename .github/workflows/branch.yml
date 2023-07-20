@@ -58,3 +58,4 @@ jobs:
         if: github.event.inputs.publish_container == 'true'
         run:  |
           make publish=true registry=ghcr.io/exposr image.xbuild
+          make publish=true registry=ghcr.io/exposr nodist.image.xbuild

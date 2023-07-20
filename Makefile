@@ -5,6 +5,7 @@ platforms?=linux/amd64,linux/arm64
 
 project:=exposrd
 version=$(shell [ -e build.env ] && . ./build.env 2> /dev/null && echo $${EXPOSR_BUILD_VERSION} || git describe --tags --always --dirty 2> /dev/null || git rev-parse --short HEAD)
+commit=$(shell [ -e build.env ] && . ./build.env 2> /dev/null && echo $${BUILD_GIT_COMMIT} || git rev-parse --short HEAD)
 package_name=$(project)-$(version).tgz
 os:=$(shell uname)
 ifeq (Linux, $(os))
@@ -144,12 +145,12 @@ nodist.image.build: dist/exposrd-$(version).tgz
 		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
 		--label "org.opencontainers.image.source=https://github.com/exposr/exposrd" \
 		--label "org.opencontainers.image.version=$(version)" \
-		--label "org.opencontainers.image.revision=$(shell git rev-parse HEAD)" \
-		--label "org.opencontainers.image.description=exposrd version $(version) commit $(shell git rev-parse HEAD)" \
-		-t $(project)-nodist:$(version) \
+		--label "org.opencontainers.image.revision=$(commit)" \
+		--label "org.opencontainers.image.description=exposrd version $(version) commit $(commit)" \
+		-t $(registry)/$(project):nodist-$(version) \
 		.
 
-nodist.image.xbuild: dist/exposrd-$(version).tgz
+nodist.image.xbuild:
 	docker buildx create --name exposrd-builder --driver docker-container || true
 	docker buildx build \
 		--builder exposrd-builder \
@@ -161,13 +162,13 @@ nodist.image.xbuild: dist/exposrd-$(version).tgz
 		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
 		--label "org.opencontainers.image.source=https://github.com/exposr/exposrd" \
 		--label "org.opencontainers.image.version=$(version)" \
-		--label "org.opencontainers.image.revision=$(shell git rev-parse HEAD)" \
-		--label "org.opencontainers.image.description=exposrd version $(version) commit $(shell git rev-parse HEAD)" \
-		-t $(project)-nodist:$(version) \
+		--label "org.opencontainers.image.revision=$(commit)" \
+		--label "org.opencontainers.image.description=exposrd version $(version) commit $(commit)" \
+		-t $(registry)/$(project):nodist-$(version) \
 		.
 
 nodist.image.xbuild.unstable:
-	docker buildx imagetools create --tag $(registry)/$(project)-nodist:unstable $(registry)/$(project)-nodist:$(version)
+	docker buildx imagetools create --tag $(registry)/$(project)-nodist:unstable $(registry)/$(project):nodist-$(version)
 
 
 .PHONY: release release.publish builder.build image.build image.xbuild image.xbuild.latest image.xbuild.unstable
