@@ -18,6 +18,8 @@
     "build.env",
     "build.js",
     "Dockerfile",
+    "Dockerfile.nodist",
+    "docker/entrypoint.sh",
     "Makefile",
     "scripts/build-dist.sh"
   ],
