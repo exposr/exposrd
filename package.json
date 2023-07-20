@@ -1,6 +1,6 @@
 {
   "name": "exposrd",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "type": "module",
   "main": "exposrd.cjs",
   "bin": "exposrd.cjs",
