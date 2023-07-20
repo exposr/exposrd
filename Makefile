@@ -147,10 +147,10 @@ nodist.image.build: dist/exposrd-$(version).tgz
 		--label "org.opencontainers.image.version=$(version)" \
 		--label "org.opencontainers.image.revision=$(commit)" \
 		--label "org.opencontainers.image.description=exposrd version $(version) commit $(commit)" \
-		-t $(project):nodist-$(version) \
+		-t $(registry)/$(project):nodist-$(version) \
 		.
 
-nodist.image.xbuild: dist/exposrd-$(version).tgz
+nodist.image.xbuild:
 	docker buildx create --name exposrd-builder --driver docker-container || true
 	docker buildx build \
 		--builder exposrd-builder \
@@ -164,7 +164,7 @@ nodist.image.xbuild: dist/exposrd-$(version).tgz
 		--label "org.opencontainers.image.version=$(version)" \
 		--label "org.opencontainers.image.revision=$(commit)" \
 		--label "org.opencontainers.image.description=exposrd version $(version) commit $(commit)" \
-		-t $(project):nodist-$(version) \
+		-t $(registry)/$(project):nodist-$(version) \
 		.
 
 nodist.image.xbuild.unstable:
