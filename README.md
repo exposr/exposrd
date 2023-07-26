@@ -41,7 +41,7 @@ connects and establishes the tunnel.
 
 | Type       | Method                     | Endpoint   | Client support        |
 | ---------- | -------------------------- |----------- | --------------------- |
-| Websocket  | Custom multiplex websocket | HTTP       | [`exposr-cli`](https://github.com/exposr/exposr-cli) |
+| Websocket  | Custom multiplex websocket | HTTP       | [`exposr`](https://github.com/exposr/exposr) |
 | SSH        | SSH TCP forwarding         | TCP        | Any SSH client        |
 
 The Websocket transport endpoint can run behind a HTTP load balancer on the same port
@@ -152,9 +152,6 @@ needs to be known in order to perform privileged operations on a tunnel.
 Containers are available for deployments in container runtime environments.
 
 Latest release is available with the `latest` tag, latest development (master branch) is available with the `unstable` tag.
-
-### Binaries
-For single node or ad-hoc deployments, binaries are available for Linux (amd64, arm64) as well as MacOS x64 (runs on M1).
 
 ## Quick start
 You can quickly try out exposr without installing anything.

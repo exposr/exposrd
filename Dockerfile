@@ -1,47 +1,36 @@
-ARG NODE_IMAGE
-FROM node:${NODE_IMAGE} AS builder
-RUN apt update && apt -y install build-essential git make
-RUN mkdir -p /dist /workdir /.cache /.yarn /.npm /tmp
-RUN chmod 777 /.cache /.yarn /.npm /tmp
+ARG NODE_VERSION=18.16.1
+ARG ALPINE_VERSION=3.18
+FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS builder
+RUN apk add \
+    build-base \
+    python3 \
+    curl \
+    git
+RUN curl -sf https://gobinaries.com/tj/node-prune | sh
+RUN touch /.yarnrc && chmod 666 /.yarnrc
 WORKDIR /workdir
-ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["/bin/sh"]
 
-FROM builder AS distbuild
-ARG NODE_VERSION
-ARG TARGETPLATFORM
-ARG VERSION=*
+FROM builder AS dist
+ENV NODE_ENV=production
 ARG DIST_SRC
 COPY ${DIST_SRC} /exposrd.tgz
-RUN tar xvf /exposrd.tgz
-# Available dst targets at https://github.com/vercel/pkg-fetch
-RUN cd package; \
-    TARGETPLATFORM="${TARGETPLATFORM:-linux/$(uname -m)}"; \
-    if [ "${TARGETPLATFORM}" = "linux/amd64" ] || [ "${TARGETPLATFORM}" = "linux/x86_64" ]; then \
-        export dist_platform=linux-glibc-amd64; \
-        export dist_target=node${NODE_VERSION}-linux-x64; \
-    elif [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
-        export dist_platform=linux-glibc-arm64; \
-        export dist_target=node${NODE_VERSION}-linux-arm64; \
-    elif [ "${TARGETPLATFORM}" = "linux/arm/v7" ]; then \
-        export dist_platform=linux-glibc-armv7; \
-        export dist_target=node${NODE_VERSION}-linux-armv7; \
-    else \
-        echo Unknown target ${TARGETPLATFORM}; \
-    fi; \
-    make dist.linux.build; \
-    cp dist/exposrd-${VERSION}-${dist_platform} /dist; \
-    mkdir -p /buildroot/lib; \
-    cp dist/exposrd-${VERSION}-${dist_platform} /buildroot/exposrd
-# Populate the builroot with required libraries
-RUN objdump -x /buildroot/exposrd | grep NEEDED | awk '{print $2}' | \
-    xargs -I {} find /lib64 /lib /usr/lib \( -name {} -o -name libnss* -o -name libresolv* \) | \
-    xargs -I {} sh -c 'mkdir -p "/buildroot/$(dirname "{}")" && cp -aL "{}" "/buildroot/{}"';
-# Sanity check buildroot
-RUN chroot /buildroot/ /exposrd --version | grep ${VERSION}
+RUN tar xvf /exposrd.tgz -C /
+WORKDIR /package
+RUN yarn install --production --no-default-rc --frozen-lockfile
+RUN node-prune
 
-FROM scratch AS imagebuild
-ARG VERSION
-COPY --from=distbuild /buildroot/ /
+FROM alpine:${ALPINE_VERSION} as runner
+ENV NODE_ENV=production
+COPY --from=dist /usr/local/bin/node /bin/node
+COPY --from=dist /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so.6
+COPY --from=dist /usr/lib/libgcc_s.so.1 /usr/lib/libgcc_s.so.1
+COPY --from=dist /package/exposrd.mjs /app/exposrd.mjs
+COPY --from=dist /package/node_modules /app/node_modules
+RUN mkdir -p /entrypoint-initdb.d
+COPY docker/entrypoint.sh /entrypoint.sh
+WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
-ENTRYPOINT ["/exposrd"]
+
+ENTRYPOINT ["/entrypoint.sh"]
