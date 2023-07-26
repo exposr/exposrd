@@ -2,15 +2,14 @@
   "name": "exposrd",
   "version": "0.10.0",
   "type": "module",
-  "main": "exposrd.cjs",
-  "bin": "exposrd.cjs",
+  "main": "exposrd.mjs",
+  "bin": "exposrd.mjs",
   "author": "Fredrik Lindberg <fli@fli.dev>",
   "license": "MIT",
   "engines": {
     "node": ">=16"
   },
   "files": [
-    "exposrd.cjs",
     "exposrd.mjs",
     "README.md",
     "LICENSE",
@@ -18,10 +17,8 @@
     "build.env",
     "build.js",
     "Dockerfile",
-    "Dockerfile.nodist",
     "docker/entrypoint.sh",
-    "Makefile",
-    "scripts/build-dist.sh"
+    "Makefile"
   ],
   "dependencies": {
     "better-sqlite3": "^8.3.0",
@@ -45,28 +42,17 @@
     "@rollup/plugin-json": "^6.0.0",
     "commit-and-tag-version": "^11.2.1",
     "mocha": "^10.2.0",
-    "pkg": "^5.8.1",
-    "pkg-fetch": "^3.5.2",
     "rollup": "^3.18.0",
     "sinon": "^15.0.3",
     "yaml": "^2.2.2"
   },
-  "resolutions": {
-    "pkg-fetch": "3.5.2"
-  },
   "scripts": {
-    "prepack": "yarn run version && yarn run bundle && yarn run bundle-es",
-    "postpack": "rm build.env exposrd.cjs",
+    "prepack": "yarn run version && yarn run bundle",
+    "postpack": "rm build.env exposrd.mjs",
     "release": "standard-version",
     "version": "scripts/build-version.sh",
-    "bundle": "rollup exposrd.js --file exposrd.cjs --format cjs -p @rollup/plugin-commonjs -p @rollup/plugin-json",
-    "bundle-es": "rollup exposrd.js --file exposrd.mjs --format es -p @rollup/plugin-commonjs  -p @rollup/plugin-json",
+    "bundle": "rollup exposrd.js --file exposrd.mjs --format es -p @rollup/plugin-commonjs  -p @rollup/plugin-json",
     "dist": "scripts/build-dist.sh",
     "test": "scripts/run-test.sh"
-  },
-  "pkg": {
-    "assets": [
-      "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
-    ]
   }
 }
