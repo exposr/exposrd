@@ -39,6 +39,8 @@ class HttpIngress {
             throw new Error("No wildcard domain given for HTTP ingress");
         }
 
+        this._agent_ttl = opts.httpAgentTTL || 65;
+
         this.destroyed = false;
         this.altNameService = new AltNameService();
         this.tunnelService = opts.tunnelService;
@@ -58,19 +60,16 @@ class HttpIngress {
         this._agentCache = new NodeCache({
             useClones: false,
             deleteOnExpire: false,
-            checkperiod: 60,
+            checkperiod: this._agent_ttl,
         });
 
         this._agentCache.on('expired', (key, agent) => {
-            const pendingRequests = agent.requests?.length || 0;
-            const activeSockets = (agent.sockets?.length || 0) - (agent.freeSockets?.length || 0);
-            if (pendingRequests > 0 || activeSockets > 0) {
+            if (agent.activeTunnelConnections > 0) {
                 this.logger.withContext("tunnel", key).debug({
                     message: 'extended http agent cache ttl',
-                    pendingRequests,
-                    activeSockets
+                    active_connections: agent.activeTunnelConnections,
                 });
-                this._agentCache.set(key, agent, 65);
+                this._agentCache.set(key, agent, this._agent_ttl);
                 return;
             }
             this._agentCache.del(key);
@@ -87,7 +86,7 @@ class HttpIngress {
         this.httpListener.listen()
             .then(() => {
                 this.logger.info({
-                    message: `HTTP ingress listening on port ${opts.port}`,
+                    message: `HTTP ingress listening on port ${opts.port} (agent idle timeout ${opts.httpAgentTTL})`,
                     url: this.getBaseUrl(),
                 });
                 typeof opts.callback === 'function' && opts.callback();
@@ -165,6 +164,7 @@ class HttpIngress {
             };
             return this.tunnelService.createConnection(tunnelId, ctx, callback);
         };
+        agent.activeTunnelConnections = 0;
 
         this.logger.isDebugEnabled() &&
             this.logger.withContext("tunnel", tunnelId).debug("http agent created")
@@ -178,9 +178,9 @@ class HttpIngress {
         } catch (e) {}
         if (agent === undefined) {
             agent = this._createAgent(tunnelId);
-            this._agentCache.set(tunnelId, agent, 65);
+            this._agentCache.set(tunnelId, agent, this._agent_ttl);
         } else {
-            this._agentCache.ttl(tunnelId, 65);
+            this._agentCache.ttl(tunnelId, this._agent_ttl);
         }
         return agent;
     }
@@ -304,7 +304,7 @@ class HttpIngress {
             keepAlive: true,
         };
 
-        opt.agent = this._getAgent(tunnel.id);
+        const agent = opt.agent = this._getAgent(tunnel.id);
         opt.headers = this._requestHeaders(req, tunnel, baseUrl);
 
         this.logger.trace({
@@ -315,8 +315,13 @@ class HttpIngress {
         });
 
         const clientReq = http.request(opt, (clientRes) => {
+            agent.activeTunnelConnections++;
             res.writeHead(clientRes.statusCode, clientRes.headers);
             clientRes.pipe(res);
+        });
+
+        clientReq.once('close', () => {
+            agent.activeTunnelConnections = Math.max(agent.activeTunnelConnections - 1, 0);
         });
 
         clientReq.on('error', (err) => {

@@ -25,11 +25,13 @@ class Ingress {
         const p = [];
 
         if (opts.http?.enabled == true) {
-            p.push(new Promise((resolve) => {
+            p.push(new Promise((resolve, reject) => {
                 this.ingress.http = new HttpIngress({
                     tunnelService: this._tunnelService,
                     ...opts.http,
-                    callback: resolve,
+                    callback: (e) => {
+                        e ? reject(e) : resolve()
+                    },
                 });
             }));
         }

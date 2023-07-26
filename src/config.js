@@ -22,6 +22,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
             'ingress',
             'ingress-http-url',
             'ingress-http-port',
+            'ingress-http-agent-idle-timeout',
             'ingress-sni-port',
             'ingress-sni-host',
             'ingress-sni-cert',
@@ -47,6 +48,12 @@ const parse = (canonicalArgv, callback, args = {}) => {
             type: 'number',
             describe: 'Port to use for HTTP ingress',
             default: 8080,
+            hidden: true,
+        })
+        .option('ingress-http-agent-idle-timeout', {
+            type: 'number',
+            describe: 'The time to keep HTTP agents alive for a idle tunnels',
+            default: 60,
             hidden: true,
         })
         .option('ingress-sni-port', {
