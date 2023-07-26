@@ -86,7 +86,7 @@ class HttpIngress {
         this.httpListener.listen()
             .then(() => {
                 this.logger.info({
-                    message: `HTTP ingress listening on port ${opts.port}`,
+                    message: `HTTP ingress listening on port ${opts.port} (agent idle timeout ${opts.httpAgentTTL})`,
                     url: this.getBaseUrl(),
                 });
                 typeof opts.callback === 'function' && opts.callback();
