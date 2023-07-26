@@ -89,6 +89,8 @@ image.xbuild:
 		--progress plain \
 		--platform $(platforms) \
 		$(push_flag) \
+		--build-arg NODE_VERSION=${node_version} \
+		--build-arg ALPINE_VERSION=${alpine_version} \
 		--build-arg VERSION=${version} \
 		--build-arg DIST_SRC=dist/exposrd-$(version).tgz \
 		--label "org.opencontainers.image.source=https://github.com/exposr/exposrd" \
