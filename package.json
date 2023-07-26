@@ -7,7 +7,7 @@
   "author": "Fredrik Lindberg <fli@fli.dev>",
   "license": "MIT",
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "files": [
     "exposrd.mjs",
