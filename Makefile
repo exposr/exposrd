@@ -54,7 +54,10 @@ dist.clean:
 
 # Builder image
 builder.build:
-	docker build --build-arg NODE_IMAGE=$(node_image) -t $(project)-builder --target builder .
+	docker build \
+		--build-arg NODE_VERSION=${node_version} \
+		--build-arg ALPINE_VERSION=${alpine_version} \
+		-t $(project)-builder --target builder .
 
 # Docker image build targets
 image.build:
