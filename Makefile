@@ -1,5 +1,5 @@
 registry?=exposr
-node_version=18.16.1
+node_version=18.17.0
 alpine_version=3.18
 platforms?=linux/amd64,linux/arm64
 
