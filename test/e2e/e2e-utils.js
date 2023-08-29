@@ -4,6 +4,7 @@ import ssh from 'ssh2';
 import net from 'net';
 import crypto from 'crypto';
 
+export const exposrCliImageTag = "unstable";
 const defaultBaseApi = "http://localhost:8080";
 
 export const sshClient = (host, port, username, password, target) => {
@@ -55,7 +56,9 @@ export const createEchoServer = async (port = 10000) => {
 
     return async () => {
         server.removeAllListeners('request');
-        server.close();
+        await new Promise((resolve) => {
+            server.close(resolve);
+        });
     };
 };
 
@@ -104,7 +107,7 @@ export const startExposr = (args, port) => {
     const obj = child_process.spawn("docker", [
         "run", "--rm", "-t", "--add-host", "host.docker.internal:host-gateway",
         "--name", name,
-        "exposr/exposr:latest",
+        `ghcr.io/exposr/exposr:${exposrCliImageTag}`,
         "--non-interactive",
         "-s", `http://host.docker.internal:${port}`,
     ].concat(args), {detached: true});

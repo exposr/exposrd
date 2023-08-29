@@ -22,6 +22,7 @@ jobs:
       - name: Run tests
         run: |
           yarn install --frozen-lockfile
+          yarn bundle
           yarn run test test
 
       - name: Prepare builder

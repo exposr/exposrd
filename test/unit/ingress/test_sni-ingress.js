@@ -3,7 +3,7 @@ import Tunnel from '../../../src/tunnel/tunnel.js';
 import assert from 'assert/strict';
 import { X509Certificate } from 'crypto';
 import fs from 'fs';
-import { initClusterService, initStorageService } from '../test-utils.js'
+import { initClusterService, initStorageService } from '../test-utils.ts'
 import Config from '../../../src/config.js';
 import Ingress from '../../../src/ingress/index.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
