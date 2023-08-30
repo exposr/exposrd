@@ -169,7 +169,7 @@ class RedisStorageProvider extends StorageProvider {
                     this.logger.trace({
                         operation: 'get',
                         key,
-                        data,
+                        value,
                     });
                 return lock ? [value, done] : value;
             });

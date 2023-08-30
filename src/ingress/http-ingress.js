@@ -152,6 +152,7 @@ class HttpIngress {
     _createAgent(tunnelId) {
         const agent = new Agent({
             keepAlive: true,
+            timeout: this._agent_ttl * 1000,
         });
 
         agent.createConnection = (opts, callback) => {

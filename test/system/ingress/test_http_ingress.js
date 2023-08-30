@@ -5,7 +5,7 @@ import EventBus from "../../../src/cluster/eventbus.js";
 import Config from "../../../src/config.js";
 import Ingress from "../../../src/ingress/index.js";
 import TunnelService from "../../../src/tunnel/tunnel-service.js";
-import { initClusterService, initStorageService, socketPair, wsSocketPair } from "../../unit/test-utils.js";
+import { initClusterService, initStorageService, wsSocketPair, wsmPair } from "../../unit/test-utils.ts";
 import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
 import { setTimeout } from 'timers/promises';
 import sinon from 'sinon';
@@ -76,17 +76,9 @@ describe('http ingress', () => {
     });
 
     it('agent does not timeout during transfer', async () => {
-        const [sock1, sock2, wss] = await wsSocketPair(9000)
+        const sockPair = await wsSocketPair.create(9000)
 
-        const client = new WebSocketTransport({
-            tunnelId: tunnel.id,
-            socket: sock1,
-        });
-
-        const transport = new WebSocketTransport({
-            tunnelId: tunnel.id,
-            socket: sock2,
-        });
+        const [client, transport] = wsmPair(sockPair)
 
         let res = await tunnelService.connect(tunnel.id, account.id, transport, {peer: "127.0.0.1"});
         assert(res == true, "failed to connect tunnel");
@@ -99,7 +91,7 @@ describe('http ingress', () => {
         } while (tun.state().connected == false && i++ < 10);
         assert(tun.state().connected == true, "tunnel not connected")
 
-        client.listen((sock) => {
+        client.on('connection', (sock) => {
             sock.on('data', async (chunk) => {
                 //console.log(chunk.toString());
                 sock.write("HTTP/1.1 200\r\nContent-Length: 2\r\n\r\n");
@@ -108,8 +100,6 @@ describe('http ingress', () => {
                 sock.write("A");
                 sock.end();
             });
-
-            sock.accept();
         });
 
         res = await fetch("http://127.0.0.1:10000", {
@@ -122,9 +112,9 @@ describe('http ingress', () => {
         const data = await res.text();
         assert(data == "AA", `did not get expected reply, got ${data}`);
 
-        sock1.close();
-        sock2.close();
-        wss.close();
+        await client.destroy();
+        await transport.destroy();
+        await sockPair.terminate();
 
     }).timeout(2000);
 });

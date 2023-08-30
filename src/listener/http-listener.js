@@ -39,7 +39,7 @@ class HttpListener extends ListenerInterface {
             const proto = forwarded?.proto
                 || headers[HTTP_HEADER_X_FORWARDED_PROTO]
                 || headers[HTTP_HEADER_X_SCHEME]
-                || req.protocol || 'http';
+                || req.protocol || 'http';
             const host = (forwarded?.host || headers[HTTP_HEADER_HOST])?.split(':')[0];
             const port = forwarded?.host?.split(':')[1]
                 || headers[HTTP_HEADER_X_FORWARDED_PORT]
@@ -83,7 +83,7 @@ class HttpListener extends ListenerInterface {
                             break;
                         }
                     } catch (e) {
-                        this.logger.error(e);
+                        this.logger.error(e.message);
                         ctx.res.statusCode = 500;
                         ctx.res.end();
                     }

@@ -24,6 +24,7 @@ class WebSocketEndpoint {
         this.tunnelService = new TunnelService();
         this.wss = new WebSocketServer({ noServer: true });
         this.destroyed = false;
+        this.connections = [];
 
         this._upgradeHandler = this.httpListener.use('upgrade', { logger: this.logger }, async (ctx, next) => {
             if (!await this.handleUpgrade(ctx.req, ctx.sock, ctx.head)) {
@@ -56,9 +57,13 @@ class WebSocketEndpoint {
     async destroy() {
         this.destroyed = true;
         this.httpListener.removeHandler('upgrade', this._upgradeHandler);
-        this.wss.clients.forEach((client) => {
-            client.close(1001, "Server shutting down");
-        });
+        for (const connection of this.connections) {
+            const {wst, ws} = connection;
+            await wst.destroy();
+            ws.close(1001, "Server shutting down");
+        }
+        this.connections = [];
+        this.wss.close();
         return Promise.allSettled([
             this.tunnelService.destroy(),
             Listener.release('http', this.opts.port),
@@ -167,8 +172,10 @@ class WebSocketEndpoint {
                         operation: 'upgrade',
                         msg: 'failed to connect transport'
                     });
-                ws.close(1008, "unable to establish tunnel");
                 transport.destroy();
+                ws.close(1008, "unable to establish tunnel");
+            } else {
+                this.connections.push({wst: transport, ws});
             }
         });
         return true;

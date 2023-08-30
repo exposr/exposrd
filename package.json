@@ -21,6 +21,7 @@
     "Makefile"
   ],
   "dependencies": {
+    "@exposr/ws-multiplex": "^1.2.0",
     "better-sqlite3": "^8.3.0",
     "content-type": "^1.0.5",
     "koa": "^2.14.1",
@@ -40,10 +41,14 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-json": "^6.0.0",
+    "@types/node": "^20.5.0",
+    "@types/ws": "^8.5.5",
     "commit-and-tag-version": "^11.2.1",
     "mocha": "^10.2.0",
     "rollup": "^3.18.0",
     "sinon": "^15.0.3",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6",
     "yaml": "^2.2.2"
   },
   "scripts": {
@@ -51,7 +56,11 @@
     "postpack": "rm build.env exposrd.mjs",
     "release": "standard-version",
     "version": "scripts/build-version.sh",
-    "bundle": "rollup exposrd.js --file exposrd.mjs --format es -p @rollup/plugin-commonjs  -p @rollup/plugin-json",
+    "prebuild": "rm -fr out && mkdir out && cp package.json out",
+    "build": "tsc",
+    "dev": "ts-node-esm exposrd.js",
+    "prebundle": "yarn run build",
+    "bundle": "rollup out/exposrd.js --file exposrd.mjs --format es -p @rollup/plugin-commonjs  -p @rollup/plugin-json",
     "dist": "scripts/build-dist.sh",
     "test": "scripts/run-test.sh"
   }

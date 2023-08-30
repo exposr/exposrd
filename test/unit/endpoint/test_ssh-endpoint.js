@@ -1,7 +1,7 @@
 import assert from 'assert/strict';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import SSHEndpoint from '../../../src/transport/ssh/ssh-endpoint.js';
-import { initClusterService, initStorageService } from '../test-utils.js'
+import { initClusterService, initStorageService } from '../test-utils.ts'
 import Config from '../../../src/config.js';
 import Ingress from '../../../src/ingress/index.js';
 

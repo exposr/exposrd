@@ -71,7 +71,7 @@ class RedisLock {
                     this.logger.trace({
                         operation: 'redlock',
                         resource,
-                        ttl
+                        leaseTime
                     });
 
                 return new LockWrapper(this.redlock, lock, resource, leaseTime, this.logger);

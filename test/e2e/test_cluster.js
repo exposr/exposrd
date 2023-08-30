@@ -2,15 +2,16 @@ import child_process from 'child_process';
 import crypto from 'crypto';
 import assert from 'assert/strict';
 import { setTimeout } from 'timers/promises';
-import { createAccount, createEchoServer, getAuthToken, getTunnel, putTunnel } from './e2e-utils.js';
+import { createAccount, createEchoServer, exposrCliImageTag, getAuthToken, getTunnel, putTunnel } from './e2e-utils.js';
 
 const startExposrd = (name = "", network, args = [], dockerargs = []) => {
     const obj = child_process.spawn("docker", [
         "run", "--rm", "-t", "-v", `${process.cwd()}:/app`, "--name", name, "--network", network,
+        "--workdir", "/app",
         "--add-host", "host.docker.internal:host-gateway",
     ].concat(dockerargs).concat([
-        "node:18-alpine3.17",
-        "/app/exposrd.js"
+        "node:18-alpine3.18",
+        "exposrd.mjs"
     ]).concat(args), {detached: true});
 
     let buf = '';
@@ -39,7 +40,7 @@ export const startExposr = (server, network, args) => {
         "run", "--rm", "-t", "--add-host", "host.docker.internal:host-gateway",
         "--name", name,
         "--net", network,
-        "exposr/exposr:latest",
+        `ghcr.io/exposr/exposr:${exposrCliImageTag}`,
         "--non-interactive",
         "-s", server,
     ].concat(args), {detached: true});
@@ -152,16 +153,15 @@ describe('Cluster E2E', () => {
                 body: "echo" 
             })
 
-            assert(res.status == 200, `expected status code 200, got ${res.status}`);
             data = await res.text()
-            assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`) 
 
             exposrCliTerminator();
             await echoServerTerminate();
             node1.terminate();
             node2.terminate();
+
+            assert(res.status == 200, `expected status code 200, got ${res.status}`);
+            assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`);
         }).timeout(120000);
-
     }); 
-
 });

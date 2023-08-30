@@ -8,7 +8,7 @@ import {
     BUILD_VERSION,
 } from '../build.js';
 
-import package_json from './package.cjs';
+import package_json from '../package.json' assert { type: "json" };
 
 class Version {
 

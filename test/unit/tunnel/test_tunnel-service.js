@@ -7,8 +7,8 @@ import ClusterService from '../../../src/cluster/index.js';
 import Ingress from '../../../src/ingress/index.js';
 import AccountService from '../../../src/account/account-service.js';
 import Tunnel from '../../../src/tunnel/tunnel.js';
-import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
-import { initStorageService, socketPair } from '../test-utils.js';
+import WebSocketTransport from '../../../src/transport/ws/ws-transport.ts';
+import { initStorageService, wsSocketPair } from '../test-utils.ts';
 import EventBus from '../../../src/cluster/eventbus.js';
 
 describe('tunnel service', () => {
@@ -446,11 +446,10 @@ describe('tunnel service', () => {
         assert(tunnel instanceof Tunnel, `tunnel not created, got ${tunnel}`);
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
 
-        const [sock1, sock2] = socketPair();
-        sock1.close = (code, reason) => { sock1.destroy() };
+        const sockPair = await wsSocketPair.create();
         const transport = new WebSocketTransport({
             tunnelId: tunnelId,
-            socket: sock1,
+            socket: sockPair.sock1,
         })
 
         const msg = new Promise((resolve) => {
@@ -477,6 +476,7 @@ describe('tunnel service', () => {
         await tunnelService.destroy();
         await bus.destroy();
         await transport.destroy();
+        await sockPair.terminate();
     });
 
     it(`can authorize a tunnel`, async () => {
@@ -509,11 +509,10 @@ describe('tunnel service', () => {
         assert(tunnel instanceof Tunnel, `tunnel not created, got ${tunnel}`);
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
 
-        const [sock1, sock2] = socketPair();
-        sock1.close = (code, reason) => { sock1.destroy() };
+        const sockPair = await wsSocketPair.create();
         const transport = new WebSocketTransport({
             tunnelId: tunnelId,
-            socket: sock1,
+            socket: sockPair.sock1,
         })
 
         const msg = new Promise((resolve) => {
@@ -542,6 +541,7 @@ describe('tunnel service', () => {
         await tunnelService.destroy();
         await bus.destroy();
         await transport.destroy();
+        await sockPair.terminate();
     });
 
 });

@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "lib": ["es2021", "dom"],
+        "module": "NodeNext",
+        "target": "es2021",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "NodeNext",
+        "declaration": true,
+        "allowJs": true,
+        "outDir": "./out",
+        "rootDir": "./"
+      },
+      "include": [
+        "exposrd.js",
+        "build.js",
+        "package.cjs",
+        "src/**/*"
+      ],
+      "exclude": ["node_modules"]
+}
