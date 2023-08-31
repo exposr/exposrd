@@ -345,7 +345,6 @@ class HttpIngress {
     }
 
     async handleUpgradeRequest(req, sock, head, baseUrl) {
-
         const _canonicalHttpResponse = (sock, request, response) => {
             sock.write(`HTTP/${request.httpVersion} ${response.status} ${response.statusLine}\r\n`);
             sock.write('\r\n');
@@ -391,8 +390,33 @@ class HttpIngress {
                 port: this.httpListener.getPort(),
             }
         };
-        const target = this.tunnelService.createConnection(tunnel.id, ctx);
-        if (target === undefined) {
+        const target = this.tunnelService.createConnection(tunnel.id, ctx, (err) => {
+            if (!err) {
+                return;
+            }
+            let statusCode;
+            let statusLine;
+            let msg;
+            if (err.code === 'EMFILE') {
+                statusCode = 429;
+                statusLine = 'Too Many Requests';
+                msg = ERROR_TUNNEL_TRANSPORT_REQUEST_LIMIT;
+            } else if (err.code == 'ECONNRESET') {
+                statusCode = 503;
+                statusLine = 'Service Unavailable';
+                msg = ERROR_TUNNEL_TARGET_CON_REFUSED;
+            } else {
+                statusCode = 503;
+                statusLine = 'Service Unavailable';
+                msg = ERROR_TUNNEL_TARGET_CON_FAILED;
+            }
+            _canonicalHttpResponse(sock, req, {
+                status: statusCode,
+                statusLine,
+                body: JSON.stringify({error: msg}),
+            });
+        });
+        if (!target) {
             _canonicalHttpResponse(sock, req, {
                 status: 503,
                 statusLine: 'Service Unavailable',
@@ -402,11 +426,22 @@ class HttpIngress {
         }
 
         const headers = this._requestHeaders(req, tunnel, baseUrl);
-        target.on('error', (err) => {
-            sock.end();
-        });
+
+        const close = (err) => {
+            target.off('error', close);
+            target.off('close', close);
+            sock.off('error', close);
+            sock.off('close', close);
+            sock.destroy();
+            target.destroy();
+        };
 
         target.on('connect', () => {
+            target.on('error', close);
+            target.on('close', close);
+            sock.on('error', close);
+            sock.on('close', close);
+
             target.pipe(sock);
             sock.pipe(target);
 
