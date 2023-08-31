@@ -675,6 +675,7 @@ class TunnelService {
             return connection.transport.createConnection(ctx.opts, callback);
         }
 
+        let prev;
         do {
             const node = this._clusterService.getNode(next.node);
             if (node && !next.local) {
@@ -690,9 +691,9 @@ class TunnelService {
                     port: ctx.ingress.port,
                 }, callback);
             }
-            const prev = next;
+            prev = next;
             next = this._tunnels.getNextConnection(tunnelId);
-        } while (next != undefined && next.id != prev.id);
+        } while (next != undefined && next.id != prev?.id);
 
         return false;
     }
