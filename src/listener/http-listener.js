@@ -84,6 +84,7 @@ class HttpListener extends ListenerInterface {
                         }
                     } catch (e) {
                         this.logger.error(e.message);
+                        this.logger.debug(e.stack);
                         ctx.res.statusCode = 500;
                         ctx.res.end();
                     }
