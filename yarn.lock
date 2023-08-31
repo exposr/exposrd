@@ -30,10 +30,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@exposr/ws-multiplex@^1.2.0":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@exposr/ws-multiplex/-/ws-multiplex-1.2.0.tgz#2f105e25923f5dc5c3f496d2b2b4cc118db50a8f"
-  integrity sha512-Eb0LKX50NeQ9xzEthHbJNUhlbHilcg1Ppo6CzzENrEnq8mKccDfoVPQH2lS5K5q75SqXVHRZQiZFAzCsZneMLA==
+"@exposr/ws-multiplex@^1.2.1":
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/@exposr/ws-multiplex/-/ws-multiplex-1.2.1.tgz#ac1312a3af0c923003d21639a189528ad493d053"
+  integrity sha512-A00xSgv3HNxAdSAvY6qRRNUzQD5WdLMNBP8p0yYUFyLKa6e8xhsiUpRJvBWvmv82jmS4RZKACYi1nQhAZUEuww==
   dependencies:
     bufferutil "^4.0.7"
     ws "^8.13.0"
@@ -1973,9 +1973,9 @@ node-cache@^5.1.2:
     clone "2.x"
 
 node-gyp-build@^4.3.0:
-  version "4.6.0"
-  resolved "https://registry.yarnpkg.com/node-gyp-build/-/node-gyp-build-4.6.0.tgz#0c52e4cbf54bbd28b709820ef7b6a3c2d6209055"
-  integrity sha512-NTZVKn9IylLwUzaKjkas1e4u2DLNcV4rdYagA4PWdPwW87Bi7z+BznyKSRwS/761tV/lzCGXplWsiaMjLqP2zQ==
+  version "4.6.1"
+  resolved "https://registry.yarnpkg.com/node-gyp-build/-/node-gyp-build-4.6.1.tgz#24b6d075e5e391b8d5539d98c7fc5c210cac8a3e"
+  integrity sha512-24vnklJmyRS8ViBNI8KbtK/r/DmXQMRiOMXTNz2nrTnAYUwjmEEbnnpB/+kt+yWRv73bPsSPRFddrcIbAxSiMQ==
 
 normalize-package-data@^2.3.2, normalize-package-data@^2.5.0:
   version "2.5.0"
