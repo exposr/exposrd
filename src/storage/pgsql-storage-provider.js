@@ -17,6 +17,12 @@ class PgsqlStorageProvider extends StorageProvider {
             max: poolSize,
         });
 
+        this._db.on('error', (err, client) => {
+            this.logger.error({
+                message: `Postgres database error: ${err.message}`
+            });
+        });
+
         this._db.connect((err, client, release) => {
             if (err) {
                 this.logger.error({
