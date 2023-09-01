@@ -3,7 +3,7 @@ import os from 'os';
 
 class Node {
     static hostname = `${process.pid}@${os.hostname}`;
-    static identifier = crypto.createHash('sha1').update(Node.hostname).digest('hex');
+    static identifier = crypto.createHash('sha1').update(`${Date.now() + Math.random()}`).digest('hex');
     static interface = Node.getNetworkInterface();
 
     static address4 = Node._getIP(Node.interface, 'IPv4');
