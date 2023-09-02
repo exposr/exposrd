@@ -54,7 +54,7 @@
   "scripts": {
     "prepack": "yarn run version && yarn run bundle",
     "postpack": "rm build.env exposrd.mjs",
-    "release": "standard-version",
+    "release": "commit-and-tag-version",
     "version": "scripts/build-version.sh",
     "prebuild": "rm -fr out && mkdir out && cp package.json out",
     "build": "tsc",
