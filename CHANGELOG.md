@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.11.0](https://github.com/exposr/exposrd/compare/v0.10.0...v0.11.0) (2023-09-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* This brings in a protocol version bump and is not compatible with older clients.
+
+### Features
+
+* add command line option to set http agent idle timeout ([347caed](https://github.com/exposr/exposrd/commit/347caed831e089ce243337332659df10c856fd7a))
+* migrate to ws-multiplex ([4e2f08a](https://github.com/exposr/exposrd/commit/4e2f08a2c4fe251e7aa9d5ea3b4a4bc8aab554d2))
+
+
+### Bug Fixes
+
+* add pgsql pool error handler ([2c300fa](https://github.com/exposr/exposrd/commit/2c300fa4f532d37a4567af1eaf6a99aa8e20f81b))
+* error message logging ([7b2c882](https://github.com/exposr/exposrd/commit/7b2c88208c8ba32042de85c8bcedb4a2e48778cd))
+* **http-ingress:** prevent http agent from timing out during an on-going transfer ([f7c28ad](https://github.com/exposr/exposrd/commit/f7c28ade9fd0d3ed107dc653ad6c13d2959bbbdb))
+* improve http ingress upgrade request handling ([4b7a678](https://github.com/exposr/exposrd/commit/4b7a6788500d22597f824696cd79c096d8ef8be7))
+* log stack trace in debug mode ([861fd9f](https://github.com/exposr/exposrd/commit/861fd9f92d7bcd058538dbb5b0d83e3ce619fbee))
+* trace logging ([b95a6bb](https://github.com/exposr/exposrd/commit/b95a6bbd78ecb9ad09d3337fd6cb41894e2ac6d8))
+* use random node identifiers ([db0733f](https://github.com/exposr/exposrd/commit/db0733f1f6a88d74d7455b9454ed54adccccccb3))
+* variable scope ([0c7c1a4](https://github.com/exposr/exposrd/commit/0c7c1a4446d29371cd698cafb7f1a065577fe274))
+* whitespace ([6a9daae](https://github.com/exposr/exposrd/commit/6a9daae08bbaf8ea253da68ea2936204c25cb322))
+
 ## [0.10.0](https://github.com/exposr/exposrd/compare/v0.9.1...v0.10.0) (2023-07-20)
 
 
