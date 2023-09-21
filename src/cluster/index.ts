@@ -11,10 +11,11 @@ type ClusterNode = {
     id: string,
     host: string,
     ip: string,
+    last_ts: number,
+    stale: boolean,
 }
 
 type ClusterServiceNode = ClusterNode & {
-    stale: boolean,
     seq: number,
     seq_win: number,
     staleTimer?: NodeJS.Timeout,
@@ -57,6 +58,7 @@ class ClusterService {
             host: Node.hostname,
             ip: Node.address,
             stale: false,
+            last_ts: 0,
         };
         this._seq = 0;
         this._window_size = 16;
@@ -156,7 +158,7 @@ class ClusterService {
             .map((k) => this._nodes[k].ip)));
     }
 
-    private _learnNode(node: ClusterNode): void {
+    private _learnNode(node: ClusterNode): ClusterServiceNode | undefined {
         if (node.id == undefined || node.id == Node.identifier) {
             return;
         }
@@ -170,7 +172,6 @@ class ClusterService {
             cnode = {
                 seq: 0,
                 seq_win: 0,
-                stale: false,
                 ...node,
             }
         } else {
@@ -199,6 +200,7 @@ class ClusterService {
         }, this._removalTimeout);
 
         this._nodes[node.id] = cnode;
+        return cnode;
     }
 
     private _forgetNode(node: ClusterServiceNode): void {
@@ -224,6 +226,8 @@ class ClusterService {
             id: Node.identifier,
             host: Node.hostname,
             ip: Node.address,
+            last_ts: new Date().getTime(),
+            stale: false,
         };
     }
 
@@ -234,10 +238,24 @@ class ClusterService {
                 id: node.id,
                 host: node.host,
                 ip: node.ip,
+                last_ts: node.last_ts,
+                stale: node.stale,
             };
         } else {
             return undefined;
         }
+    }
+
+    public getNodes(): Array<ClusterNode> {
+        return Object.keys(this._nodes).map((k) => {
+            return {
+                id: this._nodes[k].id,
+                host: this._nodes[k].host,
+                ip: this._nodes[k].ip,
+                last_ts: Node.identifier == this._nodes[k].id ? new Date().getTime() : this._nodes[k].last_ts,
+                stale: this._nodes[k].stale,
+            }
+        })
     }
 
     private _receive(payload: string): boolean | Error {
@@ -264,35 +282,38 @@ class ClusterService {
                 id: node.id,
                 host: node.host,
                 ip: node.ip,
+                last_ts: ts,
+                stale: false,
             }
 
-            if (event == 'cluster:heartbeat' || this.getNode(cnode.id) == undefined) {
-                this._learnNode(node);
+            let csnode: ClusterServiceNode | undefined = this._nodes[cnode.id];
+            if (event == 'cluster:heartbeat' || csnode == undefined) {
+                csnode = this._learnNode(node);
             }
 
-            if (this.getNode(cnode.id) == undefined) {
+            if (csnode == undefined) {
                 throw new Error(`The node ${cnode.id} is not in set of learnt nodes`);
             }
 
-            const low = this._nodes[cnode.id].seq - this._window_size;
+            const low = csnode.seq - this._window_size;
             if (low > seq || seq < 0) {
-                throw new Error(`unexpected sequence number ${seq}, window=${this._nodes[cnode.id].seq}`);
+                throw new Error(`unexpected sequence number ${seq}, window=${csnode.seq}`);
             }
 
-            if (seq > this._nodes[cnode.id].seq) {
-                const diff = seq - this._nodes[cnode.id].seq;
+            if (seq > csnode.seq) {
+                const diff = seq - csnode.seq;
 
-                this._nodes[cnode.id].seq = seq;
+                csnode.seq = seq;
 
-                this._nodes[cnode.id].seq_win <<= diff;
-                this._nodes[cnode.id].seq_win &= (1 << this._window_size) - 1;
+                csnode.seq_win <<= diff;
+                csnode.seq_win &= (1 << this._window_size) - 1;
             }
 
-            const rel_seq = this._nodes[cnode.id].seq - seq;
-            if (this._nodes[cnode.id].seq_win & (1 << rel_seq)) {
-                throw new Error(`message ${seq} already received, window=${this._nodes[cnode.id].seq}`);
+            const rel_seq = csnode.seq - seq;
+            if (csnode.seq_win & (1 << rel_seq)) {
+                throw new Error(`message ${seq} already received, window=${csnode.seq}`);
             }
-            this._nodes[cnode.id].seq_win |= (1 << rel_seq);
+            csnode.seq_win |= (1 << rel_seq);
 
             this._listeners.forEach((l) => l._emit(event, message, {
                 node: {

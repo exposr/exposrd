@@ -9,6 +9,7 @@ import {
     ERROR_UNKNOWN_ERROR,
 } from '../utils/errors.js';
 import KoaController from './koa-controller.js';
+import ClusterService from '../cluster/index.js';
 
 class AdminApiController extends KoaController {
     _name = 'Admin API'
@@ -34,6 +35,7 @@ class AdminApiController extends KoaController {
         this.accountService = new AccountService();
         this._tunnelService = new TunnelService();
         this._transportService = new TransportService();
+        this._clusterService = new ClusterService();
 
         if (this.apiKey != undefined) {
             logger.info("Admin API resource enabled with API key");
@@ -345,6 +347,32 @@ class AdminApiController extends KoaController {
             }]
         });
 
+        router.route({
+            method: 'get',
+            path: '/v1/admin/cluster',
+            validate: {
+                failure: 400,
+                continueOnError: true,
+            },
+            handler: [handleAdminAuth, handleError, async (ctx, next) => {
+                const now = new Date().getTime();
+                const nodes = this._clusterService.getNodes().map((node) => {
+                    return {
+                        node_id: node.id,
+                        host: node.host,
+                        ip: node.ip,
+                        alive_at: node.last_ts,
+                        alive_age: Math.max(0, now - node.last_ts),
+                        is_stale: node.stale,
+                    }
+                });
+
+                ctx.status = 200;
+                ctx.body = {
+                    nodes
+                };
+            }]
+        });
     }
 
     async _destroy() {
@@ -352,6 +380,7 @@ class AdminApiController extends KoaController {
             this.accountService.destroy(),
             this._tunnelService.destroy(),
             this._transportService.destroy(),
+            this._clusterService.destroy(),
         ]);
     }
 }
