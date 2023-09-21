@@ -2,7 +2,19 @@ import { EventEmitter } from 'events';
 import { Logger } from '../logger.js';
 import ClusterService from './index.js';
 
+type EmitMeta = {
+    node: {
+        id: string,
+        host: string,
+        ip: string,
+    },
+    ts: number,
+}
+
 class EventBus extends EventEmitter {
+    private logger: any;
+    private clusterService: ClusterService;
+
     constructor() {
         super();
         this.logger = Logger("eventbus");
@@ -19,13 +31,13 @@ class EventBus extends EventEmitter {
         clusterService.attach(this);
     }
 
-    async destroy() {
+    public async destroy() {
         this.removeAllListeners();
         this.clusterService.detach(this);
         return this.clusterService.destroy();
     }
 
-    _emit(event, message, meta) {
+    public _emit(event: string, message: string, meta: EmitMeta) {
         super.emit(event, message, meta);
         this.logger.isTraceEnabled() &&
            this.logger.trace({
@@ -36,14 +48,14 @@ class EventBus extends EventEmitter {
            });
     }
 
-    async publish(event, message) {
+    async publish(event: string, message: object) {
         return this.clusterService.publish(event, message);
     }
 
-    async waitFor(channel, predicate, timeout = undefined) {
+    async waitFor(channel: string, predicate: (message: string, meta: EmitMeta) => boolean, timeout: number | undefined) {
         return new Promise((resolve, reject) => {
-            let timer;
-            const fun = (message, meta) => {
+            let timer: NodeJS.Timeout;
+            const fun = (message: string, meta: EmitMeta) => {
                 if (!predicate(message, meta)) {
                     return;
                 }

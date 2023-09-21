@@ -5,9 +5,40 @@ import RedisEventBus from './redis-eventbus.js';
 import Node from './cluster-node.js';
 import { Logger } from '../logger.js';
 import UdpEventBus from './udp-eventbus.js';
+import EventBus from './eventbus.js';
+
+type ClusterNode = {
+    id: string,
+    host: string,
+    ip: string,
+}
+
+type ClusterServiceNode = ClusterNode & {
+    stale: boolean,
+    seq: number,
+    seq_win: number,
+    staleTimer?: NodeJS.Timeout,
+    removalTimer?: NodeJS.Timeout,
+}
 
 class ClusterService {
-    constructor(type, opts) {
+    private static instance: ClusterService | undefined; 
+    private static ref: number;
+
+    private logger: any;
+    private _key: string = '';
+    private _nodes: { [key: string]: ClusterServiceNode } = {}; 
+    private _listeners: Array<EventBus> = [];
+    private _seq: number = 0;
+    private _window_size!: number;
+    private _staleTimeout!: number;
+    private _removalTimeout!: number;
+    private _heartbeatInterval!: number;
+    private _bus: any;
+    private multiNode: boolean = false;
+    private _heartbeat: NodeJS.Timeout | undefined;
+
+    constructor(type?: 'redis' | 'udp' | 'single-node' | 'mem', opts?: any) {
         if (ClusterService.instance instanceof ClusterService) {
             ClusterService.ref++;
             return ClusterService.instance;
@@ -17,7 +48,7 @@ class ClusterService {
         ClusterService.ref = 1;
 
         this.logger = Logger("cluster-service");
-        this._key = opts.key || '';
+        this._key = opts?.key || '';
         this._nodes = {};
         this._nodes[Node.identifier] = {
             seq: 0,
@@ -35,11 +66,11 @@ class ClusterService {
         this._heartbeatInterval = opts.heartbeatInterval || 9500;
 
         this._listeners = [];
-        const onMessage = (payload) => {
+        const onMessage = (payload: string) => {
             this._receive(payload)
         };
 
-        const ready = async (err) => {
+        const ready = async (err: Error) => {
             if (err) {
                 await this.destroy();
             }
@@ -82,7 +113,7 @@ class ClusterService {
         }
     }
 
-    async setReady(ready = true) {
+    public async setReady(ready: boolean = true): Promise<boolean> {
         if (!ready) {
             clearInterval(this._heartbeat);
             return this.multiNode;
@@ -95,7 +126,7 @@ class ClusterService {
         this._heartbeat = setInterval(heartbeat, this._heartbeatInterval);
 
         if (!this.multiNode) {
-            return;
+            return this.multiNode;
         }
 
         const rapidHeartbeat = setInterval(heartbeat, 2000);
@@ -108,62 +139,69 @@ class ClusterService {
             setTimeout(resolve, waitTime);
         });
         clearInterval(rapidHeartbeat);
+        return this.multiNode;
     }
 
-    attach(bus) {
+    public attach(bus: EventBus): void {
         this._listeners.push(bus);
     }
 
-    detach(bus) {
+    public detach(bus: EventBus): void {
         this._listeners = this._listeners.filter((x) => x != bus);
     }
 
-    _getLearntPeers() {
+    private _getLearntPeers(): Array<string> {
         return Array.from(new Set(Object.keys(this._nodes)
             .filter((k) => !this._nodes[k].stale)
             .map((k) => this._nodes[k].ip)));
     }
 
-    _learnNode(node) {
-        if (node?.id == undefined || node?.id == Node.identifier) {
+    private _learnNode(node: ClusterNode): void {
+        if (node.id == undefined || node.id == Node.identifier) {
             return;
         }
 
-        clearTimeout(this._nodes[node.id]?._staleTimer);
-        clearTimeout(this._nodes[node.id]?._removalTimer);
-
-        if (!this._nodes[node.id]) {
+        let cnode: ClusterServiceNode;
+        if (this._nodes[node.id] == undefined) {
             this.logger.info({
                 message: `Discovered peer node ${node.id}, host ${node.host} (${node.ip}), total peers ${Object.keys(this._nodes).length}`,
                 total_nodes: Object.keys(this._nodes).length + 1,
             });
-        } else if (this._nodes[node.id]?.stale == true) {
+            cnode = {
+                seq: 0,
+                seq_win: 0,
+                stale: false,
+                ...node,
+            }
+        } else {
+            cnode = this._nodes[node.id];
+        }
+        
+        if (cnode.stale == true) {
             this.logger.debug({
                 message: `node ${node.id} no longer marked as stale`,
                 node,
             });
         }
+        cnode.id = node.id;
+        cnode.host = node.host;
+        cnode.ip = node.ip;
+        cnode.stale = false;
 
-        this._nodes[node.id] ??= {
-            seq: 0,
-            seq_win: 0,
-        };
-        this._nodes[node.id].id = node.id;
-        this._nodes[node.id].host = node.host;
-        this._nodes[node.id].ip = node.ip;
-        this._nodes[node.id].stale = false;
-
-        this._nodes[node.id]._staleTimer = setTimeout(() => {
-            this._staleNode(node);
+        clearTimeout(cnode.staleTimer);
+        cnode.staleTimer = setTimeout(() => {
+            this._staleNode(cnode);
         }, this._staleTimeout);
 
-        this._nodes[node.id]._removalTimer = setTimeout(() => {
-            this._forgetNode(node);
+        clearTimeout(cnode.removalTimer);
+        cnode.removalTimer = setTimeout(() => {
+            this._forgetNode(cnode);
         }, this._removalTimeout);
 
+        this._nodes[node.id] = cnode;
     }
 
-    _forgetNode(node) {
+    private _forgetNode(node: ClusterServiceNode): void {
         delete this._nodes[node.id];
         this.logger.info({
             message: `Node ${node.id} ${node.host} (${node.ip}) permanently removed from peer list`,
@@ -171,7 +209,7 @@ class ClusterService {
         });
     }
 
-    _staleNode(node) {
+    private _staleNode(node: ClusterServiceNode): void {
         if (!this._nodes[node?.id]) {
             return;
         }
@@ -181,7 +219,7 @@ class ClusterService {
         });
     }
 
-    getSelf() {
+    public getSelf(): ClusterNode  {
         return  {
             id: Node.identifier,
             host: Node.hostname,
@@ -189,8 +227,8 @@ class ClusterService {
         };
     }
 
-    getNode(id) {
-        const node = this._nodes[id];
+    public getNode(id: string): ClusterNode | undefined {
+        const node: ClusterServiceNode = this._nodes[id];
         if (node?.stale === false) {
             return {
                 id: node.id,
@@ -202,7 +240,7 @@ class ClusterService {
         }
     }
 
-    _receive(payload) {
+    private _receive(payload: string): boolean | Error {
         try {
             const msg = JSON.parse(payload);
             const {s, ...data} = msg;
@@ -214,37 +252,58 @@ class ClusterService {
             }
 
             const {event, message, node, ts, seq} = data;
-            if (event == 'cluster:heartbeat' || this.getNode(node?.id) == undefined) {
+            if (event == undefined ||
+                message == undefined ||
+                node == undefined ||
+                ts == undefined ||
+                seq == undefined) {
+                throw new Error(`invalid message ${payload}`);
+            }
+
+            const cnode: ClusterNode = {
+                id: node.id,
+                host: node.host,
+                ip: node.ip,
+            }
+
+            if (event == 'cluster:heartbeat' || this.getNode(cnode.id) == undefined) {
                 this._learnNode(node);
             }
 
-            if (this.getNode(node?.id) == undefined) {
-                throw new Error(`The node ${node?.id} is not in set of learnt nodes`);
+            if (this.getNode(cnode.id) == undefined) {
+                throw new Error(`The node ${cnode.id} is not in set of learnt nodes`);
             }
 
-            const low = this._nodes[node.id].seq - this._window_size;
+            const low = this._nodes[cnode.id].seq - this._window_size;
             if (low > seq || seq < 0) {
-                throw new Error(`unexpected sequence number ${seq}, window=${this._nodes[node.id].seq}`);
+                throw new Error(`unexpected sequence number ${seq}, window=${this._nodes[cnode.id].seq}`);
             }
 
-            if (seq > this._nodes[node.id].seq) {
-                const diff = seq - this._nodes[node.id].seq;
+            if (seq > this._nodes[cnode.id].seq) {
+                const diff = seq - this._nodes[cnode.id].seq;
 
-                this._nodes[node.id].seq = seq;
+                this._nodes[cnode.id].seq = seq;
 
-                this._nodes[node.id].seq_win <<= diff;
-                this._nodes[node.id].seq_win &= (1 << this._window_size) - 1;
+                this._nodes[cnode.id].seq_win <<= diff;
+                this._nodes[cnode.id].seq_win &= (1 << this._window_size) - 1;
             }
 
-            const rel_seq = this._nodes[node.id].seq - seq;
-            if (this._nodes[node.id].seq_win & (1 << rel_seq)) {
-                throw new Error(`message ${seq} already received, window=${this._nodes[node.id].seq}`);
+            const rel_seq = this._nodes[cnode.id].seq - seq;
+            if (this._nodes[cnode.id].seq_win & (1 << rel_seq)) {
+                throw new Error(`message ${seq} already received, window=${this._nodes[cnode.id].seq}`);
             }
-            this._nodes[node.id].seq_win |= (1 << rel_seq);
+            this._nodes[cnode.id].seq_win |= (1 << rel_seq);
 
-            this._listeners.forEach((l) => l._emit(event, message, {node, ts}));
+            this._listeners.forEach((l) => l._emit(event, message, {
+                node: {
+                    id: cnode.id,
+                    ip: cnode.ip,
+                    host: cnode.host,
+                },
+                ts
+            }));
             return true;
-        } catch (e) {
+        } catch (e: any) {
             this.logger.debug({
                 message: `receive failed invalid message: ${e.message}`,
                 payload
@@ -253,7 +312,7 @@ class ClusterService {
         }
     }
 
-    async publish(event, message = {}) {
+    public async publish(event: any, message: object = {}) {
         const payload = {
             event,
             message,
@@ -277,12 +336,11 @@ class ClusterService {
         return this._bus.publish(JSON.stringify(msg));
     }
 
-    async destroy() {
+    public async destroy() {
         if (--ClusterService.ref == 0) {
             await this._bus.destroy();
-            this.destroyed = true;
-            delete this._bus;
-            delete ClusterService.instance;
+            this._bus = undefined;
+            ClusterService.instance = undefined;
         }
     }
 }
