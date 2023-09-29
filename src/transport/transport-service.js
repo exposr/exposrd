@@ -63,16 +63,16 @@ class TransportService {
             max_connections: this.max_connections
         };
 
-        if (tunnel.transport?.ws?.enabled === true && this._transports.ws) {
+        if (tunnel.config.transport?.ws?.enabled === true && this._transports.ws) {
             transports.ws = {
-                ...tunnel.transport.ws,
+                ...tunnel.config.transport.ws,
                 ...this._transports.ws.getEndpoint(tunnel, baseUrl),
             };
         }
 
-        if (tunnel.transport?.ssh?.enabled === true && this._transports.ssh) {
+        if (tunnel.config.transport?.ssh?.enabled === true && this._transports.ssh) {
             transports.ssh = {
-                ...tunnel.transport.ssh,
+                ...tunnel.config.transport.ssh,
                 ...this._transports.ssh.getEndpoint(tunnel, baseUrl),
             };
         }

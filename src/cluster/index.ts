@@ -1,13 +1,14 @@
-import assert from 'assert/strict';
-import crypto from 'crypto';
+import { strict as assert } from 'assert';
+import crypto from 'node:crypto';
 import MemoryEventBus from './memory-eventbus.js';
 import RedisEventBus from './redis-eventbus.js';
 import Node from './cluster-node.js';
 import { Logger } from '../logger.js';
 import UdpEventBus from './udp-eventbus.js';
 import EventBus from './eventbus.js';
+import EventEmitter from 'node:events';
 
-type ClusterNode = {
+export type ClusterNode = {
     id: string,
     host: string,
     ip: string,
@@ -22,7 +23,7 @@ type ClusterServiceNode = ClusterNode & {
     removalTimer?: NodeJS.Timeout,
 }
 
-class ClusterService {
+class ClusterService extends EventEmitter {
     private static instance: ClusterService | undefined; 
     private static ref: number;
 
@@ -40,6 +41,7 @@ class ClusterService {
     private _heartbeat: NodeJS.Timeout | undefined;
 
     constructor(type?: 'redis' | 'udp' | 'single-node' | 'mem', opts?: any) {
+        super();
         if (ClusterService.instance instanceof ClusterService) {
             ClusterService.ref++;
             return ClusterService.instance;
@@ -63,9 +65,9 @@ class ClusterService {
         this._seq = 0;
         this._window_size = 16;
 
-        this._staleTimeout = opts.staleTimeout || 30000;
-        this._removalTimeout = opts.removalTimeout || 60000;
-        this._heartbeatInterval = opts.heartbeatInterval || 9500;
+        this._staleTimeout = opts?.staleTimeout || 30000;
+        this._removalTimeout = opts?.removalTimeout || 60000;
+        this._heartbeatInterval = opts?.heartbeatInterval || 9500;
 
         this._listeners = [];
         const onMessage = (payload: string) => {
@@ -159,8 +161,11 @@ class ClusterService {
     }
 
     private _learnNode(node: ClusterNode): ClusterServiceNode | undefined {
-        if (node.id == undefined || node.id == Node.identifier) {
-            return;
+        if (node?.id == undefined) {
+            return undefined;
+        }
+        if (node.id == Node.identifier) {
+            return this._nodes[node.id];
         }
 
         let cnode: ClusterServiceNode;
@@ -209,6 +214,7 @@ class ClusterService {
             message: `Node ${node.id} ${node.host} (${node.ip}) permanently removed from peer list`,
             total_nodes: Object.keys(this._nodes).length,
         });
+        this.emit('removed', {nodeId: node.id});
     }
 
     private _staleNode(node: ClusterServiceNode): void {
@@ -219,6 +225,8 @@ class ClusterService {
         this.logger.debug({
             message: `marking ${node.id} as stale`
         });
+
+        this.emit('stale', {nodeId: node.id});
     }
 
     public getSelf(): ClusterNode  {
@@ -333,7 +341,7 @@ class ClusterService {
         }
     }
 
-    public async publish(event: any, message: object = {}) {
+    public async publish(event: any, message: any = {}) {
         const payload = {
             event,
             message,
@@ -361,6 +369,7 @@ class ClusterService {
         if (--ClusterService.ref == 0) {
             await this._bus.destroy();
             this._bus = undefined;
+            this.removeAllListeners();
             ClusterService.instance = undefined;
         }
     }
