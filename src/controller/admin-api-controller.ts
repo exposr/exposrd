@@ -10,23 +10,29 @@ import {
 } from '../utils/errors.js';
 import KoaController from './koa-controller.js';
 import ClusterService from '../cluster/index.js';
+import Account from '../account/account.js';
+import Tunnel from '../tunnel/tunnel.js';
 
 class AdminApiController extends KoaController {
-    _name = 'Admin API'
+    public readonly _name: string = 'Admin API'
 
-    constructor(opts) {
-        const logger = Logger("admin-api");
+    private apiKey!: string;
+    private unauthAccess: boolean = false;
+    private accountService!: AccountService;
+    private _tunnelService!: TunnelService;
+    private _transportService!: TransportService;
+    private _clusterService!: ClusterService;
 
+    constructor(opts: any) {
+        const logger: any = Logger("admin-api");
+
+        super({...opts, logger: logger});
         if (!opts.enable) {
             logger.info({
                 message: `HTTP Admin API disabled`,
             });
-            typeof opts.callback === 'function' && process.nextTick(opts.callback);
-            return super();
+            return;
         }
-
-        super({...opts, logger: logger});
-        this.logger = logger;
 
         this.apiKey = typeof opts.apiKey === 'string' &&
             opts.apiKey?.length > 0 ? opts.apiKey : undefined;
@@ -45,13 +51,11 @@ class AdminApiController extends KoaController {
             logger.warn("Admin API resource disabled - no API key given");
             return;
         }
-
-        this.setRoutes((router) => this._initializeRoutes(router));
     }
 
-    _initializeRoutes(router) {
+    protected _initializeRoutes(router: Router.Router) {
 
-        const handleError = async (ctx, next) => {
+        const handleError: Router.FullHandler = async (ctx, next) => {
             if (!ctx.invalid) {
                 return next();
             }
@@ -89,7 +93,7 @@ class AdminApiController extends KoaController {
             }
         };
 
-        const handleAdminAuth = (ctx, next) => {
+        const handleAdminAuth: Router.FullHandler = (ctx, next) => {
             if (this.unauthAccess === true)  {
                 return next();
             } else if (this.apiKey != undefined) {
@@ -106,7 +110,7 @@ class AdminApiController extends KoaController {
             }
         };
 
-        const accountProps = (account) => {
+        const accountProps = (account: Account) => {
             const {accountId, formatted} = account.getId();
             return {
                 account_id: accountId,
@@ -118,28 +122,41 @@ class AdminApiController extends KoaController {
             }
         };
 
-        const tunnelProps = (tunnel, baseUrl) => {
+        const tunnelProps = (tunnel: Tunnel, baseUrl: String) => {
             return {
                 tunnel_id: tunnel.id,
-                accound_id: tunnel.account,
+                account_id: tunnel.account,
+                connection: {
+                    connected: tunnel.state.connected,
+                    connected_at: tunnel.state.connected_at ? new Date(tunnel.state.connected_at).toISOString() : undefined,
+                    disconnected_at: tunnel.state.disconnected_at ? new Date(tunnel.state.disconnected_at).toISOString() : undefined,
+                    alive_at: tunnel.state.alive_at ? new Date(tunnel.state.alive_at).toISOString() : undefined,
+                },
+                connections: tunnel.state.connections.map((tc) => {
+                    return {
+                        connection_id: tc.connection_id,
+                        node_id: tc.node,
+                        peer: tc.peer,
+                        connected: tc.connected,
+                        connected_at: tc.connected_at ? new Date(tc.connected_at).toISOString() : undefined,
+                        disconnected_at: tc.disconnected_at ? new Date(tc.disconnected_at).toISOString() : undefined,
+                        alive_at: tc.alive_at ? new Date(tc.alive_at).toISOString() : undefined,
+                    }
+                }),
                 transport: {
-                    ...tunnel.transport,
+                    ...tunnel.config.transport,
                     ...this._transportService.getTransports(tunnel, baseUrl),
                 },
-                ingress: tunnel.ingress,
-                target: tunnel.target,
-                connection: {
-                    connected: tunnel.state().connected,
-                    peer: tunnel.state().peer,
-                    connected_at: tunnel.state().connected_at,
-                    disconnected_at: tunnel.state().disconnected_at,
-                    alive_at: tunnel.state().alive_at,
-                },
-                connections: tunnel.state().connections,
-                created_at: tunnel.created_at,
-                updated_at: tunnel.updated_at,
+                ingress: tunnel.config.ingress,
+                target: tunnel.config.target,
+                created_at: tunnel.config.created_at,
+                updated_at: tunnel.config.updated_at,
             }
         };
+
+        const getBaseUrl = (req: any) => {
+            return req._exposrBaseUrl;
+        }
 
         router.route({
             method: 'post',
@@ -166,7 +183,7 @@ class AdminApiController extends KoaController {
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const account = await this.accountService.get(ctx.params.account_id);
+                const account: Account = await this.accountService.get(ctx.params.account_id);
                 if (!account) {
                     ctx.status = 404;
                     ctx.body = {};
@@ -190,12 +207,12 @@ class AdminApiController extends KoaController {
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const res = await this.accountService.list(ctx.query.cursor, ctx.query.count, ctx.query.verbose);
+                const res = await this.accountService.list(<any>ctx.query.cursor, <any>ctx.query.count, <any>ctx.query.verbose);
 
                 ctx.status = 200;
                 ctx.body = {
                     cursor: res.cursor,
-                    accounts: res.accounts.map((a) => { return accountProps(a); }),
+                    accounts: res.accounts, 
                 };
             }]
         });
@@ -256,14 +273,23 @@ class AdminApiController extends KoaController {
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const tunnel = await this._tunnelService._get(ctx.params.tunnel_id);
-                if (!tunnel) {
-                    ctx.body = {
-                        error: ERROR_TUNNEL_NOT_FOUND,
-                    };
-                } else {
+                try {
+                    const tunnel = await this._tunnelService.lookup(ctx.params.tunnel_id);
                     ctx.status = 200;
-                    ctx.body = tunnelProps(tunnel, ctx.req._exposrBaseUrl);
+                    ctx.body = tunnelProps(tunnel, getBaseUrl(ctx.req));
+                } catch (e: any) {
+                    if (e.message == 'no_such_tunnel') {
+                        ctx.status = 404;
+                        ctx.body = {
+                            error: ERROR_TUNNEL_NOT_FOUND,
+                        };
+                    } else {
+                        ctx.status = 500;
+                        ctx.body = {
+                            error: ERROR_TUNNEL_NOT_FOUND,
+                            details: e.message,
+                        };
+                    }
                 }
             }]
         });
@@ -279,46 +305,47 @@ class AdminApiController extends KoaController {
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const tunnel = await this._tunnelService._get(ctx.params.tunnel_id);
-                if (!tunnel) {
-                    ctx.body = {
-                        error: ERROR_TUNNEL_NOT_FOUND,
-                    };
-                }
-                const result = await this._tunnelService.delete(tunnel.id, tunnel.account);
-                if (result === false) {
-                    ctx.status = 500;
+                try {
+                    const tunnel = await this._tunnelService.lookup(ctx.params.tunnel_id);
+                    const result = await this._tunnelService.delete(tunnel.id, tunnel.account);
+                    if (result) {
+                        ctx.status = 204;
+                    } else {
+                        ctx.status = 403;
+                    }
+                } catch (e: any) {
+                    ctx.status = 403;
                     ctx.body = {
                         error: ERROR_UNKNOWN_ERROR,
-                    };
-                } else {
-                    ctx.status = 204;
+                        details: e.message,
+                    }
                 }
             }]
         });
 
         router.route({
             method: 'post',
-            path: '/v1/admin/tunnel/:tunnel_id/disconnect/:connection_id?',
+            path: '/v1/admin/tunnel/:tunnel_id/disconnect',
             validate: {
                 failure: 400,
                 continueOnError: true,
                 params: {
                     tunnel_id: Router.Joi.string().regex(TunnelService.TUNNEL_ID_REGEX).required(),
-                    connection_id: Router.Joi.string().optional()
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const tunnel = await this._tunnelService._get(ctx.params.tunnel_id);
-                if (!tunnel) {
-                    ctx.body = {
-                        error: ERROR_TUNNEL_NOT_FOUND,
-                    };
-                } else {
-                    const res = await this._tunnelService._disconnect(tunnel, ctx.params.connection_id);
+                try {
+                    const tunnel = await this._tunnelService.lookup(ctx.params.tunnel_id);
+                    const res = await this._tunnelService.disconnect(tunnel.id, tunnel.account);
                     ctx.status = 200;
                     ctx.body = {
                         result: res
+                    }
+
+                } catch (e:any) {
+                    ctx.status = 403,
+                    ctx.body = {
+                        details: e.message
                     }
                 }
             }]
@@ -337,12 +364,14 @@ class AdminApiController extends KoaController {
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const res = await this._tunnelService.list(ctx.query.cursor, ctx.query.count, ctx.query.verbose);
+                const res = await this._tunnelService.list(<any>ctx.query.cursor, <any>ctx.query.count, <any>ctx.query.verbose);
 
                 ctx.status = 200;
                 ctx.body = {
                     cursor: res.cursor,
-                    tunnels: res.tunnels.map((t) => { return ctx.query.verbose ? tunnelProps(t, ctx.req._exposrBaseUrl) : t; }),
+                    tunnels: res.tunnels.map((t) => {
+                        return ctx.query.verbose ? tunnelProps(t, getBaseUrl(ctx.req)) : t.id;
+                    }),
                 };
             }]
         });
@@ -361,7 +390,7 @@ class AdminApiController extends KoaController {
                         node_id: node.id,
                         host: node.host,
                         ip: node.ip,
-                        alive_at: node.last_ts,
+                        alive_at: new Date(node.last_ts).toISOString(),
                         alive_age: Math.max(0, now - node.last_ts),
                         is_stale: node.stale,
                     }
@@ -375,8 +404,8 @@ class AdminApiController extends KoaController {
         });
     }
 
-    async _destroy() {
-        return Promise.allSettled([
+    protected async _destroy(): Promise<void> {
+        Promise.allSettled([
             this.accountService.destroy(),
             this._tunnelService.destroy(),
             this._transportService.destroy(),
