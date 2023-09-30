@@ -192,6 +192,7 @@ class ClusterService extends EventEmitter {
         cnode.id = node.id;
         cnode.host = node.host;
         cnode.ip = node.ip;
+        cnode.last_ts = node.last_ts;
         cnode.stale = false;
 
         clearTimeout(cnode.staleTimer);
@@ -234,7 +235,7 @@ class ClusterService extends EventEmitter {
             id: Node.identifier,
             host: Node.hostname,
             ip: Node.address,
-            last_ts: new Date().getTime(),
+            last_ts: Date.now(),
             stale: false,
         };
     }
@@ -260,7 +261,7 @@ class ClusterService extends EventEmitter {
                 id: this._nodes[k].id,
                 host: this._nodes[k].host,
                 ip: this._nodes[k].ip,
-                last_ts: Node.identifier == this._nodes[k].id ? new Date().getTime() : this._nodes[k].last_ts,
+                last_ts: Node.identifier == this._nodes[k].id ? Date.now() : this._nodes[k].last_ts,
                 stale: this._nodes[k].stale,
             }
         })
