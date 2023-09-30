@@ -1,19 +1,53 @@
 import crypto from 'crypto';
-import ssh from 'ssh2';
+import ssh, { AuthContext } from 'ssh2';
 import sshpk from 'sshpk';
 import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
 import Version from '../../version.js';
 import SSHTransport from './ssh-transport.js';
+import TransportEndpoint, { EndpointResult, TransportEndpointOptions } from '../transport-endpoint.js';
+import Tunnel from '../../tunnel/tunnel.js';
+import Account from '../../account/account.js';
+import Transport from '../transport.js';
 
 const sshBanner = `exposr/${Version.version.version}`;
 
-class SSHEndpoint {
-    constructor(opts) {
+export type SSHEndpointOptions = {
+    enabled: boolean,
+    hostKey?: string,
+    host?: string,
+    port: number,
+    allowInsecureTarget: boolean,
+}
+
+export type _SSHEndpointOptions = SSHEndpointOptions & TransportEndpointOptions & {
+    callback?: (err?: Error | undefined) => void,
+}
+
+export interface SSHEndpointResult extends EndpointResult {
+    host: string,
+    port: number,
+    username: string,
+    password: string,
+    url: string,
+    fingerprint: string,
+}
+
+export default class SSHEndpoint extends TransportEndpoint {
+    private opts: _SSHEndpointOptions;
+    private logger: any;
+    private tunnelService: TunnelService;
+    private _clients: Array<Transport>;
+
+    private _hostkey: string;
+    private _fingerprint: string;
+    private _server: ssh.Server;
+
+    constructor(opts: _SSHEndpointOptions) {
+        super(opts)
         this.opts = opts;
         this.logger = Logger("ssh-transport-endpoint");
         this.tunnelService = new TunnelService();
-        this._clients = new Set();
 
         const generateHostKey = () => {
             const keys = crypto.generateKeyPairSync('rsa', {
@@ -34,10 +68,12 @@ class SSHEndpoint {
 
         this._hostkey = opts.hostKey || generateHostKey();
         this._fingerprint = sshpk.parsePrivateKey(this._hostkey).fingerprint().toString();
+        this._clients = [];
 
         const server = this._server = new ssh.Server({
             hostKeys: [this._hostkey],
             banner: sshBanner,
+            ident: sshBanner,
         });
 
         server.on('connection', (client, clientInfo) => {
@@ -46,69 +82,79 @@ class SSHEndpoint {
                 info: {
                     ip: clientInfo.ip,
                     port: clientInfo.port,
-                    ident: clientInfo.identRaw,
+                    header: clientInfo.header,
                 },
             })
 
-            this._clients.add(client);
             client.once('close', () => {
-                this._clients.delete(client);
+                client.removeAllListeners();
             });
+
             this._handleClient(client, clientInfo);
         });
 
-        const connectionError = (err) => {
+        const connectionError = (err: Error) => {
             this.logger.error({
                 message: `Failed to initialize ssh transport connection endpoint: ${err}`,
             });
             typeof opts.callback === 'function' && opts.callback(err);
         };
         server.once('error', connectionError);
-        server.listen(opts.port, (err) => {
+        server.listen(opts.port, () => {
             server.removeListener('error', connectionError);
             this.logger.info({
-                msg: 'SSH transport endpoint initialized',
+                message: `SSH transport endpoint listening on port ${opts.port}`,
+                port: opts.port,
                 fingerprint: this._fingerprint
+            });
+
+            server.on('error', (err: Error) => {
+                this.logger.error({
+                    message: `SSH transport error: ${err.message}`
+                });
+                this.logger.debug({
+                    stack: `${err.stack}`
+                });
             });
             typeof opts.callback === 'function' && opts.callback();
         });
     }
 
-    async destroy() {
-        if (this.destroyed) {
-            return;
-        }
-        this.destroyed = true;
-        return new Promise((resolve) => {
+    protected async _destroy(): Promise<void> {
+        await new Promise(async (resolve) => {
             this._server.once('close', async () => {
                 await this.tunnelService.destroy();
-                resolve();
+                this._server.removeAllListeners();
+                resolve(undefined);
             });
+            for (const transport of this._clients) {
+                await transport.destroy();
+            }
+            this._clients = [];
             this._server.close();
-            this._clients.forEach((client) => client.destroy());
         });
     }
 
-    getEndpoint(tunnel, baseUrl) {
+    public getEndpoint(tunnel: Tunnel, baseUrl: URL): SSHEndpointResult {
         const host = this.opts.host ?? baseUrl.hostname;
         const port = this.opts.port;
         const username = tunnel.id;
-        const password = tunnel.config.transport.token;
+        const password = tunnel.config.transport.token || "";
         const fingerprint = this._fingerprint;
 
         let url;
         try {
             url = new URL(`ssh://${username}:${password}@${host}`);
             if (!url.port) {
-                url.port = port;
+                url.port = `${port}`;
             }
         } catch (e) {
-            return {};
+            return <any>{};
         }
 
         return {
             host: url.hostname,
-            port: url.port,
+            port: Number.parseInt(url.port),
             username,
             password,
             url: url.href,
@@ -116,12 +162,18 @@ class SSHEndpoint {
         };
     }
 
-    _handleClient(client, info) {
-        let tunnel;
-        let account;
-        client.on('authentication', async (ctx) => {
+    private _handleClient(client: ssh.Connection, info: ssh.ClientInfo): void {
+        let tunnel: Tunnel;
+        let account: Account;
+
+        client.once('authentication', async (ctx: AuthContext) => {
             let [tunnelId, token] = ctx.username.split(':');
-            if (token == undefined) {
+
+            if (ctx.method == 'none' && token == undefined) {
+                return ctx.reject();
+            }
+
+            if (ctx.method == 'password' && token == undefined) {
                 token = ctx.password;
             }
 
@@ -131,7 +183,7 @@ class SSHEndpoint {
             };
 
             if (token == undefined) {
-                return ctx.reject();
+                return reject();
             }
 
             const authResult = await this.tunnelService.authorize(tunnelId, token);
@@ -139,25 +191,31 @@ class SSHEndpoint {
                 return reject();
             }
 
-            tunnel = authResult.tunnel;
-            account = authResult.account;
-
-            if (tunnel.state.connected) {
+            if (!authResult.tunnel || !authResult.account) {
                 return reject();
             }
+
+            tunnel = authResult.tunnel;
+            account = authResult.account;
 
             ctx.accept();
         });
 
-        client.on('ready', async (ctx) => {
+        client.once('ready', async () => {
             const transport = new SSHTransport({
                 tunnelId: tunnel.id,
                 target: tunnel.config.target.url,
                 max_connections: this.opts.max_connections,
+                allowInsecureTarget: this.opts.allowInsecureTarget,
                 client,
             });
             const res = await this.tunnelService.connect(tunnel.id, account.id, transport, { peer: info.ip });
-            if (!res) {
+            if (res) {
+                this._clients.push(transport);
+                transport.once('close', () => {
+                    this._clients = this._clients.filter((t) => t.id != transport.id);
+                });
+            } else {
                 this.logger
                     .withContext("tunnel", tunnel.id)
                     .error({
@@ -166,9 +224,7 @@ class SSHEndpoint {
                     });
                 transport.destroy();
             }
-
         });
+
     }
 }
-
-export default SSHEndpoint;

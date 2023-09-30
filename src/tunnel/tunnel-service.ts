@@ -20,6 +20,7 @@ export type ConnectOptions = {
 }
 
 export type CreateConnectionContext = {
+    remoteAddr: string,
     ingress: {
         port: number,
         tls?: boolean,
@@ -701,6 +702,7 @@ export default class TunnelService {
         }
         const sock = connection.transport.createConnection({
             tunnelId,
+            remoteAddr: ctx.remoteAddr,
             port: ctx.ingress.port,
         }, callback);
         return sock;

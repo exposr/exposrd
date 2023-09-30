@@ -152,14 +152,16 @@ class HttpIngress {
         return net.isIP(ip) ? ip : req.socket.remoteAddress;
     }
 
-    _createAgent(tunnelId) {
+    _createAgent(tunnelId, req) {
         const agent = new Agent({
             keepAlive: true,
             timeout: this._agent_ttl * 1000,
         });
 
+        const remoteAddr = this._clientIp(req);
         agent.createConnection = (opts, callback) => {
             const ctx = {
+                remoteAddr,
                 ingress: {
                     tls: false,
                     port: this.httpListener.getPort(),
@@ -175,13 +177,13 @@ class HttpIngress {
         return agent;
     }
 
-    _getAgent(tunnelId) {
+    _getAgent(tunnelId, req) {
         let agent;
         try {
             agent = this._agentCache.get(tunnelId);
         } catch (e) {}
         if (agent === undefined) {
-            agent = this._createAgent(tunnelId);
+            agent = this._createAgent(tunnelId, req);
             this._agentCache.set(tunnelId, agent, this._agent_ttl);
         } else {
             this._agentCache.ttl(tunnelId, this._agent_ttl);
@@ -308,7 +310,7 @@ class HttpIngress {
             keepAlive: true,
         };
 
-        const agent = opt.agent = this._getAgent(tunnel.id);
+        const agent = opt.agent = this._getAgent(tunnel.id, req);
         opt.headers = this._requestHeaders(req, tunnel, baseUrl);
 
         this.logger.trace({
@@ -388,6 +390,7 @@ class HttpIngress {
         }
 
         const ctx = {
+            remoteAddr: this._clientIp(req),
             ingress: {
                 tls: false,
                 port: this.httpListener.getPort(),

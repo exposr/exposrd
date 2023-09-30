@@ -53,7 +53,13 @@ describe('ssh endpoint', () => {
             tc.transport.token = 'token';
             const tunnel = new Tunnel(tc)
 
-            const endpoint = new SSHEndpoint(args);
+            const endpoint = new SSHEndpoint({
+                ...args,
+                max_connections: 1,
+                enabled: true,
+                hostKey: "",
+                allowInsecureTarget: true,
+            });
             const ep = endpoint.getEndpoint(tunnel, baseUrl);
             endpoint.destroy();
 

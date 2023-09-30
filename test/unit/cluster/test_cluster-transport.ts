@@ -28,6 +28,7 @@ describe('cluster transport', () => {
         const sock: Duplex = await new Promise((resolve) => {
             const sock = clusterTransport.createConnection({
                 port: 10000,
+                remoteAddr: "127.0.0.1"
             }, () => {
                 resolve(sock);
             });

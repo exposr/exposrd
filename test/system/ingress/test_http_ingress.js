@@ -191,6 +191,6 @@ describe('http ingress', () => {
         await sock1.destroy();
         await sock2.destroy();
         await sockPair.terminate();
-        echoServer.destroy();
+        await echoServer.destroy();
     });
 });

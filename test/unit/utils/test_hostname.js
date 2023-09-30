@@ -6,6 +6,7 @@ describe('hostname', () => {
     const parseTests = [
         {args: ['example.com', 80], expected: new URL("http://example.com/")},
         {args: ['example.com', 0], expected: new URL("tcp://example.com")},
+        {args: ['example.example', "0"], expected: new URL("tcp://example.example")},
         {args: ['localhost', 0], expected: new URL("tcp://localhost")},
         {args: ['example.com:80'], expected: new URL("http://example.com/")},
         {args: ['http://example.com:80'], expected: new URL("http://example.com/")},

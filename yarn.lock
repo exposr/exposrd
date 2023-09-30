@@ -230,6 +230,13 @@
   dependencies:
     "@types/node" "*"
 
+"@types/asn1@*":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@types/asn1/-/asn1-0.2.1.tgz#7053cc66a056f6f425645ec76e23fa028c429756"
+  integrity sha512-MgrOWeBGvb9CU43AOMvrr7laqiATS4dApdqnmXl4MLxH6rSXcjSoh12y/9YGv/7Cn63cob5xQjcxVvjnOLmrmw==
+  dependencies:
+    "@types/node" "*"
+
 "@types/body-parser@*":
   version "1.19.3"
   resolved "https://registry.yarnpkg.com/@types/body-parser/-/body-parser-1.19.3.tgz#fb558014374f7d9e56c8f34bab2042a3a07d25cd"
@@ -385,6 +392,11 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-20.4.9.tgz#c7164e0f8d3f12dfae336af0b1f7fdec8c6b204f"
   integrity sha512-8e2HYcg7ohnTUbHk8focoklEQYvemQmu9M/f43DZVx43kHn0tE3BY/6gSDxS7k0SprtS0NHvj+L80cGLnoOUcQ==
 
+"@types/node@^18.11.18":
+  version "18.18.1"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-18.18.1.tgz#80b22f3df719f15c9736207980e95f35d01ec1aa"
+  integrity sha512-3G42sxmm0fF2+Vtb9TJQpnjmP+uKlWvFa8KoEGquh4gqRmoUG/N0ufuhikw6HEsdG2G2oIKhog1GCTfz9v5NdQ==
+
 "@types/node@^20.5.0":
   version "20.5.0"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-20.5.0.tgz#7fc8636d5f1aaa3b21e6245e97d56b7f56702313"
@@ -394,6 +406,11 @@
   version "2.4.1"
   resolved "https://registry.yarnpkg.com/@types/normalize-package-data/-/normalize-package-data-2.4.1.tgz#d3357479a0fdfdd5907fe67e17e0a85c906e1301"
   integrity sha512-Gj7cI7z+98M282Tqmp2K5EIsoouUEzbBJhQQzDE3jSIRk6r9gsz0oUokqIUR4u1R3dMHo0pDHM7sNOHyhulypw==
+
+"@types/port-numbers@^5.0.0":
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/@types/port-numbers/-/port-numbers-5.0.0.tgz#c0ff384133109742cf1cf91bc54b291f8bcce1f6"
+  integrity sha512-ajgxPWA0SCd7w4u8Z1HyQGfxk8MbV2f6trzx3OOeRX8hQI3T+HRqAxETohFpiCvfId1X2yVBaJiU5qP7iPBIAQ==
 
 "@types/qs@*":
   version "6.9.8"
@@ -433,6 +450,21 @@
   version "8.1.3"
   resolved "https://registry.yarnpkg.com/@types/sinonjs__fake-timers/-/sinonjs__fake-timers-8.1.3.tgz#575789c5cf6d410cb288b0b4affaf7e6da44ca51"
   integrity sha512-4g+2YyWe0Ve+LBh+WUm1697PD0Kdi6coG1eU0YjQbwx61AZ8XbEpL1zIT6WjuUKrCMCROpEaYQPDjBnDouBVAQ==
+
+"@types/ssh2@^1.11.14":
+  version "1.11.14"
+  resolved "https://registry.yarnpkg.com/@types/ssh2/-/ssh2-1.11.14.tgz#d3bebf27fa508add5ddb65d0c945ca5329e669fb"
+  integrity sha512-O/U38mvV4jVVrdtZz8KpmitkmeD/PUDeDNNueQhm34166dmaqb1iZ3sfarSxBArM2/iX4PZVJY3EOta0Zks9hw==
+  dependencies:
+    "@types/node" "^18.11.18"
+
+"@types/sshpk@^1.17.2":
+  version "1.17.2"
+  resolved "https://registry.yarnpkg.com/@types/sshpk/-/sshpk-1.17.2.tgz#454ab0a16ab22ecc42b39d7ef09da375d5ed2e9c"
+  integrity sha512-eGVfOV904NrLQPcdO6UGGzbUH8gV5YG0egYD+8wkCBwZIbAYTNB8VHi29/rMrBRAhG9quIJqimugP8jiCo7t3w==
+  dependencies:
+    "@types/asn1" "*"
+    "@types/node" "*"
 
 "@types/ws@^8.5.5":
   version "8.5.5"

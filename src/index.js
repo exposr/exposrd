@@ -131,6 +131,7 @@ export default async (argv) => {
                   hostKey: config.get('transport-ssh-key'),
                   host: config.get('transport-ssh-host'),
                   port: config.get('transport-ssh-port'),
+                  allowInsecureTarget: config.get('transport-ssh-allow-insecure-target'),
                 },
             });
         } catch (e) {
