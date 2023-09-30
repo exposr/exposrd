@@ -48,7 +48,7 @@ class WebSocketEndpoint {
         const url = new URL(baseUrl);
         url.protocol = baseUrl.protocol == 'https:' ? 'wss' : 'ws';
         url.pathname =  `${WebSocketEndpoint.BASE_PATH}/${tunnel.id}/ws-endpoint`;
-        url.search = '?' + querystring.encode({t: tunnel.transport.token});
+        url.search = '?' + querystring.encode({t: tunnel.config.transport.token});
         return {
             url: url.href,
         };

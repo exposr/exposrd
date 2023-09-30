@@ -13,6 +13,7 @@ describe('API test', () => {
         terminator = await exposr.default([
             "node",
             "--admin-enable",
+            "--admin-api-enable",
             "--allow-registration",
             "--ingress", "http",
             "--ingress-http-url", "http://localhost:8080"

@@ -93,7 +93,7 @@ class SSHEndpoint {
         const host = this.opts.host ?? baseUrl.hostname;
         const port = this.opts.port;
         const username = tunnel.id;
-        const password = tunnel.transport.token;
+        const password = tunnel.config.transport.token;
         const fingerprint = this._fingerprint;
 
         let url;
@@ -142,7 +142,7 @@ class SSHEndpoint {
             tunnel = authResult.tunnel;
             account = authResult.account;
 
-            if (tunnel.state().connected) {
+            if (tunnel.state.connected) {
                 return reject();
             }
 
@@ -152,7 +152,7 @@ class SSHEndpoint {
         client.on('ready', async (ctx) => {
             const transport = new SSHTransport({
                 tunnelId: tunnel.id,
-                target: tunnel.target.url,
+                target: tunnel.config.target.url,
                 max_connections: this.opts.max_connections,
                 client,
             });

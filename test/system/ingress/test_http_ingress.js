@@ -89,8 +89,8 @@ describe('http ingress', () => {
         do {
             await setTimeout(100);
             tun = await tunnelService._get(tunnel.id)
-        } while (tun.state().connected == false && i++ < 10);
-        assert(tun.state().connected == true, "tunnel not connected")
+        } while (tun.state.connected == false && i++ < 10);
+        assert(tun.state.connected == true, "tunnel not connected")
 
         client.on('connection', (sock) => {
             sock.on('data', async (chunk) => {
@@ -159,8 +159,8 @@ describe('http ingress', () => {
         do {
             await setTimeout(100);
             tun = await tunnelService._get(tunnel.id)
-        } while (tun.state().connected == false && i++ < 10);
-        assert(tun.state().connected == true, "tunnel not connected")
+        } while (tun.state.connected == false && i++ < 10);
+        assert(tun.state.connected == true, "tunnel not connected")
 
         const req = http.request({
             hostname: 'localhost',
@@ -186,7 +186,7 @@ describe('http ingress', () => {
         req.end();
 
         const wsRes = await new Promise(done);
-        assert(wsRes.equals(Buffer.from("ws echo connected")), `got ${wsRes}`);
+        assert(wsRes.equals(Buffer.from("ws echo connected")), `did not get ws echo, got ${wsRes}`);
 
         await sock1.destroy();
         await sock2.destroy();

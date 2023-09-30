@@ -1,27 +1,20 @@
-class Serializer {
+export interface Serializable {}
 
-    static serialize(object) {
-        const clazz = object.constructor.name;
-        object = {
-            __class__: clazz,
-            ...object
-        };
+export default class Serializer {
+
+    static serialize(object: Serializable): string {
         return JSON.stringify(object, (key, value) => {
-            if (key[0] == '_' && key != '__class__') {
+            if (key[0] == '_') {
                 return undefined;
             }
             return value;
         });
     }
 
-    static deserialize(json, clazz) {
+    static deserialize<Type>(json: string | object, type:  { new(): Type ;} ): Type {
         const obj = typeof json == 'object' ? json : JSON.parse(json) || {};
-        if (obj.__class__ != clazz.name) {
-            return undefined;
-        }
-        delete obj['__class__'];
 
-        const merge = (target, source) => {
+        const merge = (target: any, source: any): Type => {
             for (const key of Object.keys(target)) {
                 if (target[key] instanceof Array && source[key] instanceof Array) {
                     target[key] = source[key];
@@ -35,15 +28,11 @@ class Serializer {
             return target;
         }
 
-        const canonicalObj = Object.assign(new clazz(), {
-            ...merge(new clazz(), obj)
-        });
-        // Run migration hooks
-        typeof canonicalObj._deserialization_hook === 'function' &&
-            canonicalObj._deserialization_hook();
+        const canonicalObj = Object.assign(<any>new type(), {
+            ...merge(new type(), obj as Type)
+        }) as Type;
+
         return canonicalObj;
     }
 
 }
-
-export default Serializer;

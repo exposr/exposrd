@@ -8,7 +8,7 @@ class Node {
 
     static address4 = Node._getIP(Node.interface, 'IPv4');
     static address6 = Node._getIP(Node.interface, 'IPv6');
-    static address = Node.address4 || Node.address6;
+    static address = Node.address4 || Node.address6 || '0.0.0.0';
 
     static getIP() {
         return Node._getIP(Node.interface, 'IPv4') || Node._getIP(Node.interface, 'IPv6');

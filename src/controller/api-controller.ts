@@ -1,4 +1,4 @@
-import Router from 'koa-joi-router';
+import Router from 'koa-joi-router' 
 import AccountService from '../account/account-service.js';
 import Account from '../account/account.js';
 import { Logger } from '../logger.js';
@@ -9,13 +9,20 @@ import {
     ERROR_AUTH_NO_ACCESS_TOKEN,
     ERROR_AUTH_PERMISSION_DENIED,
     ERROR_BAD_INPUT,
-    ERROR_TUNNEL_NOT_FOUND
+    ERROR_TUNNEL_NOT_FOUND,
+    ERROR_UNKNOWN_ERROR,
 } from '../utils/errors.js';
 import KoaController from './koa-controller.js';
 
 class ApiController extends KoaController {
 
-    constructor(opts) {
+    private opts: any;
+    private logger: any;
+    private accountService: AccountService;
+    private tunnelService: TunnelService;
+    private transportService: TransportService;
+
+    constructor(opts: any) {
         const logger = Logger("api");
 
         super({
@@ -33,15 +40,13 @@ class ApiController extends KoaController {
         if (opts.allowRegistration) {
             this.logger.warn({message: "Public account registration is enabled"});
         }
-
-        this.setRoutes((router) => this._initializeRoutes(router));
     }
 
-    _initializeRoutes(router) {
+    _initializeRoutes(router: Router.Router) {
 
-        const handleError = async (ctx, next) => {
+        const handleError: Router.FullHandler = async (ctx, next) => {
             if (!ctx.invalid) {
-                return next(ctx, next);
+                return next();
             }
 
             if (ctx.invalid.type) {
@@ -70,7 +75,7 @@ class ApiController extends KoaController {
             }
         };
 
-        const handleAuth = async (ctx, next) => {
+        const handleAuth: Router.FullHandler = async (ctx, next) => {
             const token = ctx.request.header.authorization ? ctx.request.header.authorization.split(' ')[1] : undefined;
             const accountId = token ? Buffer.from(token, 'base64').toString('utf-8') : undefined;
             if (!token || !accountId) {
@@ -93,36 +98,41 @@ class ApiController extends KoaController {
             return next();
         };
 
-        const tunnelInfo = (tunnel, baseUrl) => {
+        const tunnelInfo = (tunnel: Tunnel, baseUrl: string) => {
             const info = {
                 id: tunnel.id,
                 connection: {
-                    connected: tunnel.state().connected,
-                    connections: tunnel.state().connections.length || 0,
-                    peer: tunnel.state().peer,
-                    connected_at: tunnel.state().connected_at,
-                    disconnected_at: tunnel.state().disconnected_at,
-                    alive_at: tunnel.state().alive_at,
+                    connected: tunnel.state.connected,
+                    connections: tunnel.state.alive_connections,
+                    connected_at: tunnel.state.connected_at,
+                    disconnected_at: tunnel.state.disconnected_at,
+                    alive_at: tunnel.state.alive_at,
                 },
                 transport: {
-                    max_connections: tunnel.transport.max_connections,
-                    ...this.transportService.getTransports(tunnel, baseUrl)
+                    ...this.transportService.getTransports(tunnel, baseUrl),
                 },
-                ingress: {},
+                ingress: {
+                    http: {},
+                    sni: {},
+                },
                 target: {
-                    url: tunnel.target.url,
+                    url: tunnel.config.target.url,
                 },
-                created_at: tunnel.created_at,
+                created_at: tunnel.config.created_at,
             };
 
-            Object.keys(tunnel.ingress).forEach((k) => {
-                const ingress = tunnel.ingress[k];
-                if (ingress.enabled) {
-                    info.ingress[k] = ingress;
-                }
-            });
+            if (tunnel.config.ingress['http']?.enabled) {
+                info.ingress['http'] = tunnel.config.ingress['http'];
+            }
+            if (tunnel.config.ingress['sni']?.enabled) {
+                info.ingress['sni'] = tunnel.config.ingress['sni'];
+            }
 
             return info;
+        };
+
+        const getBaseUrl = (req: any) => {
+            return req._exposrBaseUrl;
         };
 
         router.route({
@@ -163,12 +173,16 @@ class ApiController extends KoaController {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
 
+                let tunnel;
                 if (ctx.request.method == 'PUT') {
-                    let tunnel
-                    tunnel = await this.tunnelService.create(tunnelId, account.id);
-                    if (tunnel == false) {
+                    try {
+                        tunnel = await this.tunnelService.create(tunnelId, account.id);
+                    } catch (e: any) {}
+
+                    try {
                         tunnel = await this.tunnelService.get(tunnelId, account.id);
-                    }
+                    } catch (e:any) {}
+
                     if (!(tunnel instanceof Tunnel)) {
                         ctx.status = 403;
                         ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
@@ -177,31 +191,40 @@ class ApiController extends KoaController {
                 }
 
                 const body = ctx.request.body;
-                const updatedTunnel = await this.tunnelService.update(tunnelId, account.id, (tunnel) => {
-                    tunnel.ingress.http.enabled =
-                        body?.ingress?.http?.enabled ?? tunnel.ingress.http.enabled;
-                    tunnel.ingress.sni.enabled =
-                        body?.ingress?.sni?.enabled ?? tunnel.ingress.sni.enabled;
-                    tunnel.ingress.http.alt_names =
-                        body?.ingress?.http?.alt_names === null ? undefined :
-                            body?.ingress?.http?.alt_names ?? tunnel.ingress.http.alt_names;
-                    tunnel.target.url =
-                        body?.target?.url === null ? undefined :
-                            body?.target?.url ?? tunnel.target.url;
-                    tunnel.transport.ws.enabled =
-                        body?.transport?.ws?.enabled ?? tunnel.transport.ws.enabled;
-                    tunnel.transport.ssh.enabled =
-                        body?.transport?.ssh?.enabled ?? tunnel.transport.ssh.enabled;
-                });
-                if (updatedTunnel instanceof Tunnel) {
-                    ctx.body = tunnelInfo(updatedTunnel, ctx.req._exposrBaseUrl);
+
+                try {
+                    const updatedTunnel = await this.tunnelService.update(tunnelId, account.id, (tunnel) => {
+                        tunnel.ingress.http.enabled =
+                            body?.ingress?.http?.enabled ?? tunnel.ingress.http.enabled;
+                        tunnel.ingress.sni.enabled =
+                            body?.ingress?.sni?.enabled ?? tunnel.ingress.sni.enabled;
+                        tunnel.ingress.http.alt_names =
+                            body?.ingress?.http?.alt_names === null ? undefined :
+                                body?.ingress?.http?.alt_names ?? tunnel.ingress.http.alt_names;
+                        tunnel.target.url =
+                            body?.target?.url === null ? undefined :
+                                body?.target?.url ?? tunnel.target.url;
+                        tunnel.transport.ws.enabled =
+                            body?.transport?.ws?.enabled ?? tunnel.transport.ws.enabled;
+                        tunnel.transport.ssh.enabled =
+                            body?.transport?.ssh?.enabled ?? tunnel.transport.ssh.enabled;
+                    });
+                    ctx.body = tunnelInfo(updatedTunnel, getBaseUrl(ctx.req));
                     ctx.status = 200;
-                } else if (updatedTunnel instanceof Error) {
-                    ctx.status = 400;
-                    ctx.body = {error: updatedTunnel.code, details: updatedTunnel.details};
-                } else {
-                    ctx.status = 403;
-                    ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
+                } catch (e: any) {
+                    if (e.message == 'permission_denied') {
+                        ctx.status = 403;
+                        ctx.body = {error: ERROR_AUTH_PERMISSION_DENIED};
+                    } else {
+                        this.logger.error({
+                            message: `Failed to update tunnel: ${e.message}`, 
+                        });
+                        this.logger.debug({
+                            stack: e.stack
+                        })
+                        ctx.status = 500;
+                        ctx.body = {error: ERROR_UNKNOWN_ERROR, detailed: e.message};
+                    }
                 }
             }]
         });
@@ -219,14 +242,22 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const result = await this.tunnelService.delete(tunnelId, account.id);
-                if (result === false) {
-                    ctx.status = 404;
-                    ctx.body = {
-                        error: ERROR_TUNNEL_NOT_FOUND,
-                    };
-                } else {
-                    ctx.status = 204;
+                try {
+                    const result = await this.tunnelService.delete(tunnelId, account.id);
+                    if (result) {
+                        ctx.status = 204;
+                    } else {
+                        ctx.status = 404;
+                        ctx.body = {
+                            error: ERROR_TUNNEL_NOT_FOUND,
+                        };
+                    }
+
+                } catch (e: any) {
+                        ctx.status = 404;
+                        ctx.body = {
+                            error: ERROR_TUNNEL_NOT_FOUND,
+                        };
                 }
             }]
         });
@@ -244,15 +275,15 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const tunnel = await this.tunnelService.get(tunnelId, account.id);
-                if (!tunnel) {
+                try {
+                    const tunnel = await this.tunnelService.get(tunnelId, account.id);
+                    ctx.status = 200;
+                    ctx.body = tunnelInfo(tunnel, getBaseUrl(ctx.req));
+                } catch (e: any) {
                     ctx.status = 404;
                     ctx.body = {
                         error: ERROR_TUNNEL_NOT_FOUND,
                     };
-                } else {
-                    ctx.status = 200;
-                    ctx.body = tunnelInfo(tunnel, ctx.req._exposrBaseUrl);
                 }
             }]
         });
@@ -270,22 +301,22 @@ class ApiController extends KoaController {
             handler: [handleError, handleAuth, async (ctx, next) => {
                 const tunnelId = ctx.params.tunnel_id;
                 const account = ctx._context.account;
-                const result = await this.tunnelService.disconnect(tunnelId, account.id);
-                if (result == undefined) {
-                    ctx.status = 404;
-                    ctx.body = {
-                        error: ERROR_TUNNEL_NOT_FOUND,
-                    };
-                } else {
+                try {
+                    const result = await this.tunnelService.disconnect(tunnelId, account.id);
                     ctx.status = 200;
                     ctx.body = {
                         result
+                    };
+                } catch (e: any) {
+                    ctx.status = 404;
+                    ctx.body = {
+                        error: ERROR_TUNNEL_NOT_FOUND,
                     };
                 }
             }]
         });
 
-        const accountProps = (account) => {
+        const accountProps = (account: Account) => {
             const {accountId, formatted} = account.getId();
             return {
                 account_id: accountId,
@@ -345,7 +376,7 @@ class ApiController extends KoaController {
     }
 
     async _destroy() {
-        return Promise.allSettled([
+        await Promise.allSettled([
             this.accountService.destroy(),
             this.tunnelService.destroy(),
             this.transportService.destroy(),

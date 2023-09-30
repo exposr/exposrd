@@ -6,7 +6,7 @@ import ClusterService from "../../src/cluster/index.js";
 import { StorageService } from "../../src/storage/index.js";
 import { WebSocketMultiplex } from "@exposr/ws-multiplex";
 
-export const initStorageService = async () => {
+export const initStorageService = async (): Promise<StorageService> => {
     return new Promise((resolve) => {
         const storage = new StorageService({
             url: new URL('memory://'),

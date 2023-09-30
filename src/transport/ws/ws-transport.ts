@@ -1,17 +1,15 @@
 import WebSocket from 'ws';
-import Transport from '../transport.js';
+import Transport, { TransportOptions } from '../transport.js';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
 import { Duplex } from 'stream';
 
-export type WebSocketTransportOptions = {
+export type WebSocketTransportOptions = TransportOptions & {
     tunnelId: string,
-    max_connections: number,
     socket: WebSocket,
 };
 
 export default class WebSocketTransport extends Transport {
     private wsm: WebSocketMultiplex;
-    private destroyed: boolean = false;
 
     constructor(options: WebSocketTransportOptions) {
         super({
@@ -22,25 +20,21 @@ export default class WebSocketTransport extends Transport {
             reference: options.tunnelId
         });
 
-        this.wsm.on('error', (err: Error) => {
-            this._destroy(err);
+        this.wsm.once('error', (err: Error) => {
+            this.destroy(err);
+        });
+
+        this.wsm.once('close', () => {
+            this.destroy();
         });
     }
 
-    public createConnection(opts: object = {}, callback: (err: Error | undefined, sock: Duplex) => void): any {
+    public createConnection(opts: any = {}, callback: (err: Error | undefined, sock: Duplex) => void): Duplex {
         return this.wsm.createConnection({}, callback);
     }
 
-    public async destroy(): Promise<void> {
-        return this._destroy();
-    }
-
-    private async _destroy(err?: Error): Promise<void> {
-        if (this.destroyed) {
-            return;
-        }
-        this.destroyed = true;
+    protected async _destroy(): Promise<void> {
+        this.wsm.removeAllListeners();
         await this.wsm.destroy();
-        this.emit('close', err);
     }
 }

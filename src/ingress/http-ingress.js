@@ -134,11 +134,14 @@ class HttpIngress {
         if (!tunnelId) {
             tunnelId = await this.altNameService.get('http', host);
             if (!tunnelId) {
-                return tunnelId;
+                return undefined;
             }
         }
-
-        return this.tunnelService.lookup(tunnelId);
+        try {
+            return this.tunnelService.lookup(tunnelId);
+        } catch (e) {
+            return false;
+        }
     }
 
     _clientIp(req) {
@@ -223,9 +226,9 @@ class HttpIngress {
         const host = headers['host'];
 
         let target;
-        if (tunnel.target.url) {
+        if (tunnel.config.target.url) {
             try {
-                target = new URL(tunnel.target.url);
+                target = new URL(tunnel.config.target.url);
             } catch {}
         }
         if (target === undefined || !target.protocol.startsWith('http')) {
@@ -278,14 +281,14 @@ class HttpIngress {
             return true;
         }
 
-        if (!tunnel.state().connected) {
+        if (!tunnel.state.connected) {
             httpResponse(502, {
                 error: ERROR_TUNNEL_NOT_CONNECTED,
             });
             return true;
         }
 
-        if (!tunnel.ingress?.http?.enabled) {
+        if (!tunnel.config.ingress?.http?.enabled) {
             httpResponse(403, {
                 error: ERROR_TUNNEL_HTTP_INGRESS_DISABLED,
             });
@@ -366,7 +369,7 @@ class HttpIngress {
             return true;
         }
 
-        if (!tunnel.state().connected) {
+        if (!tunnel.state.connected) {
             _canonicalHttpResponse(sock, req, {
                 status: 502,
                 statusLine: 'Bad Gateway',

@@ -27,17 +27,22 @@ class SSHTransport extends Transport {
                 accept();
             });
             session.on('shell', async (accept, reject) => {
-                const tunnel = await this._tunnelService.lookup(opts.tunnelId);
-                if (!(tunnel instanceof Tunnel) || tunnel.id != opts.tunnelId) {
+                let tunnel;
+                try {
+                    tunnel = await this._tunnelService.lookup(opts.tunnelId);
+                    if (tunnel.id != opts.tunnelId) {
+                        return reject();
+                    }
+                } catch (e) {
                     return reject();
                 }
                 const stream = accept();
                 stream.write(`Target URL: ${this._target.href}\r\n`);
-                Object.keys(tunnel.ingress).forEach((ing) => {
-                    if (!tunnel.ingress[ing].enabled) {
+                Object.keys(tunnel.config.ingress).forEach((ing) => {
+                    if (!tunnel.config.ingress[ing].enabled) {
                         return;
                     }
-                    tunnel.ingress[ing]?.urls?.forEach((url) => {
+                    tunnel.config.ingress[ing]?.urls?.forEach((url) => {
                         stream.write(`${ing.toUpperCase()} ingress: ${url}\r\n`);
                     });
                 });
@@ -55,8 +60,13 @@ class SSHTransport extends Transport {
                 return reject();
             }
 
-            const tunnel = await this._tunnelService.lookup(opts.tunnelId);
-            if (!(tunnel instanceof Tunnel) || tunnel.id != opts.tunnelId) {
+            let tunnel;
+            try {
+                tunnel = await this._tunnelService.lookup(opts.tunnelId);
+                if (tunnel.id != opts.tunnelId) {
+                    return reject();
+                }
+            } catch (e) {
                 return reject();
             }
 
@@ -64,8 +74,8 @@ class SSHTransport extends Transport {
             if (bindUrl && bindUrl.hostname != 'localhost') {
                 if (bindUrl.href != this._target.href) {
                     this._target = bindUrl;
-                    this._tunnelService.update(tunnel.id, tunnel.account, (tunnel) => {
-                        tunnel.target.url = bindUrl.href;
+                    this._tunnelService.update(tunnel.id, tunnel.account, (tunnelConfig) => {
+                        tunnelConfig.target.url = bindUrl.href;
                     });
                     this.logger.info({
                         operation: 'update-target',
@@ -98,13 +108,8 @@ class SSHTransport extends Transport {
         return sock;
     }
 
-    async destroy() {
-        if (this.destroyed) {
-            return;
-        }
+    async _destroy() {
         this._client.end();
-        this.destroyed = true;
-        this.emit('close');
         return this._tunnelService.destroy();
     }
 }
