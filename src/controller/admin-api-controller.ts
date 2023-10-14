@@ -122,7 +122,7 @@ class AdminApiController extends KoaController {
             }
         };
 
-        const tunnelProps = (tunnel: Tunnel, baseUrl: String) => {
+        const tunnelProps = (tunnel: Tunnel, baseUrl: string) => {
             return {
                 tunnel_id: tunnel.id,
                 account_id: tunnel.account,

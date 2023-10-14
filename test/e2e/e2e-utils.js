@@ -30,8 +30,7 @@ export const sshClient = (host, port, username, password, target) => {
     client.connect({
         host,
         port: parseInt(port),
-        username,
-        password,
+        username: `${username}:${password}`,
         //debug: (str) => { console.log(str) }
     });
 

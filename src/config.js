@@ -83,6 +83,7 @@ const parse = (canonicalArgv, callback, args = {}) => {
             'transport-ssh-port',
             'transport-ssh-host',
             'transport-ssh-key',
+            'transport-ssh-allow-insecure-target',
         ], 'Transport configuration')
         .option('transport', {
             type: 'array',
@@ -154,6 +155,12 @@ const parse = (canonicalArgv, callback, args = {}) => {
                 console.log(`transport-ssh-key requires either path to key or key content, got ${input}`);
                 process.exit(-1);
             }
+        })
+        .option('transport-ssh-allow-insecure-target', {
+            type: 'boolean',
+            default: false,
+            hidden: true,
+            description: "Allow self-signed and expired TLS certificates on target",
         })
         .group([
             'admin-enable',

@@ -293,6 +293,7 @@ class SNIIngress {
         })
 
         const ctx = {
+            remoteAddr:  socket.remoteAddress,
             ingress: {
                 tls: true,
                 port: this.port,

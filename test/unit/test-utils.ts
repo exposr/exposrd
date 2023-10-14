@@ -1,4 +1,6 @@
 import * as http from 'node:http';
+import https from 'node:https'
+import fs from 'node:fs';
 import { Duplex } from 'node:stream';
 import * as url from 'node:url';
 import { WebSocket, WebSocketServer } from "ws";
@@ -93,7 +95,7 @@ export const wsmPair = (socketPair: wsSocketPair, options?: Object): Array<WebSo
     return [wsm1, wsm2];
 };
 
-export const createEchoHttpServer = async (port = 20000) => {
+export const createEchoHttpServer = async (port: number = 20000, crtPath?: string | undefined, keyPath?: string | undefined) => {
 
     const echoRequest = (request: http.IncomingMessage, response: http.ServerResponse) => {
         let body: Array<Buffer> = [];
@@ -163,16 +165,26 @@ export const createEchoHttpServer = async (port = 20000) => {
         }
     }
 
-    const server = http.createServer();
+    let server: http.Server | https.Server;
+    if (crtPath && keyPath) {
+        const cert = fs.readFileSync(crtPath); 
+        const key = fs.readFileSync(keyPath);
+        server = https.createServer({cert, key});
+    } else {
+        server = http.createServer();
+    }
+
     server.on('request', handleRequest);
     server.on('upgrade', handleUpgrade);
 
     server.listen(port);
     return {
-        destroy: () => {
-            server.removeAllListeners('request');
-            server.removeAllListeners('upgrade');
-            server.close();
+        destroy: async () => {
+            await new Promise((resolve) => {
+                server.close(resolve);
+                server.removeAllListeners('request');
+                server.removeAllListeners('upgrade');
+            });
         }
     };
 };
