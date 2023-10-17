@@ -3,7 +3,7 @@ import http, { Agent } from 'http';
 import net from 'net';
 import NodeCache from 'node-cache';
 import EventBus from '../cluster/eventbus.js';
-import Listener from '../listener/index.js';
+import Listener from '../listener/listener.js';
 import IngressUtils from './utils.js';
 import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
@@ -28,6 +28,7 @@ import {
     HTTP_HEADER_X_FORWARDED_PROTO,
     HTTP_HEADER_FORWARDED
 } from '../utils/http-headers.js';
+import HttpListener, { HttpRequestType } from '../listener/http-listener.js';
 
 class HttpIngress {
 
@@ -45,17 +46,21 @@ class HttpIngress {
         this.altNameService = new AltNameService();
         this.tunnelService = opts.tunnelService;
         assert(this.tunnelService instanceof TunnelService);
-        this.httpListener = Listener.acquire('http', opts.port);
-        this._requestHandler = this.httpListener.use('request', { logger: this.logger, prio: 1 }, async (ctx, next) => {
+        this.httpListener = Listener.acquire(HttpListener, opts.port);
+
+        this._requestHandler = async (ctx, next) => {
             if (!await this.handleRequest(ctx.req, ctx.res, ctx.baseUrl)) {
                 next();
             }
-        });
-        this._upgradeHandler = this.httpListener.use('upgrade', { logger: this.logger }, async (ctx, next) => {
+        };
+        this.httpListener.use(HttpRequestType.request, { logger: this.logger, prio: 1 }, this._requestHandler);
+
+        this._upgradeHandler = async (ctx, next) => {
             if (!await this.handleUpgradeRequest(ctx.req, ctx.sock, ctx.head, ctx.baseUrl)) {
                 next();
             }
-        });
+        };
+        this.httpListener.use(HttpRequestType.upgrade, { logger: this.logger }, this._upgradeHandler);
 
         this._agentCache = new NodeCache({
             useClones: false,
@@ -467,12 +472,12 @@ class HttpIngress {
             return;
         }
         this.destroyed = true;
-        this.httpListener.removeHandler('request', this._requestHandler);
-        this.httpListener.removeHandler('upgrade', this._upgradeHandler);
+        this.httpListener.removeHandler(HttpRequestType.request, this._requestHandler);
+        this.httpListener.removeHandler(HttpRequestType.upgrade, this._upgradeHandler);
         return Promise.allSettled([
             this.altNameService.destroy(),
             this.eventBus.destroy(),
-            Listener.release('http', this.opts.port),
+            Listener.release(this.opts.port),
         ]);
     }
 

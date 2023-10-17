@@ -1,7 +1,7 @@
 import net from 'net';
 import querystring from 'querystring';
 import { WebSocket, WebSocketServer } from 'ws';
-import Listener from '../../listener/index.js';
+import Listener from '../../listener/listener.js';
 import { Logger } from '../../logger.js';
 import TunnelService from '../../tunnel/tunnel-service.js';
 import {
@@ -9,10 +9,11 @@ import {
 } from '../../utils/errors.js';
 import WebSocketTransport from './ws-transport.js';
 import TransportEndpoint, { EndpointResult, TransportEndpointOptions } from '../transport-endpoint.js';
-import HttpListener from '../../listener/http-listener.js';
+import HttpListener, { HttpRequestType, HttpUpgradeCallback } from '../../listener/http-listener.js';
 import Tunnel from '../../tunnel/tunnel.js';
 import { URL } from 'url';
 import { IncomingMessage } from 'http';
+import { Duplex } from 'stream';
 
 export type WebSocketEndpointOptions = {
     enabled: boolean,
@@ -48,23 +49,25 @@ export default class WebSocketEndpoint extends TransportEndpoint {
     private httpListener: HttpListener;
     private tunnelService: TunnelService;
     private wss: WebSocketServer;
-    private _upgradeHandler: any;
+    private _upgradeHandler: HttpUpgradeCallback;
     private connections: Array<WSConnection>; 
     
     constructor(opts: _WebSocketEndpointOptions) {
         super(opts);
         this.opts = opts;
         this.logger = Logger("ws-endpoint");
-        this.httpListener = Listener.acquire('http', opts.port);
+        this.httpListener = Listener.acquire(HttpListener, opts.port);
         this.tunnelService = new TunnelService();
         this.wss = new WebSocketServer({ noServer: true });
         this.connections = [];
 
-        this._upgradeHandler = this.httpListener.use('upgrade', { logger: this.logger }, async (ctx: any, next: any) => {
+        this._upgradeHandler = async (ctx, next) => {
             if (!await this.handleUpgrade(ctx.req, ctx.sock, ctx.head)) {
                 return next();
             }
-        });
+        };
+
+        this.httpListener.use(HttpRequestType.upgrade, { logger: this.logger }, this._upgradeHandler);
 
         this.httpListener.listen()
             .then(() => {
@@ -92,7 +95,7 @@ export default class WebSocketEndpoint extends TransportEndpoint {
     }
 
     protected async _destroy(): Promise<void> {
-        this.httpListener.removeHandler('upgrade', this._upgradeHandler);
+        this.httpListener.removeHandler(HttpRequestType.upgrade, this._upgradeHandler);
         for (const connection of this.connections) {
             const {wst, ws} = connection;
             await wst.destroy();
@@ -102,7 +105,7 @@ export default class WebSocketEndpoint extends TransportEndpoint {
         this.wss.close();
         await Promise.allSettled([
             this.tunnelService.destroy(),
-            Listener.release('http', this.opts.port),
+            Listener.release(this.opts.port),
         ]);
     }
 
@@ -135,7 +138,7 @@ export default class WebSocketEndpoint extends TransportEndpoint {
         };
     }
 
-    private _unauthorized(sock: net.Socket, request: IncomingMessage): RawHttpResponse {
+    private _unauthorized(sock: Duplex, request: IncomingMessage): RawHttpResponse {
         const response = {
             status: 401,
             statusLine: 'Unauthorized'
@@ -143,7 +146,7 @@ export default class WebSocketEndpoint extends TransportEndpoint {
         return this._rawHttpResponse(sock, request, response);
     };
 
-    private _rawHttpResponse(sock: net.Socket, request: IncomingMessage, response: RawHttpResponse): RawHttpResponse {
+    private _rawHttpResponse(sock: Duplex, request: IncomingMessage, response: RawHttpResponse): RawHttpResponse {
         sock.write(`HTTP/${request.httpVersion} ${response.status} ${response.statusLine}\r\n`);
         sock.write('\r\n');
         response.body && sock.write(response.body);
@@ -151,12 +154,7 @@ export default class WebSocketEndpoint extends TransportEndpoint {
         return response;
     }
 
-    async handleUpgrade(req: IncomingMessage, sock: net.Socket, head: Buffer) {
-
-        //if (req.upgrade !== true) {
-        //    this.logger.trace("upgrade called on non-upgrade request");
-        //    return undefined;
-        //}
+    async handleUpgrade(req: IncomingMessage, sock: Duplex, head: Buffer) {
 
         const parsed = this._parseRequest(req);
         if (parsed == undefined) {

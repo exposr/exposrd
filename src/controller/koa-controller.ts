@@ -1,7 +1,8 @@
+import { strict as assert } from 'assert';
 import Koa from 'koa';
-import Router, { FullHandler } from 'koa-joi-router';
-import Listener from '../listener/index.js';
-import HttpListener from '../listener/http-listener.js';
+import Router from 'koa-joi-router';
+import Listener from '../listener/listener.js';
+import HttpListener, { HttpRequestCallback, HttpRequestType } from '../listener/http-listener.js';
 import { IncomingMessage, ServerResponse } from 'http';
 
 abstract class KoaController {
@@ -9,14 +10,12 @@ abstract class KoaController {
     public readonly _name: string = 'controller'
     private _port!: number;
     private httpListener!: HttpListener;
-    private _requestHandler: any;
+    private _requestHandler!: HttpRequestCallback;
     private router!: Router.Router;
     private app!: Koa;
 
     constructor(opts: any) {
-        if (opts == undefined) {
-            return;
-        }
+        assert(opts != undefined);
         const {port, callback, logger, host, prio} = opts;
 
         if (opts?.enable === false) {
@@ -26,8 +25,8 @@ abstract class KoaController {
 
         this._port = port;
 
-        const useCallback: FullHandler = async (ctx, next) => {
-            const setBaseUrl = (req: any, baseUrl: string) => {
+        const useCallback: HttpRequestCallback = this._requestHandler = async (ctx, next) => {
+            const setBaseUrl = (req: any, baseUrl: URL | undefined) => {
                 req._exposrBaseUrl = baseUrl;
             };
             setBaseUrl(ctx.req, ctx.baseUrl)
@@ -36,15 +35,10 @@ abstract class KoaController {
             }
         }
 
-        const httpListener = this.httpListener = Listener.acquire('http', port, { app: new Koa() });
-        this._requestHandler = httpListener.use('request', { host, logger, prio, logBody: true }, useCallback); 
+        const httpListener = this.httpListener = Listener.acquire(HttpListener, port);
+        httpListener.use(HttpRequestType.request, { host, logger, prio, logBody: true }, useCallback);
 
-        httpListener.setState({
-            app: new Koa(),
-            ...httpListener.state,
-        });
-        this.app = httpListener.state.app;
-
+        this.app = new Koa();
         this.router = Router();
         this._initializeRoutes(this.router);
         this.app.use(this.router.middleware());
@@ -73,12 +67,16 @@ abstract class KoaController {
 
     protected abstract _destroy(): Promise<void>;
 
-    public async destroy() {
-        this.httpListener.removeHandler('request', this._requestHandler);
-        return Promise.allSettled([
-            Listener.release('http', this._port),
+    public async destroy(): Promise<void> {
+        this.httpListener?.removeHandler(HttpRequestType.request, this._requestHandler);
+        await Promise.allSettled([
+            Listener.release(this._port),
             this._destroy(),
         ]);
+    }
+
+    protected getBaseUrl(req: IncomingMessage): URL | undefined {
+        return ((req as any)._exposrBaseUrl as (URL | undefined));
     }
 }
 

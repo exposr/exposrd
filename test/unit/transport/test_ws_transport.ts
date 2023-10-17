@@ -144,7 +144,8 @@ describe('WS transport', () => {
             },
             body: "echo" 
         });
-        assert(res.status == 200, "did not get response from echo server");
+        assert(res.status == 200, `did not get 200 response from echo server, ${res.status}`);
+
         let data = await res.text();
         assert(data == 'echo', "did not get response from echo server");
 
@@ -154,7 +155,7 @@ describe('WS transport', () => {
                 "Host": `${tunnel.id}.example.com` 
             },
         });
-        assert(res.status == 200, "did not get response from echo server");
+        assert(res.status == 200, `did not get 200 response from echo server, ${res.status}`);
 
         let data2 = await res.blob();
         assert(data2.size == 1048576, "did not receive large file")

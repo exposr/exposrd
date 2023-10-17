@@ -42,7 +42,7 @@ class ApiController extends KoaController {
         }
     }
 
-    _initializeRoutes(router: Router.Router) {
+    protected _initializeRoutes(router: Router.Router): void {
 
         const handleError: Router.FullHandler = async (ctx, next) => {
             if (!ctx.invalid) {
@@ -98,7 +98,7 @@ class ApiController extends KoaController {
             return next();
         };
 
-        const tunnelInfo = (tunnel: Tunnel, baseUrl: string) => {
+        const tunnelInfo = (tunnel: Tunnel, baseUrl: URL | undefined) => {
             const info = {
                 id: tunnel.id,
                 connection: {
@@ -129,10 +129,6 @@ class ApiController extends KoaController {
             }
 
             return info;
-        };
-
-        const getBaseUrl = (req: any) => {
-            return req._exposrBaseUrl;
         };
 
         router.route({
@@ -209,7 +205,7 @@ class ApiController extends KoaController {
                         tunnel.transport.ssh.enabled =
                             body?.transport?.ssh?.enabled ?? tunnel.transport.ssh.enabled;
                     });
-                    ctx.body = tunnelInfo(updatedTunnel, getBaseUrl(ctx.req));
+                    ctx.body = tunnelInfo(updatedTunnel, this.getBaseUrl(ctx.req));
                     ctx.status = 200;
                 } catch (e: any) {
                     if (e.message == 'permission_denied') {
@@ -278,7 +274,7 @@ class ApiController extends KoaController {
                 try {
                     const tunnel = await this.tunnelService.get(tunnelId, account.id);
                     ctx.status = 200;
-                    ctx.body = tunnelInfo(tunnel, getBaseUrl(ctx.req));
+                    ctx.body = tunnelInfo(tunnel, this.getBaseUrl(ctx.req));
                 } catch (e: any) {
                     ctx.status = 404;
                     ctx.body = {
