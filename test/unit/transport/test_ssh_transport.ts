@@ -1,6 +1,7 @@
 import assert from 'assert/strict';
 import crypto from 'crypto';
 import net from 'net';
+import http from 'node:http';
 import Config from '../../../src/config.js';
 import TransportService from '../../../src/transport/transport-service.js'
 import { createEchoHttpServer, initStorageService } from '../test-utils.js';
@@ -149,28 +150,58 @@ describe('SSH transport', () => {
             });
         });
 
-        let res = await fetch("http://localhost:8080", {
-            method: 'POST',
-            headers: {
-                "Host": `${tunnel.id}.example.com` 
-            },
-            body: "echo" 
-        });
-        assert(res.status == 200, "did not get response from echo server");
-        let data = await res.text();
+        do {
+            await clock.tickAsync(1000);
+            tunnel = await tunnelService.lookup(tunnelId);
+        } while (tunnel.state.connected == false);
 
+        let {status, data}: {status: number | undefined, data: any} = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'POST',
+                path: '/',
+                headers: {
+                    "Host": `${tunnel.id}.example.com`
+                }
+            }, (res) => {
+                let data = '';
+
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve({status: res.statusCode, data})});
+            });
+            req.end('echo');
+        });
+
+        assert(status == 200, "did not get response from echo server");
         assert(data == 'echo', "did not get response from echo server");
 
-        res = await fetch("http://localhost:8080/file?size=1048576", {
-            method: 'GET',
-            headers: {
-                "Host": `${tunnel.id}.example.com` 
-            },
-        });
-        assert(res.status == 200, "did not get response from echo server");
+        let {status: status2, data: data2}: {status: number | undefined, data: any} = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'GET',
+                path: '/file?size=1048576',
+                headers: {
+                    "Host": `${tunnel.id}.example.com`
+                }
+            }, (res) => {
+                let data = '';
 
-        let data2 = await res.blob();
-        assert(data2.size == 1048576, "did not receive large file")
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve({status: res.statusCode, data})});
+            });
+            req.end();
+        });
+
+        assert(status2 == 200, `did not get 200 response from echo server, got ${status2}`);
+        assert(data2.length == 1048576, "did not receive large file");
 
         conn.destroy();
         await transportService.destroy();
@@ -247,16 +278,32 @@ describe('SSH transport', () => {
             });
         });
 
-        let res = await fetch("http://localhost:8080", {
-            method: 'POST',
-            headers: {
-                "Host": `${tunnel.id}.example.com` 
-            },
-            body: "echo" 
-        });
-        assert(res.status == 200, "did not get response from echo server");
-        let data = await res.text();
+        do {
+            await clock.tickAsync(1000);
+            tunnel = await tunnelService.lookup(tunnelId);
+        } while (tunnel.state.connected == false);
 
+        let {status, data}: {status: number | undefined, data: any} = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'POST',
+                path: '/',
+                headers: {
+                    "Host": `${tunnel.id}.example.com`
+                }
+            }, (res) => {
+                let data = '';
+
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve({status: res.statusCode, data})});
+            });
+            req.end('echo');
+        });
+        assert(status == 200, `did not get 200 response from echo server, ${status}`);
         assert(data == 'echo', "did not get response from echo server");
 
         conn.destroy();
@@ -352,29 +399,62 @@ describe('SSH transport', () => {
         transports = transportService.getTransports(tunnel2, "http://localhost");
         const conn2 = await sshConn(transports.ssh!?.host, transports.ssh!?.port, transports.ssh!?.username, transports.ssh!?.password);
 
-        let res = await fetch("http://localhost:8080", {
-            method: 'POST',
-            headers: {
-                "Host": `${tunnel.id}.example.com` 
-            },
-            body: `${tunnel.id}` 
-        });
-        assert(res.status == 200, "did not get response from echo server");
-        let data = await res.text();
+        do {
+            await clock.tickAsync(1000);
+            tunnel = await tunnelService.lookup(tunnelId);
+        } while (tunnel.state.connected == false);
 
+        do {
+            await clock.tickAsync(1000);
+            tunnel2 = await tunnelService.lookup(tunnelId);
+        } while (tunnel2.state.connected == false);
+
+
+        let {status, data}: {status: number | undefined, data: any} = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'POST',
+                path: '/',
+                headers: {
+                    "Host": `${tunnel.id}.example.com`
+                }
+            }, (res) => {
+                let data = '';
+
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve({status: res.statusCode, data})});
+            });
+            req.end(tunnel.id);
+        });
+        assert(status == 200, `did not get 200 response from echo server, ${status}`);
         assert(data == tunnel.id, "did not get response from echo server");
 
-        res = await fetch("http://localhost:8080", {
-            method: 'POST',
-            headers: {
-                "Host": `${tunnel2.id}.example.com` 
-            },
-            body: `${tunnel2.id}` 
-        });
-        assert(res.status == 200, "did not get response from echo server");
-        data = await res.text();
+        let {status: status2, data: data2}: {status: number | undefined, data: any} = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'POST',
+                path: '/',
+                headers: {
+                    "Host": `${tunnel.id}.example.com`
+                }
+            }, (res) => {
+                let data = '';
 
-        assert(data == tunnel2.id, "did not get response from echo server");
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve({status: res.statusCode, data})});
+            });
+            req.end(tunnel2.id);
+        });
+        assert(status2 == 200, `did not get 200 response from echo server, ${status}`);
+        assert(data2 == tunnel2.id, "did not get response from echo server");
 
         conn.destroy();
         let clients: any;
@@ -466,26 +546,33 @@ describe('SSH transport', () => {
         });
         await readyWait;
 
-        let res = await fetch("http://localhost:8080", {
-            method: 'POST',
-            headers: {
-                "Host": `${tunnel.id}.example.com` 
-            },
-            body: "echo" 
-        });
+        do {
+            await clock.tickAsync(1000);
+            tunnel = await tunnelService.lookup(tunnelId);
+        } while (tunnel.state.connected == false);
 
-        assert(res.status == 200, "did not get response from echo server");
-        let data = await res.text();
+        let {status, data}: {status: number | undefined, data: any} = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'POST',
+                path: '/',
+                headers: {
+                    "Host": `${tunnel.id}.example.com`
+                }
+            }, (res) => {
+                let data = '';
+
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve({status: res.statusCode, data})});
+            });
+            req.end('echo');
+        });
+        assert(status == 200, `did not get 200 response from echo server, ${status}`);
         assert(data == 'echo', "did not get response from echo server");
-
-
-        res = await fetch("http://localhost:8080/file?size=1048576", {
-            method: 'GET',
-            headers: {
-                "Host": `${tunnel.id}.example.com` 
-            },
-        });
-        assert(res.status == 200, "did not get response from echo server");
 
         conn.destroy();
         await transportService.destroy();

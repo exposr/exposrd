@@ -103,19 +103,33 @@ describe('http ingress', () => {
             });
         });
 
-        res = await fetch("http://127.0.0.1:10000", {
-            method: "GET",
-            headers: {
-                Host: `${tunnel.id}.localhost.example`
-            }
-        });
+        let [status, data] = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 10000,
+                method: 'GET',
+                path: '/',
+                headers: {
+                    "Host": `${tunnel.id}.localhost.example`
+                }
+            }, (res) => {
+                let data = '';
 
-        const data = await res.text();
-        assert(data == "AA", `did not get expected reply, got ${data}`);
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve([res.statusCode, data])});
+            });
+            req.end('echo');
+        });
 
         await client.destroy();
         await transport.destroy();
         await sockPair.terminate();
+
+        assert(status == 200, `expected status code 200, got ${status}`);
+        assert(data == "AA", `did not get expected reply, got ${data}`);
 
     }).timeout(2000);
 

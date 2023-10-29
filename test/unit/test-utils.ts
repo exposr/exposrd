@@ -177,11 +177,16 @@ export const createEchoHttpServer = async (port: number = 20000, crtPath?: strin
     server.on('request', handleRequest);
     server.on('upgrade', handleUpgrade);
 
-    server.listen(port);
+    await new Promise((resolve) => {
+        server.listen(port, () => {
+            resolve(undefined);
+        });
+    });
     return {
         destroy: async () => {
             await new Promise((resolve) => {
                 server.close(resolve);
+                server.closeAllConnections();
                 server.removeAllListeners('request');
                 server.removeAllListeners('upgrade');
             });

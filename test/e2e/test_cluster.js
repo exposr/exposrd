@@ -1,6 +1,7 @@
 import child_process from 'child_process';
 import crypto from 'crypto';
 import assert from 'assert/strict';
+import http from 'http';
 import { setTimeout } from 'timers/promises';
 import { createAccount, createEchoServer, exposrCliImageTag, getAuthToken, getTunnel, putTunnel } from './e2e-utils.js';
 
@@ -145,22 +146,34 @@ describe('Cluster E2E', () => {
 
             const ingressUrl = new URL(data.ingress.http.url);
 
-            res = await fetch("http://localhost:8080", {
-                method: 'POST',
-                headers: {
-                    "Host": `${ingressUrl.hostname}:8080`
-                },
-                body: "echo" 
-            })
+            let status;
+            ([status, data] = await new Promise((resolve) => {
+                const req = http.request({
+                    hostname: 'localhost',
+                    port: 8080,
+                    method: 'POST',
+                    path: '/',
+                    headers: {
+                        "Host": ingressUrl.hostname
+                    }
+                }, (res) => {
+                    let data = '';
 
-            data = await res.text()
+                    res.on('data', (chunk) => {
+                        data += chunk;
+                    });
+
+                    res.on('close', () => { resolve([res.statusCode, data])});
+                });
+                req.end('echo');
+            }));
 
             exposrCliTerminator();
             await echoServerTerminate();
             node1.terminate();
             node2.terminate();
 
-            assert(res.status == 200, `expected status code 200, got ${res.status}`);
+            assert(status == 200, `expected status code 200, got ${status}`);
             assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`);
         }).timeout(120000);
     }); 
