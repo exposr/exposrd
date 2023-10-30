@@ -1,5 +1,4 @@
-import assert from 'assert/strict';
-import http, { Agent } from 'http';
+import http, { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http';
 import net from 'net';
 import NodeCache from 'node-cache';
 import EventBus from '../cluster/eventbus.js';
@@ -7,7 +6,7 @@ import Listener from '../listener/listener.js';
 import IngressUtils from './utils.js';
 import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
-import AltNameService from './altname-service.js';
+import AltNameService from '../tunnel/altname-service.js';
 import Node from '../cluster/cluster-node.js';
 import { ERROR_TUNNEL_NOT_FOUND,
          ERROR_TUNNEL_NOT_CONNECTED,
@@ -28,11 +27,53 @@ import {
     HTTP_HEADER_X_FORWARDED_PROTO,
     HTTP_HEADER_FORWARDED
 } from '../utils/http-headers.js';
-import HttpListener, { HttpRequestType } from '../listener/http-listener.js';
+import HttpListener, { HttpRequestCallback, HttpRequestType, HttpUpgradeCallback } from '../listener/http-listener.js';
+import Tunnel from '../tunnel/tunnel.js';
+import { Duplex } from 'stream';
+import IngressBase from './ingress-base.js';
 
-class HttpIngress {
+type CreateConnectionCallback = (options: object, callback: (err: Error | undefined, sock: Duplex) => void) => Duplex;
 
-    constructor(opts) {
+class IngressHttpAgent extends http.Agent {
+    private createConnectionCallback: CreateConnectionCallback;
+    public activeTunnelConnections: number = 0;
+
+    constructor(opts: http.AgentOptions, createConnectionCallback: CreateConnectionCallback) {
+        super(opts);
+        this.createConnectionCallback = createConnectionCallback;
+    }
+
+    public createConnection(options: object, callback: (err: Error | undefined, sock: Duplex) => void): Duplex {
+        return this.createConnectionCallback(options, callback);
+    }
+}
+
+export type HttpIngressOptions = {
+    subdomainUrl: URL;    
+    httpAgentTTL?: number;
+    port: number;
+}
+
+type _HttpIngressOptions = HttpIngressOptions & {
+    callback: (error?: Error) => void;
+}
+
+export default class HttpIngress implements IngressBase {
+
+    private opts: any;
+    private logger: any;
+    private _agent_ttl: number;
+    private altNameService: any;
+    private tunnelService: TunnelService;
+    private httpListener: HttpListener;
+    private _requestHandler: HttpRequestCallback;
+    private _upgradeHandler: HttpUpgradeCallback;
+    private _agentCache: NodeCache;
+    private eventBus: EventBus;
+    
+    public destroyed: boolean;
+
+    constructor(opts: _HttpIngressOptions) {
         this.opts = opts;
         this.logger = Logger("http-ingress");
 
@@ -44,8 +85,7 @@ class HttpIngress {
 
         this.destroyed = false;
         this.altNameService = new AltNameService();
-        this.tunnelService = opts.tunnelService;
-        assert(this.tunnelService instanceof TunnelService);
+        this.tunnelService = new TunnelService();
         this.httpListener = Listener.acquire(HttpListener, opts.port);
 
         this._requestHandler = async (ctx, next) => {
@@ -53,14 +93,14 @@ class HttpIngress {
                 next();
             }
         };
-        this.httpListener.use(HttpRequestType.request, { logger: this.logger, prio: 1 }, this._requestHandler);
+        this.httpListener.use(HttpRequestType.request, { logger: this.logger, prio: 1 }, this._requestHandler); 
 
         this._upgradeHandler = async (ctx, next) => {
             if (!await this.handleUpgradeRequest(ctx.req, ctx.sock, ctx.head, ctx.baseUrl)) {
                 next();
             }
         };
-        this.httpListener.use(HttpRequestType.upgrade, { logger: this.logger }, this._upgradeHandler);
+        this.httpListener.use(HttpRequestType.upgrade, { logger: this.logger }, this._upgradeHandler); 
 
         this._agentCache = new NodeCache({
             useClones: false,
@@ -79,6 +119,7 @@ class HttpIngress {
             }
             this._agentCache.del(key);
             agent.destroy();
+            agent.removeAllListeners();
             this.logger.isDebugEnabled() &&
                 this.logger.withContext("tunnel", key).debug("http agent destroyed")
         });
@@ -92,7 +133,7 @@ class HttpIngress {
             .then(() => {
                 this.logger.info({
                     message: `HTTP ingress listening on port ${opts.port} (agent idle timeout ${opts.httpAgentTTL})`,
-                    url: this.getBaseUrl(),
+                    url: opts.subdomainUrl,
                 });
                 typeof opts.callback === 'function' && opts.callback();
             })
@@ -104,7 +145,7 @@ class HttpIngress {
             });
     }
 
-    getBaseUrl(tunnelId = undefined) {
+    public getBaseUrl(tunnelId: string): URL {
         const url = new URL(this.opts.subdomainUrl.href);
         if (tunnelId) {
             url.hostname = `${tunnelId}.${url.hostname}`;
@@ -112,24 +153,7 @@ class HttpIngress {
         return url;
     }
 
-    getIngress(tunnel, altNames = []) {
-        const altUrls = altNames.map((an) => {
-            const url = this.getBaseUrl();
-            url.hostname = an;
-            return url.href;
-        });
-
-        const url = this.getBaseUrl(tunnel.id).href;
-        return {
-            url,
-            urls: [
-                url,
-                ...altUrls,
-            ]
-        };
-    }
-
-    async _getTunnel(req) {
+    private async _getTunnel(req: IncomingMessage): Promise<Tunnel | undefined | false> {
         const host = (req.headers.host || '').toLowerCase().split(":")[0];
         if (!host) {
             return undefined;
@@ -143,28 +167,25 @@ class HttpIngress {
             }
         }
         try {
-            return this.tunnelService.lookup(tunnelId);
+            const tunnel = await this.tunnelService.lookup(tunnelId);
+            return tunnel;
         } catch (e) {
             return false;
         }
     }
 
-    _clientIp(req) {
-        let ip;
+    private _clientIp(req: IncomingMessage): string {
+        let ip: string = req.socket.remoteAddress || ''; 
         if (req.headers[HTTP_HEADER_X_FORWARDED_FOR]) {
-            ip = req.headers[HTTP_HEADER_X_FORWARDED_FOR].split(/\s*,\s*/)[0];
+            ip = (req.headers[HTTP_HEADER_X_FORWARDED_FOR] as string).split(/\s*,\s*/)[0];
         }
-        return net.isIP(ip) ? ip : req.socket.remoteAddress;
+        return net.isIP(ip) ? ip : ''; 
     }
 
-    _createAgent(tunnelId, req) {
-        const agent = new Agent({
-            keepAlive: true,
-            timeout: this._agent_ttl * 1000,
-        });
+    private _createAgent(tunnelId: string, req: IncomingMessage): IngressHttpAgent {
 
         const remoteAddr = this._clientIp(req);
-        agent.createConnection = (opts, callback) => {
+        const createConnection = (opts: object, callback: (err: Error | undefined, sock: Duplex) => void) => {
             const ctx = {
                 remoteAddr,
                 ingress: {
@@ -175,28 +196,32 @@ class HttpIngress {
             };
             return this.tunnelService.createConnection(tunnelId, ctx, callback);
         };
-        agent.activeTunnelConnections = 0;
+
+        const agent = new IngressHttpAgent({
+            keepAlive: true,
+            timeout: this._agent_ttl * 1000,
+        }, createConnection);
 
         this.logger.isDebugEnabled() &&
             this.logger.withContext("tunnel", tunnelId).debug("http agent created")
         return agent;
     }
 
-    _getAgent(tunnelId, req) {
-        let agent;
+    private _getAgent(tunnelId: string, req: IncomingMessage): IngressHttpAgent {
+        let agent: IngressHttpAgent | undefined;
         try {
-            agent = this._agentCache.get(tunnelId);
+            agent = this._agentCache.get<IngressHttpAgent>(tunnelId);
         } catch (e) {}
         if (agent === undefined) {
             agent = this._createAgent(tunnelId, req);
-            this._agentCache.set(tunnelId, agent, this._agent_ttl);
+            this._agentCache.set<IngressHttpAgent>(tunnelId, agent, this._agent_ttl);
         } else {
             this._agentCache.ttl(tunnelId, this._agent_ttl);
         }
         return agent;
     }
 
-    _requestHeaders(req, tunnel, baseUrl) {
+    private _requestHeaders(req: IncomingMessage, tunnel: Tunnel, baseUrl: URL | undefined, isUpgrade: boolean): IncomingHttpHeaders {
         const headers = { ... req.headers };
         const clientIp = this._clientIp(req);
 
@@ -204,7 +229,7 @@ class HttpIngress {
         headers[HTTP_HEADER_X_REAL_IP] = headers[HTTP_HEADER_X_FORWARDED_FOR];
 
         if (headers[HTTP_HEADER_EXPOSR_VIA]) {
-            headers[HTTP_HEADER_EXPOSR_VIA] = `${Node.identifier},${headers[HTTP_HEADER_EXPOSR_VIA] }`;
+            headers[HTTP_HEADER_EXPOSR_VIA] = `${Node.identifier},${headers[HTTP_HEADER_EXPOSR_VIA]}`;
         } else {
             headers[HTTP_HEADER_EXPOSR_VIA] = Node.identifier;
         }
@@ -212,16 +237,18 @@ class HttpIngress {
         if (this.tunnelService.isLocalConnected(tunnel.id)) {
             // Delete connection header if tunnel is
             // locally connected and it's not an upgrade request
-            if (!req.upgrade) {
+            if (!isUpgrade) {
                 delete headers[HTTP_HEADER_CONNECTION];
             }
 
-            headers[HTTP_HEADER_X_FORWARDED_HOST] = baseUrl.host;
-            if (baseUrl.port) {
-                headers[HTTP_HEADER_X_FORWARDED_PORT] = baseUrl.port;
+            headers[HTTP_HEADER_X_FORWARDED_HOST] = baseUrl?.host;
+            if (baseUrl?.port) {
+                headers[HTTP_HEADER_X_FORWARDED_PORT] = baseUrl?.port;
             }
-            headers[HTTP_HEADER_X_FORWARDED_PROTO] = baseUrl.protocol.slice(0, -1);
-            headers[HTTP_HEADER_FORWARDED] = `by=_exposr;for=${clientIp};host=${baseUrl.host};proto=${baseUrl.protocol.slice(0, -1)}`;
+            headers[HTTP_HEADER_X_FORWARDED_PROTO] = baseUrl?.protocol.slice(0, -1);
+            if (baseUrl) {
+                headers[HTTP_HEADER_FORWARDED] = `by=_exposr;for=${clientIp};host=${baseUrl.host};proto=${baseUrl.protocol.slice(0, -1)}`;
+            }
 
             this._rewriteHeaders(headers, tunnel);
         }
@@ -229,16 +256,20 @@ class HttpIngress {
         return headers;
     }
 
-    _rewriteHeaders(headers, tunnel) {
+    private _rewriteHeaders(headers: IncomingHttpHeaders, tunnel: Tunnel): void {
         const host = headers['host'];
 
-        let target;
-        if (tunnel.config.target.url) {
-            try {
-                target = new URL(tunnel.config.target.url);
-            } catch {}
+        if (!tunnel.config.target.url) {
+            return;
         }
-        if (target === undefined || !target.protocol.startsWith('http')) {
+
+        let target: URL;
+        try {
+            target = new URL(tunnel.config.target.url);
+        } catch {
+            return;
+        }
+        if (!target.protocol.startsWith('http')) {
             return;
         }
 
@@ -248,9 +279,9 @@ class HttpIngress {
             if (value == undefined) {
                 return;
             }
-            if (value.startsWith('http')) {
+            if ((value as string).startsWith('http')) {
                 try {
-                    const url = new URL(value);
+                    const url = new URL(value as string);
                     if (url.host == host) {
                         url.protocol = target.protocol;
                         url.host = target.host;
@@ -265,14 +296,14 @@ class HttpIngress {
         });
     }
 
-    _loopDetected(req) {
-        const via = (req.headers[HTTP_HEADER_EXPOSR_VIA] || '').split(',');
+    private _loopDetected(req: IncomingMessage): boolean {
+        const via = ((req.headers[HTTP_HEADER_EXPOSR_VIA] as string) || '').split(',');
         return via.map((v) => v.trim()).includes(Node.identifier);
     }
 
-    async handleRequest(req, res, baseUrl) {
+    private async handleRequest(req: IncomingMessage, res: ServerResponse, baseUrl: URL | undefined) {
 
-        const httpResponse = (status, body) => {
+        const httpResponse = (status: number, body: object) => {
             res.setHeader('Content-Type', 'application/json');
             res.statusCode = status;
             res.end(JSON.stringify(body));
@@ -289,7 +320,7 @@ class HttpIngress {
         }
 
         if (!tunnel.state.connected) {
-            httpResponse(502, {
+            httpResponse(503, {
                 error: ERROR_TUNNEL_NOT_CONNECTED,
             });
             return true;
@@ -309,25 +340,25 @@ class HttpIngress {
             return true;
         }
 
-        const opt = {
+        const opt: http.RequestOptions  = {
             path: req.url,
             method: req.method,
-            keepAlive: true,
         };
 
         const agent = opt.agent = this._getAgent(tunnel.id, req);
-        opt.headers = this._requestHeaders(req, tunnel, baseUrl);
+        opt.headers = this._requestHeaders(req, tunnel, baseUrl, false);
 
-        this.logger.trace({
-            operation: 'tunnel-request',
-            path: opt.path,
-            method: opt.method,
-            headers: opt.headers,
-        });
+        this.logger.isTraceEnabled() &&
+            this.logger.trace({
+                operation: 'tunnel-request',
+                path: opt.path,
+                method: opt.method,
+                headers: opt.headers,
+            });
 
         const clientReq = http.request(opt, (clientRes) => {
             agent.activeTunnelConnections++;
-            res.writeHead(clientRes.statusCode, clientRes.headers);
+            res.writeHead(clientRes.statusCode || 500, clientRes.headers);
             clientRes.pipe(res);
         });
 
@@ -335,16 +366,16 @@ class HttpIngress {
             agent.activeTunnelConnections = Math.max(agent.activeTunnelConnections - 1, 0);
         });
 
-        clientReq.on('error', (err) => {
+        clientReq.on('error', (err: any) => {
             let msg;
             if (err.code === 'EMFILE') {
                 res.statusCode = 429;
                 msg = ERROR_TUNNEL_TRANSPORT_REQUEST_LIMIT;
             } else if (err.code == 'ECONNRESET') {
-                res.statusCode = 503;
+                res.statusCode = 502;
                 msg = ERROR_TUNNEL_TARGET_CON_REFUSED;
             } else {
-                res.statusCode = 503;
+                res.statusCode = 502;
                 msg = ERROR_TUNNEL_TARGET_CON_FAILED;
             }
             res.end(JSON.stringify({error: msg}));
@@ -354,8 +385,8 @@ class HttpIngress {
         return true;
     }
 
-    async handleUpgradeRequest(req, sock, head, baseUrl) {
-        const _canonicalHttpResponse = (sock, request, response) => {
+    private async handleUpgradeRequest(req: IncomingMessage, sock: Duplex, head: Buffer, baseUrl: URL | undefined) {
+        const _canonicalHttpResponse = (sock: Duplex, request: IncomingMessage, response: any) => {
             sock.write(`HTTP/${request.httpVersion} ${response.status} ${response.statusLine}\r\n`);
             sock.write('\r\n');
             response.body && sock.write(response.body);
@@ -408,17 +439,18 @@ class HttpIngress {
             let statusCode;
             let statusLine;
             let msg;
-            if (err.code === 'EMFILE') {
+
+            if ((err as any).code === 'EMFILE') {
                 statusCode = 429;
                 statusLine = 'Too Many Requests';
                 msg = ERROR_TUNNEL_TRANSPORT_REQUEST_LIMIT;
-            } else if (err.code == 'ECONNRESET') {
-                statusCode = 503;
-                statusLine = 'Service Unavailable';
+            } else if ((err as any).code == 'ECONNRESET') {
+                statusCode = 502;
+                statusLine = 'Bad Gateway';
                 msg = ERROR_TUNNEL_TARGET_CON_REFUSED;
             } else {
-                statusCode = 503;
-                statusLine = 'Service Unavailable';
+                statusCode = 502;
+                statusLine = 'Bad Gateway';
                 msg = ERROR_TUNNEL_TARGET_CON_FAILED;
             }
             _canonicalHttpResponse(sock, req, {
@@ -436,9 +468,9 @@ class HttpIngress {
             return true;
         }
 
-        const headers = this._requestHeaders(req, tunnel, baseUrl);
+        const headers = this._requestHeaders(req, tunnel, baseUrl, true);
 
-        const close = (err) => {
+        const close = () => {
             target.off('error', close);
             target.off('close', close);
             sock.off('error', close);
@@ -467,14 +499,15 @@ class HttpIngress {
         return true;
     }
 
-    async destroy() {
+    async destroy(): Promise<void> {
         if (this.destroyed) {
             return;
         }
         this.destroyed = true;
         this.httpListener.removeHandler(HttpRequestType.request, this._requestHandler);
         this.httpListener.removeHandler(HttpRequestType.upgrade, this._upgradeHandler);
-        return Promise.allSettled([
+        await Promise.allSettled([
+            this.tunnelService.destroy(),
             this.altNameService.destroy(),
             this.eventBus.destroy(),
             Listener.release(this.opts.port),
@@ -482,5 +515,3 @@ class HttpIngress {
     }
 
 }
-
-export default HttpIngress;

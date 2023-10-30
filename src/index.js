@@ -3,7 +3,7 @@ import AdminApiController from './controller/admin-api-controller.js';
 import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
 import ClusterService from './cluster/index.js';
-import Ingress from './ingress/index.js';
+import IngressManager from './ingress/ingress-manager.js';
 import { Logger } from './logger.js';
 import { StorageService } from './storage/index.js';
 import TransportService from './transport/transport-service.js';
@@ -88,28 +88,19 @@ export default async (argv) => {
         });
 
     // Setup tunnel data ingress (incoming tunnel data)
-    const ingressReady = new Promise((resolve, reject) => {
-        try {
-            const ingress = new Ingress({
-                callback: (err) => {
-                    err ? reject(err) : resolve(ingress);
-                },
-                http: {
-                    enabled: config.get('ingress').includes('http'),
-                    port: config.get('ingress-http-port'),
-                    subdomainUrl: config.get('ingress-http-url'),
-                    httpAgentTTL: config.get('ingress-http-agent-idle-timeout'),
-                },
-                sni: {
-                    enabled: config.get('ingress').includes('sni'),
-                    port: config.get('ingress-sni-port'),
-                    host: config.get('ingress-sni-host'),
-                    cert: config.get('ingress-sni-cert'),
-                    key: config.get('ingress-sni-key'),
-                }
-            });
-        } catch (e) {
-            reject(e);
+    const ingressReady = IngressManager.listen({
+        http: {
+            enabled: config.get('ingress').includes('http'),
+            port: config.get('ingress-http-port'),
+            subdomainUrl: config.get('ingress-http-url'),
+            httpAgentTTL: config.get('ingress-http-agent-idle-timeout'),
+        },
+        sni: {
+            enabled: config.get('ingress').includes('sni'),
+            port: config.get('ingress-sni-port'),
+            host: config.get('ingress-sni-host'),
+            cert: config.get('ingress-sni-cert'),
+            key: config.get('ingress-sni-key'),
         }
     });
 
@@ -236,7 +227,7 @@ export default async (argv) => {
                 adminApiController.destroy(),
                 adminController.destroy(),
                 transport.destroy(),
-                ingress.destroy(),
+                IngressManager.close(),
                 storageService.destroy(),
                 clusterService.destroy(),
                 config.destroy(),

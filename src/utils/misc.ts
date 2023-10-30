@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-export function symDifference(a, b) {
+export function symDifference<T>(a: Array<T>, b: Array<T>): Array<T> {
     const as = new Set(a);
     const bs = new Set(b);
 
@@ -10,14 +10,14 @@ export function symDifference(a, b) {
     ];
 }
 
-export function difference(a, b) {
+export function difference<T>(a: Array<T>, b: Array<T>): Array<T> {
     const bs = new Set(b);
     return [
         ...a.filter(x => !bs.has(x)),
     ]
 }
 
-export function safeEqual(input, allowed) {
+export function safeEqual(input: string, allowed: string): boolean {
     const autoReject = (input.length !== allowed.length);
     if (autoReject) {
       allowed = input;

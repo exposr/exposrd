@@ -10,12 +10,12 @@ import ClusterService from '../../../src/cluster/index.js';
 import { StorageService } from '../../../src/storage/index.js';
 import AccountService from '../../../src/account/account-service.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
-import Ingress from '../../../src/ingress/index.js';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import Account from '../../../src/account/account.js';
 import sinon from 'sinon';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
 import { Duplex } from 'stream';
+import IngressManager from '../../../src/ingress/ingress-manager.js';
 
 describe('WS transport', () => {
     let clock: sinon.SinonFakeTimers;
@@ -25,7 +25,6 @@ describe('WS transport', () => {
     let accountService: AccountService;
     let tunnelService: TunnelService;
     let echoServer: any;
-    let ingress: Ingress;
     let account: Account;
     let tunnel: Tunnel;
     let tunnelId: string;
@@ -37,16 +36,13 @@ describe('WS transport', () => {
         ]);
         storageservice = await initStorageService();
         clusterservice = new ClusterService('mem', {});
-        ingress = await new Promise((resolve, reject) => {
-            const i = new Ingress({
-                callback: (e: any) => {
-                    e ? reject(e) : resolve(i) },
-                http: {
-                    enabled: true,
-                    subdomainUrl: new URL("https://example.com"),
-                    port: 8080,
-                }
-            });
+
+        await IngressManager.listen({
+            http: {
+                enabled: true,
+                subdomainUrl: new URL("https://example.com"),
+                port: 8080,
+            }
         });
         accountService = new AccountService();
         tunnelService = new TunnelService();
@@ -61,7 +57,7 @@ describe('WS transport', () => {
     afterEach(async () => {
         await tunnelService.destroy();
         await accountService.destroy();
-        await ingress.destroy();
+        await IngressManager.close(); 
         await clusterservice.destroy();
         await storageservice.destroy();
         await config.destroy();
