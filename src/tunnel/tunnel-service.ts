@@ -21,11 +21,17 @@ export type ConnectOptions = {
     peer: string,
 }
 
+type CreateConnectionIngressTlsContext = {
+    enabled: boolean,
+    servername?: string,
+    cert?: Buffer,
+};
+
 export type CreateConnectionContext = {
     remoteAddr: string,
     ingress: {
         port: number,
-        tls?: boolean,
+        tls?: CreateConnectionIngressTlsContext,
     }
 };
 
@@ -796,6 +802,11 @@ export default class TunnelService {
             tunnelId,
             remoteAddr: ctx.remoteAddr,
             port: ctx.ingress.port,
+            tls: {
+                enabled: ctx.ingress.tls?.enabled == true,
+                servername: ctx.ingress.tls?.servername,
+                cert: ctx.ingress.tls?.cert,
+            }
         }, callback);
         return sock;
     }

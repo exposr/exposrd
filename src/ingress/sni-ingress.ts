@@ -302,7 +302,11 @@ export default class SNIIngress implements IngressBase {
         const ctx: CreateConnectionContext = {
             remoteAddr: socket.remoteAddress || '',
             ingress: {
-                tls: true,
+                tls: {
+                    enabled: true,
+                    servername,
+                    cert: this.cert,
+                },
                 port: this.port,
             },
         };

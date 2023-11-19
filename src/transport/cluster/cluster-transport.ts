@@ -1,5 +1,6 @@
 import { Duplex } from "stream";
-import { Socket, TcpSocketConnectOpts } from "net";
+import tls from "tls";
+import net from "net";
 import Transport, { TransportConnectionOptions, TransportOptions } from "../transport.js";
 import ClusterService from "../../cluster/index.js";
 
@@ -17,26 +18,47 @@ export default class ClusterTransport extends Transport {
     }
 
     public createConnection(opts: TransportConnectionOptions, callback: (err: Error | undefined, sock: Duplex) => void): Duplex {
+
         const clusterNode = this.clusterService.getNode(this.nodeId);
-        const sock = new Socket();
         if (!clusterNode) {
+            const sock = new net.Socket();
             sock.destroy(new Error('node_does_not_exist'));
             return sock;
         }
 
-        const socketOpts: TcpSocketConnectOpts = {
-            host: clusterNode.ip,
-            port: opts.port || 0,
-        };
+        let sock: tls.TLSSocket | net.Socket;
 
         const errorHandler = (err: Error) => {
             callback(err, sock);
         };
-        sock.once('error', errorHandler); 
-        sock.connect(socketOpts, () => {
-            sock.off('error', errorHandler);
-            callback(undefined, sock);
-        });
+
+        if (opts.tls?.enabled == true) {
+            const tlsConnectOpts: tls.ConnectionOptions = {
+                servername: opts.tls.servername,
+                host: clusterNode.ip,
+                port: opts.port || 0,
+                ca: [
+                    <any>opts.tls?.cert?.toString(),
+                    ...tls.rootCertificates,
+                ],
+            };
+            sock = tls.connect(tlsConnectOpts, () => {
+                sock.off('error', errorHandler);
+                callback(undefined, sock);
+            });
+            sock.once('error', errorHandler);
+        } else {
+            const socketConnectOpts: net.TcpSocketConnectOpts = {
+                host: clusterNode.ip,
+                port: opts.port || 0,
+            };
+            sock = net.connect(socketConnectOpts, () => {
+                sock.off('error', errorHandler);
+                callback(undefined, sock);
+            });
+            sock.once('error', errorHandler);
+        }
+
         return sock;
     }
 

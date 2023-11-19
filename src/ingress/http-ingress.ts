@@ -5,7 +5,7 @@ import EventBus from '../cluster/eventbus.js';
 import Listener from '../listener/listener.js';
 import IngressUtils from './utils.js';
 import { Logger } from '../logger.js';
-import TunnelService from '../tunnel/tunnel-service.js';
+import TunnelService, { CreateConnectionContext } from '../tunnel/tunnel-service.js';
 import AltNameService from '../tunnel/altname-service.js';
 import Node from '../cluster/cluster-node.js';
 import { ERROR_TUNNEL_NOT_FOUND,
@@ -186,13 +186,11 @@ export default class HttpIngress implements IngressBase {
 
         const remoteAddr = this._clientIp(req);
         const createConnection = (opts: object, callback: (err: Error | undefined, sock: Duplex) => void) => {
-            const ctx = {
+            const ctx: CreateConnectionContext = {
                 remoteAddr,
                 ingress: {
-                    tls: false,
                     port: this.httpListener.getPort(),
                 },
-                opts,
             };
             return this.tunnelService.createConnection(tunnelId, ctx, callback);
         };
@@ -425,10 +423,9 @@ export default class HttpIngress implements IngressBase {
             return true;
         }
 
-        const ctx = {
+        const ctx: CreateConnectionContext = {
             remoteAddr: this._clientIp(req),
             ingress: {
-                tls: false,
                 port: this.httpListener.getPort(),
             }
         };
