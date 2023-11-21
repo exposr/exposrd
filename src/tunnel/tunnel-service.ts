@@ -1,29 +1,37 @@
 import crypto from 'node:crypto';
-
 import AccountService from "../account/account-service.js";
 import EventBus, { EmitMeta } from "../cluster/eventbus.js";
 import ClusterService from "../cluster/index.js";
 import { Logger } from "../logger.js";
 import Storage from "../storage/index.js";
-import { TunnelConfig, TunnelIngressConfig, cloneTunnelConfig  } from "./tunnel-config.js";
-import { Tunnel, TunnelConnection, TunnelConnectionId, TunnelState } from "./tunnel.js";
+import { TunnelConfig, TunnelHttpIngressConfig, TunnelIngressConfig, TunnelIngressTypeConfig, cloneTunnelConfig  } from "./tunnel-config.js";
+import { Tunnel, TunnelConnection, TunnelState } from "./tunnel.js";
 import Account from '../account/account.js';
-import Ingress from '../ingress/index.js';
-import { safeEqual } from '../utils/misc.js';
+import { difference, safeEqual, symDifference } from '../utils/misc.js';
 import { Duplex } from 'node:stream';
 import Transport from '../transport/transport.js';
 import Node from '../cluster/cluster-node.js';
 import ClusterTransport from '../transport/cluster/cluster-transport.js';
+import { IngressType } from '../ingress/ingress-manager.js';
+import AltNameService from './altname-service.js';
+import CustomError, { ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES } from '../utils/errors.js';
+import IngressService from '../ingress/ingress-service.js';
 
 export type ConnectOptions = {
     peer: string,
 }
 
+type CreateConnectionIngressTlsContext = {
+    enabled: boolean,
+    servername?: string,
+    cert?: Buffer,
+};
+
 export type CreateConnectionContext = {
     remoteAddr: string,
     ingress: {
         port: number,
-        tls?: boolean,
+        tls?: CreateConnectionIngressTlsContext,
     }
 };
 
@@ -80,10 +88,11 @@ export default class TunnelService {
     private destroyed: boolean = false;
     private logger: any;
     private storage!: Storage;
-    private ingress!: Ingress;
+    private ingressService!: IngressService;
     private eventBus!: EventBus;
     private clusterService!: ClusterService;
     private accountService!: AccountService;
+    private altNameService!: AltNameService;
 
     private connectedTunnels!: { [ id: string ]: TunnelState };
     private lastConnection!: { [ id: string]: string };
@@ -98,10 +107,11 @@ export default class TunnelService {
 
         this.logger = Logger("tunnel-service");
         this.storage = new Storage("tunnel");
-        this.ingress = new Ingress();
+        this.ingressService = new IngressService();
         this.eventBus = new EventBus();
         this.clusterService = new ClusterService();
         this.accountService = new AccountService();
+        this.altNameService = new AltNameService();
 
         this.connectedTunnels = {}
         this.lastConnection = {};
@@ -147,7 +157,8 @@ export default class TunnelService {
                 this.eventBus.destroy(),
                 this.clusterService.destroy(),
                 this.accountService.destroy(),
-                this.ingress.destroy(),
+                this.ingressService.destroy(),
+                this.altNameService.destroy(),
             ]);
             TunnelService.instance = undefined;
         }
@@ -404,7 +415,12 @@ export default class TunnelService {
 
         try {
             await Promise.all([
-                this.ingress.deleteIngress(tunnel.config),
+                this.altNameService.update(
+                    'http',
+                    tunnel.config.id,
+                    [],
+                    tunnel.config.ingress.http.alt_names,
+                ),
                 this.storage.delete(<any>tunnelId),
                 updateAccount,
             ]);
@@ -427,6 +443,89 @@ export default class TunnelService {
         return true;
     }
 
+    private async updateIngressConfig(tunnelConfig: TunnelConfig, prevTunnelConfig: TunnelConfig): Promise<TunnelIngressConfig> {
+
+        const updateHttp = async (): Promise<TunnelHttpIngressConfig> =>  {
+            if (!this.ingressService.enabled(IngressType.INGRESS_HTTP)) {
+                return {
+                    enabled: false,
+                    url: undefined,
+                    urls: [],
+                    alt_names: [],
+                }
+            }
+
+            const baseUrl = this.ingressService.getIngressURL(IngressType.INGRESS_HTTP, tunnelConfig.id);
+
+            let altNames = tunnelConfig.ingress.http.alt_names || [];
+            const prevAltNames = prevTunnelConfig.ingress.http.alt_names || [];
+            if (symDifference(altNames, prevAltNames).length != 0) {
+                const resolvedAltNames = await AltNameService.resolve(baseUrl.hostname, altNames);
+                const diff = symDifference(resolvedAltNames, altNames);
+                if (diff.length > 0) {
+                    throw new CustomError(ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES, diff.join(', '));
+                }
+
+                const updatedAltNames = await this.altNameService.update(
+                    'http',
+                    tunnelConfig.id,
+                    difference(resolvedAltNames, prevAltNames),
+                    difference(prevAltNames, resolvedAltNames)
+                );
+                altNames = updatedAltNames;
+            }
+
+            const altUrls = altNames.map((an) => {
+                const url = new URL(baseUrl);
+                url.hostname = an;
+                return url.href;
+            });
+
+            if (tunnelConfig.ingress.http.enabled) {
+                return {
+                    enabled: true,
+                    url: baseUrl.href,
+                    urls: [
+                        baseUrl.href,
+                        ...altUrls,
+                    ],
+                    alt_names: altNames
+                }
+            } else {
+                return {
+                    enabled: false,
+                    url: undefined,
+                    urls: [],
+                    alt_names: altNames
+                }
+            }
+        }
+
+        const updateSni = async (): Promise<TunnelIngressTypeConfig> =>  {
+            if (!this.ingressService.enabled(IngressType.INGRESS_SNI) || !tunnelConfig.ingress.sni.enabled) {
+                return {
+                    enabled: false,
+                    url: undefined,
+                    urls: [],
+                }
+            }
+
+            const baseUrl = this.ingressService.getIngressURL(IngressType.INGRESS_SNI, tunnelConfig.id);
+            return {
+                enabled: true,
+                url: baseUrl.href,
+                urls: [
+                    baseUrl.href
+                ],
+            }
+        }
+
+        return {
+            http: await updateHttp(),
+            sni: await updateSni(),
+        }
+    }
+
     public async update(tunnelId: string, accountId: string, callback: (tunnelConfig: TunnelConfig) => void): Promise<Tunnel> {
         let tunnel = await this._get(tunnelId);
         if (!this._isPermitted(tunnel, accountId)) {
@@ -438,24 +537,22 @@ export default class TunnelService {
             const origConfig = cloneTunnelConfig(tunnelConfig);
             callback(tunnelConfig);
 
-            const updatedIngress = await this.ingress.updateIngress(tunnelConfig, origConfig);
-            if (updatedIngress instanceof Error) {
-                const err = updatedIngress;
-                this.logger.isDebugEnabled() &&
-                    this.logger
-                        .withContext('tunnel', tunnelId)
-                        .debug({
-                            message: 'update ingress failed',
-                            operation: 'update_tunnel',
-                            err: err.message,
-                        });
-                throw err;
+            let ingressConfig;
+
+            ingressConfig = await this.updateIngressConfig(tunnelConfig, origConfig);
+
+            if (tunnelConfig.ingress.http.enabled && !ingressConfig.http.enabled) {
+                throw new Error('ingress_administratively_disabled');
+            } else if (tunnelConfig.ingress.sni.enabled && !ingressConfig.sni.enabled) {
+                throw new Error('ingress_administratively_disabled');
             }
-            tunnelConfig.ingress = <TunnelIngressConfig>updatedIngress;
+
+            tunnelConfig.ingress = ingressConfig;
             tunnelConfig.updated_at = new Date().toISOString();
 
             return true;
         });
+
         tunnel.config = updatedConfig;
         return tunnel;
     }
@@ -499,7 +596,8 @@ export default class TunnelService {
             if (!(account instanceof Account)) {
                 return result;
             }
-            const correctToken = safeEqual(token, tunnel.config.transport.token)
+            const correctToken = tunnel.config.transport.token != undefined &&
+                safeEqual(token, tunnel.config.transport.token)
 
             result.authorized = correctToken && !account.status.disabled;
             if (result.authorized) {
@@ -704,6 +802,11 @@ export default class TunnelService {
             tunnelId,
             remoteAddr: ctx.remoteAddr,
             port: ctx.ingress.port,
+            tls: {
+                enabled: ctx.ingress.tls?.enabled == true,
+                servername: ctx.ingress.tls?.servername,
+                cert: ctx.ingress.tls?.cert,
+            }
         }, callback);
         return sock;
     }

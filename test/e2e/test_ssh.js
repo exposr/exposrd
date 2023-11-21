@@ -1,5 +1,6 @@
 import assert from 'assert/strict';
 import crypto from 'crypto';
+import http from 'node:http';
 import { setTimeout } from 'timers/promises';
 import { createAccount, createEchoServer, getAuthToken, getTunnel, putTunnel, sshClient } from './e2e-utils.js';
 
@@ -26,7 +27,7 @@ describe('SSH transport E2E', () => {
 
     after(async () => {
         process.env.NODE_ENV = "test";
-        await terminator(undefined, {gracefulTimeout: 1000, drainTimeout: 500}); 
+        await terminator(undefined, {gracefulTimeout: 1000, drainTimeout: 500});
         await echoServerTerminator()
     });
 
@@ -54,7 +55,7 @@ describe('SSH transport E2E', () => {
         assert(res.status == 200, "could not create tunnel")
 
         res = await getTunnel(authToken, tunnelId);
-        let data = await res.json(); 
+        let data = await res.json();
         assert(data?.transport?.ssh?.enabled == true, "SSH transport not enabled");
         assert(typeof data?.transport?.ssh?.url == 'string', "No SSH connect URL available");
 
@@ -66,32 +67,45 @@ describe('SSH transport E2E', () => {
             data?.transport?.ssh?.username,
             data?.transport?.ssh?.password,
             targetUrl,
-        ); 
+        );
 
         authToken = await getAuthToken(account.account_id);
         do {
             await setTimeout(1000);
             res = await getTunnel(authToken, tunnelId);
-            data = await res.json(); 
+            data = await res.json();
         } while (data?.connection?.connected == false);
 
         assert(data?.connection?.connected == true, "tunnel not connected");
 
         const ingressUrl = new URL(data.ingress.http.url);
 
-        res = await fetch("http://localhost:8080", {
-            method: 'POST',
-            headers: {
-                "Host": ingressUrl.hostname
-            },
-            body: "echo" 
-        })
+        let status;
+        ([status, data] = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'POST',
+                path: '/',
+                headers: {
+                    "Host": ingressUrl.hostname
+                }
+            }, (res) => {
+                let data = '';
 
-        assert(res.status == 200, `expected status code 200, got ${res.status}`);
-        data = await res.text()
-        assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`) 
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve([res.statusCode, data])});
+            });
+            req.end('echo');
+        }));
 
         terminateClient();
+
+        assert(status == 200, `expected status code 200, got ${status}`);
+        assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`);
 
     }).timeout(60000);
 });

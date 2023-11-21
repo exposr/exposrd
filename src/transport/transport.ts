@@ -1,11 +1,18 @@
-import { randomUUID } from 'crypto';
+import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { Duplex } from 'stream';
+
+type TransportConnectTlsOptions = {
+    enabled: boolean,
+    servername?: string,
+    cert?: Buffer,
+};
 
 export type TransportConnectionOptions = {
     remoteAddr: string,
     tunnelId?: string,
     port?: number,
+    tls?: TransportConnectTlsOptions,
 };
 
 export interface TransportOptions {
@@ -20,7 +27,7 @@ export default abstract class Transport extends EventEmitter {
     constructor(opts: TransportOptions) {
         super();
         this.max_connections = opts.max_connections || 1;
-        this.id = randomUUID();
+        this.id = crypto.randomUUID();
     }
 
     public abstract createConnection(opts: TransportConnectionOptions, callback: (err: Error | undefined, sock: Duplex) => void): Duplex;

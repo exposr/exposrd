@@ -5,20 +5,19 @@ import net from 'net';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
 import Config from '../../../src/config.js';
 import ClusterService from '../../../src/cluster/index.js';
-import Ingress from '../../../src/ingress/index.js';
 import AccountService from '../../../src/account/account-service.js';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import WebSocketTransport from '../../../src/transport/ws/ws-transport.ts';
 import { initStorageService, wsSocketPair } from '../test-utils.ts';
 import EventBus from '../../../src/cluster/eventbus.js';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
+import IngressManager from '../../../src/ingress/ingress-manager.js';
 
 describe('tunnel service', () => {
     let clock;
     let config;
     let storageservice;
     let clusterservice;
-    let ingress;
     let accountService;
 
     beforeEach(async () => {
@@ -27,18 +26,13 @@ describe('tunnel service', () => {
         storageservice = await initStorageService();
         clusterservice = new ClusterService('mem', {});
 
-        ingress = await new Promise((resolve, reject) => {
-            const i = new Ingress({
-                callback: (e) => {
-                    e ? reject(e) : resolve(i) },
-                http: {
-                    enabled: true,
-                    subdomainUrl: new URL("https://example.com"),
-                    port: 8080,
-                }
-            });
+        await IngressManager.listen({
+            http: {
+                enabled: true,
+                subdomainUrl: new URL("https://example.com"),
+                port: 8080,
+            }
         });
-        assert(ingress instanceof Ingress);
         accountService = new AccountService();
     });
 
@@ -47,7 +41,7 @@ describe('tunnel service', () => {
         await storageservice.destroy();
         await clusterservice.destroy();
         await accountService.destroy();
-        await ingress.destroy();
+        await IngressManager.close();
         clock.restore();
         sinon.restore();
     })

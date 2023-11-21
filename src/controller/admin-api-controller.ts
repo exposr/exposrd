@@ -53,7 +53,7 @@ class AdminApiController extends KoaController {
         }
     }
 
-    protected _initializeRoutes(router: Router.Router) {
+    protected _initializeRoutes(router: Router.Router): void {
 
         const handleError: Router.FullHandler = async (ctx, next) => {
             if (!ctx.invalid) {
@@ -122,7 +122,7 @@ class AdminApiController extends KoaController {
             }
         };
 
-        const tunnelProps = (tunnel: Tunnel, baseUrl: string) => {
+        const tunnelProps = (tunnel: Tunnel, baseUrl: URL | undefined) => {
             return {
                 tunnel_id: tunnel.id,
                 account_id: tunnel.account,
@@ -153,10 +153,6 @@ class AdminApiController extends KoaController {
                 updated_at: tunnel.config.updated_at,
             }
         };
-
-        const getBaseUrl = (req: any) => {
-            return req._exposrBaseUrl;
-        }
 
         router.route({
             method: 'post',
@@ -276,7 +272,7 @@ class AdminApiController extends KoaController {
                 try {
                     const tunnel = await this._tunnelService.lookup(ctx.params.tunnel_id);
                     ctx.status = 200;
-                    ctx.body = tunnelProps(tunnel, getBaseUrl(ctx.req));
+                    ctx.body = tunnelProps(tunnel, this.getBaseUrl(ctx.req));
                 } catch (e: any) {
                     if (e.message == 'no_such_tunnel') {
                         ctx.status = 404;
@@ -370,7 +366,7 @@ class AdminApiController extends KoaController {
                 ctx.body = {
                     cursor: res.cursor,
                     tunnels: res.tunnels.map((t) => {
-                        return ctx.query.verbose ? tunnelProps(t, getBaseUrl(ctx.req)) : t.id;
+                        return ctx.query.verbose ? tunnelProps(t, this.getBaseUrl(ctx.req)) : t.id;
                     }),
                 };
             }]

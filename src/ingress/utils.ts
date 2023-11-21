@@ -1,5 +1,5 @@
 class IngressUtils {
-    static getTunnelId(hostname, wildcardHost) {
+    static getTunnelId(hostname: string | undefined, wildcardHost?: string): string | undefined {
         if (hostname === undefined) {
             return undefined;
         }

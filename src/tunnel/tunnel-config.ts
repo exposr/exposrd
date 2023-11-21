@@ -16,17 +16,17 @@ export type TunnelIngressConfig = {
     sni: TunnelIngressTypeConfig,
 }
 
-type TunnelIngressTypeConfig = {
+export type TunnelIngressTypeConfig = {
     enabled: boolean,
     url: string | undefined,
     urls: Array<string>,
 }
 
-type TunnelHttpIngressConfig = TunnelIngressTypeConfig & {
+export type TunnelHttpIngressConfig = TunnelIngressTypeConfig & {
     alt_names: Array<string>,
 }
 
-type TunnelTargetConfig = {
+export type TunnelTargetConfig = {
     url: string | undefined
 }
 

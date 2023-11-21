@@ -1,6 +1,7 @@
 import assert from 'assert/strict';
 import crypto from 'crypto';
 import net from 'net';
+import http from 'node:http';
 import WebSocket from 'ws';
 import Config from '../../../src/config.js';
 import TransportService from '../../../src/transport/transport-service.js'
@@ -9,12 +10,12 @@ import ClusterService from '../../../src/cluster/index.js';
 import { StorageService } from '../../../src/storage/index.js';
 import AccountService from '../../../src/account/account-service.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
-import Ingress from '../../../src/ingress/index.js';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import Account from '../../../src/account/account.js';
 import sinon from 'sinon';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
 import { Duplex } from 'stream';
+import IngressManager from '../../../src/ingress/ingress-manager.js';
 
 describe('WS transport', () => {
     let clock: sinon.SinonFakeTimers;
@@ -24,7 +25,6 @@ describe('WS transport', () => {
     let accountService: AccountService;
     let tunnelService: TunnelService;
     let echoServer: any;
-    let ingress: Ingress;
     let account: Account;
     let tunnel: Tunnel;
     let tunnelId: string;
@@ -36,16 +36,13 @@ describe('WS transport', () => {
         ]);
         storageservice = await initStorageService();
         clusterservice = new ClusterService('mem', {});
-        ingress = await new Promise((resolve, reject) => {
-            const i = new Ingress({
-                callback: (e: any) => {
-                    e ? reject(e) : resolve(i) },
-                http: {
-                    enabled: true,
-                    subdomainUrl: new URL("https://example.com"),
-                    port: 8080,
-                }
-            });
+
+        await IngressManager.listen({
+            http: {
+                enabled: true,
+                subdomainUrl: new URL("https://example.com"),
+                port: 8080,
+            }
         });
         accountService = new AccountService();
         tunnelService = new TunnelService();
@@ -60,7 +57,7 @@ describe('WS transport', () => {
     afterEach(async () => {
         await tunnelService.destroy();
         await accountService.destroy();
-        await ingress.destroy();
+        await IngressManager.close(); 
         await clusterservice.destroy();
         await storageservice.destroy();
         await config.destroy();
@@ -137,29 +134,60 @@ describe('WS transport', () => {
             });
         });
 
-        let res = await fetch("http://localhost:8080", {
-            method: 'POST',
-            headers: {
-                "Host": `${tunnel.id}.example.com` 
-            },
-            body: "echo" 
+        do {
+            await clock.tickAsync(1000);
+            tunnel = await tunnelService.lookup(tunnelId);
+        } while (tunnel.state.connected == false);
+
+        let {status, data}: {status: number | undefined, data: any} = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'POST',
+                path: '/',
+                headers: {
+                    "Host": `${tunnel.id}.example.com`
+                }
+            }, (res) => {
+                let data = '';
+
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve({status: res.statusCode, data})});
+            });
+            req.end('echo');
         });
-        assert(res.status == 200, "did not get response from echo server");
-        let data = await res.text();
+
+        assert(status == 200, `did not get 200 response from echo server, ${status}`);
         assert(data == 'echo', "did not get response from echo server");
 
-        res = await fetch("http://localhost:8080/file?size=1048576", {
-            method: 'GET',
-            headers: {
-                "Host": `${tunnel.id}.example.com` 
-            },
-        });
-        assert(res.status == 200, "did not get response from echo server");
+        let {status: status2, data: data2}: {status: number | undefined, data: any} = await new Promise((resolve) => {
+            const req = http.request({
+                hostname: 'localhost',
+                port: 8080,
+                method: 'GET',
+                path: '/file?size=1048576',
+                headers: {
+                    "Host": `${tunnel.id}.example.com`
+                }
+            }, (res) => {
+                let data = '';
 
-        let data2 = await res.blob();
-        assert(data2.size == 1048576, "did not receive large file")
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('close', () => { resolve({status: res.statusCode, data})});
+            });
+            req.end();
+        });
 
         ws.close();
         await transportService.destroy();
+
+        assert(status2 == 200, `did not get 200 response from echo server, got ${status2}`);
+        assert(data2.length == 1048576, "did not receive large file");
     });
 });

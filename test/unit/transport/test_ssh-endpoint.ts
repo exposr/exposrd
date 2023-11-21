@@ -3,7 +3,7 @@ import Tunnel from '../../../src/tunnel/tunnel.js';
 import SSHEndpoint from '../../../src/transport/ssh/ssh-endpoint.js';
 import { initClusterService, initStorageService } from '../test-utils.js'
 import Config from '../../../src/config.js';
-import Ingress from '../../../src/ingress/index.js';
+import IngressManager from '../../../src/ingress/ingress-manager.js';
 import { TunnelConfig } from '../../../src/tunnel/tunnel-config.js';
 
 describe('ssh endpoint', () => {
@@ -41,7 +41,7 @@ describe('ssh endpoint', () => {
             const config = new Config();
             const storageService = await initStorageService();
             const clusterService = initClusterService();
-            const ingress = new Ingress({
+            await IngressManager.listen({
                 http: {
                     enabled: true,
                     subdomainUrl: new URL("https://example.com"),
@@ -61,13 +61,13 @@ describe('ssh endpoint', () => {
                 allowInsecureTarget: true,
             });
             const ep = endpoint.getEndpoint(tunnel, baseUrl);
-            endpoint.destroy();
+            await endpoint.destroy();
 
             assert(ep.url == expected, `got ${ep.url}`);
             await storageService.destroy();
             await clusterService.destroy();
             await config.destroy();
-            await ingress.destroy();
+            await IngressManager.close();
         });
     });
 });

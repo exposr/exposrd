@@ -6,6 +6,7 @@ import * as url from 'node:url';
 import { WebSocket, WebSocketServer } from "ws";
 import ClusterService from "../../src/cluster/index.js";
 import { StorageService } from "../../src/storage/index.js";
+import WebSocketTransport from "../../src/transport/ws/ws-transport.js";
 import { WebSocketMultiplex } from "@exposr/ws-multiplex";
 
 export const initStorageService = async (): Promise<StorageService> => {
@@ -83,16 +84,19 @@ export class wsSocketPair {
     }
 }
 
-export const wsmPair = (socketPair: wsSocketPair, options?: Object): Array<WebSocketMultiplex> => {
-    const wsm1 = new WebSocketMultiplex(socketPair.sock1, {
-        ...options,
-        reference: "wsm1"
+export const wsmPair = (socketPair: wsSocketPair, options?: Object): {transport: WebSocketTransport, client: WebSocketMultiplex} => {
+
+    const transport = new WebSocketTransport({
+        tunnelId: "wsm1",
+        socket: socketPair.sock1,
     });
-    const wsm2 = new WebSocketMultiplex(socketPair.sock2, {
+
+    const client = new WebSocketMultiplex(socketPair.sock2, {
         ...options,
         reference: "wsm2"
     });
-    return [wsm1, wsm2];
+
+    return {transport, client};
 };
 
 export const createEchoHttpServer = async (port: number = 20000, crtPath?: string | undefined, keyPath?: string | undefined) => {
@@ -106,6 +110,11 @@ export const createEchoHttpServer = async (port: number = 20000, crtPath?: strin
             response.statusCode = 200;
             response.end(buf);
         });
+    };
+
+    const echoHeaders = (request: http.IncomingMessage, response: http.ServerResponse) => {
+        response.statusCode = 200;
+        response.end(JSON.stringify(request.headers, undefined, 2));
     };
 
     const fileGenerator = (size: number, chunkSize: number, response: http.ServerResponse) => {
@@ -122,11 +131,17 @@ export const createEchoHttpServer = async (port: number = 20000, crtPath?: strin
                 const chunkToSend = Math.min(chunkSize, remainingBytes);
 
                 const buffer = Buffer.alloc(chunkToSend);
-                response.write(buffer);
-
+                buffer.fill('A');
+                const resp = response.write(buffer);
                 sentBytes += chunkToSend;
 
-                setTimeout(writeChunk, 0);
+                if (!resp) {
+                    response.once('drain', () => {
+                        setTimeout(writeChunk, 0);
+                    });
+                } else {
+                    setTimeout(writeChunk, 0);
+                }
             } else {
                 response.end();
             }
@@ -160,6 +175,8 @@ export const createEchoHttpServer = async (port: number = 20000, crtPath?: strin
             const size = Number(parsedUrl.query["size"] || "32");
             const chunkSize = Number(parsedUrl.query["chunk"] || "262144");
             return fileGenerator(size, chunkSize, response);
+        } else if (request.method == "GET" && parsedUrl.pathname == '/headers') {
+            return echoHeaders(request, response);
         } else {
             return echoRequest(request, response);
         }
@@ -177,11 +194,16 @@ export const createEchoHttpServer = async (port: number = 20000, crtPath?: strin
     server.on('request', handleRequest);
     server.on('upgrade', handleUpgrade);
 
-    server.listen(port);
+    await new Promise((resolve) => {
+        server.listen(port, () => {
+            resolve(undefined);
+        });
+    });
     return {
         destroy: async () => {
             await new Promise((resolve) => {
                 server.close(resolve);
+                server.closeAllConnections();
                 server.removeAllListeners('request');
                 server.removeAllListeners('upgrade');
             });

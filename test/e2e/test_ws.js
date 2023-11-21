@@ -1,5 +1,6 @@
 import assert from 'assert/strict';
 import crypto from 'crypto';
+import http from 'node:http';
 import { setTimeout } from 'timers/promises';
 import { createAccount, createEchoServer, getAuthToken, getTunnel, putTunnel, startExposr } from './e2e-utils.js';
 import { PGSQL_URL, REDIS_URL } from '../env.js';
@@ -61,20 +62,33 @@ describe('Websocket E2E', () => {
 
             const ingressUrl = new URL(data.ingress.http.url);
 
-            res = await fetch("http://localhost:8080", {
-                method: 'POST',
-                headers: {
-                    "Host": ingressUrl.hostname
-                },
-                body: "echo"
-            })
+            let status;
+            ([status, data] = await new Promise((resolve) => {
+                const req = http.request({
+                    hostname: 'localhost',
+                    port: 8080,
+                    method: 'POST',
+                    path: '/',
+                    headers: {
+                        "Host": ingressUrl.hostname
+                    }
+                }, (res) => {
+                    let data = '';
 
-            assert(res.status == 200, `expected status code 200, got ${res.status}`);
-            data = await res.text()
-            assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`);
+                    res.on('data', (chunk) => {
+                        data += chunk;
+                    });
+
+                    res.on('close', () => { resolve([res.statusCode, data])});
+                });
+                req.end('echo');
+            }));
 
             exposrCliTerminator();
             await terminator(undefined, {gracefulTimeout: 10000, drainTimeout: 500});
+
+            assert(status == 200, `expected status code 200, got ${status}`);
+            assert(data == "echo", `did not get response from echo server through WS tunnel, got ${data}`);
         }).timeout(60000);
     });
 });

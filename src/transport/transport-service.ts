@@ -92,9 +92,9 @@ class TransportService {
     }
 
     public getTransports(tunnel: Tunnel, baseUrl: string): TunnelTransports;
-    public getTransports(tunnel: Tunnel, baseUrl: URL): TunnelTransports;
+    public getTransports(tunnel: Tunnel, baseUrl: URL | undefined): TunnelTransports;
     public getTransports(tunnel: Tunnel, baseUrl: any): TunnelTransports {
-        let _baseUrl: URL;
+        let _baseUrl: URL | undefined;
 
         const transports: TunnelTransports = {
             max_connections: this.max_connections,
@@ -106,10 +106,14 @@ class TransportService {
             try {
                 _baseUrl = new URL(baseUrl);
             } catch (e: any) {
-                return transports;
+                _baseUrl = undefined;
             }
         } else {
             _baseUrl = baseUrl;
+        }
+
+        if (_baseUrl == undefined) {
+            return transports;
         }
 
         if (this.transports.ws instanceof WebSocketEndpoint) {

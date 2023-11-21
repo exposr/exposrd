@@ -119,9 +119,19 @@ class Storage {
         }
         const [obj, done] = result;
 
-        const res = await cb(obj);
+        let error;
+        let res = false;
+        try {
+            res = await cb(obj);
+        } catch (e) {
+            error = e;
+        }
+
         if (res !== true) {
             done();
+            if (error) {
+                throw error;
+            }
             return false;
         }
         const serialized = Serializer.serialize(obj);
