@@ -22,7 +22,7 @@
   ],
   "dependencies": {
     "@exposr/ws-multiplex": "^1.2.1",
-    "better-sqlite3": "^8.3.0",
+    "better-sqlite3": "^9.1.1",
     "content-type": "^1.0.5",
     "koa": "^2.14.1",
     "koa-joi-router": "^8.0.0",
