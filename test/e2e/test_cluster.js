@@ -13,7 +13,7 @@ const startExposrd = (name = "", network, args = [], dockerargs = []) => {
         "--workdir", "/app",
         "--add-host", "host.docker.internal:host-gateway",
     ].concat(dockerargs).concat([
-        "node:18-alpine3.18",
+        "node:20-alpine3.18",
         "exposrd.mjs"
     ]).concat(args), {detached: true});
 

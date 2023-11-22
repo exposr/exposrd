@@ -21,8 +21,8 @@
     "Makefile"
   ],
   "dependencies": {
-    "@exposr/ws-multiplex": "^1.2.1",
-    "better-sqlite3": "^8.3.0",
+    "@exposr/ws-multiplex": "^1.2.2",
+    "better-sqlite3": "^9.1.1",
     "content-type": "^1.0.5",
     "koa": "^2.14.1",
     "koa-joi-router": "^8.0.0",
@@ -33,7 +33,7 @@
     "port-numbers": "^6.0.1",
     "redis": "^4.6.5",
     "redlock": "^4.2.0",
-    "ssh2": "^1.11.0",
+    "ssh2": "^1.14.0",
     "sshpk": "^1.16.1",
     "ws": "^8.12.1",
     "yargs": "^17.7.1"
