@@ -195,7 +195,7 @@ class Storage {
     // True if deleted
     // undefined if not found
     // False on storage error
-    async delete(key = undefined) {
+    async delete(key) {
         if (!key) {
             key = this.key;
         }

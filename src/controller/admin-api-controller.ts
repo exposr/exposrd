@@ -111,10 +111,9 @@ class AdminApiController extends KoaController {
         };
 
         const accountProps = (account: Account) => {
-            const {accountId, formatted} = account.getId();
             return {
-                account_id: accountId,
-                account_id_hr: formatted,
+                account_id: account.id,
+                account_id_hr: AccountService.formatId(account.id),
                 tunnels: account.tunnels,
                 status: account.status,
                 created_at: account.created_at,
@@ -179,7 +178,7 @@ class AdminApiController extends KoaController {
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const account: Account = await this.accountService.get(ctx.params.account_id);
+                const account: Account | undefined = await this.accountService.get(ctx.params.account_id);
                 if (!account) {
                     ctx.status = 404;
                     ctx.body = {};
@@ -219,11 +218,6 @@ class AdminApiController extends KoaController {
             handler: [handleAdminAuth, async (ctx, next) => {
                 ctx.body = {};
                 const res = await this.accountService.delete(ctx.params.account_id);
-                if (res === undefined) {
-                    ctx.status = 404;
-                    return;
-                }
-
                 if (res === false) {
                     ctx.status = 500;
                     return;
@@ -251,10 +245,13 @@ class AdminApiController extends KoaController {
                 }
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
-                const account = await this.accountService.disable(ctx.params.account_id, ctx.request.body.disable, ctx.request.body.reason);
-
-                ctx.status = 200;
-                ctx.body = accountProps(account);
+                const account: Account | undefined = await this.accountService.disable(ctx.params.account_id, ctx.request.body.disable, ctx.request.body.reason);
+                if (!account) {
+                    ctx.status = 404;
+                } else {
+                    ctx.status = 200;
+                    ctx.body = accountProps(account);
+                }
             }]
         });
 

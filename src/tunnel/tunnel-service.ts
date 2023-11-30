@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import AccountService from "../account/account-service.js";
 import EventBus, { EmitMeta } from "../cluster/eventbus.js";
 import ClusterService from "../cluster/index.js";
 import { Logger } from "../logger.js";
@@ -15,6 +14,7 @@ import AltNameService from './altname-service.js';
 import CustomError, { ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES } from '../utils/errors.js';
 import IngressService from '../ingress/ingress-service.js';
 import TunnelConnectionManager, { TunnelAnnounce, TunnelDisconnectRequest } from './tunnel-connection-manager.js';
+import AccountTunnelService from '../account/account-tunnel-service.js';
 
 export type ConnectOptions = {
     peer: string,
@@ -46,8 +46,8 @@ export default class TunnelService {
     private ingressService!: IngressService;
     private eventBus!: EventBus;
     private clusterService!: ClusterService;
-    private accountService!: AccountService;
     private altNameService!: AltNameService;
+    private accountTunnelService!: AccountTunnelService;
 
     constructor() {
         if (TunnelService.instance instanceof TunnelService) {
@@ -62,8 +62,8 @@ export default class TunnelService {
         this.ingressService = new IngressService();
         this.eventBus = new EventBus();
         this.clusterService = new ClusterService();
-        this.accountService = new AccountService();
         this.altNameService = new AltNameService();
+        this.accountTunnelService = new AccountTunnelService();
     }
 
     public async destroy(): Promise<void> {
@@ -77,9 +77,9 @@ export default class TunnelService {
                 this.storage.destroy(),
                 this.eventBus.destroy(),
                 this.clusterService.destroy(),
-                this.accountService.destroy(),
                 this.ingressService.destroy(),
                 this.altNameService.destroy(),
+                this.accountTunnelService.destroy(),
             ]);
             TunnelService.instance = undefined;
         }
@@ -122,11 +122,11 @@ export default class TunnelService {
             throw Error("could_not_create_tunnel");
         }
 
-        await this.accountService.update(accountId, (account: Account) => {
-            if (!account.tunnels.includes(tunnelId)) {
-                account.tunnels.push(tunnelId);
-            }
-        });
+        const assigned = await this.accountTunnelService.assignTunnel(tunnelConfig);
+        if (!assigned) {
+            await this.storage.delete(tunnelId);
+            throw Error("could_not_create_tunnel");
+        }
 
         this.logger
             .withContext('tunnel', tunnelId)
@@ -165,13 +165,6 @@ export default class TunnelService {
                 });
         }
 
-        const updateAccount = this.accountService.update(accountId, (account: Account) => {
-            const pos = account.tunnels.indexOf(tunnelId);
-            if (pos >= 0) {
-                account.tunnels.splice(pos, 1);
-            }
-        });
-
         try {
             await Promise.all([
                 this.altNameService.update(
@@ -181,7 +174,7 @@ export default class TunnelService {
                     tunnel.config.ingress.http.alt_names,
                 ),
                 this.storage.delete(<any>tunnelId),
-                updateAccount,
+                this.accountTunnelService.unassignTunnel(tunnel.config)
             ]);
         } catch (e: any) {
             this.logger
@@ -351,10 +344,7 @@ export default class TunnelService {
 
         try {
             const tunnel = await this._get(tunnelId);
-            const account = await this.accountService.get(tunnel.config.account);
-            if (!(account instanceof Account)) {
-                return result;
-            }
+            const account = await this.accountTunnelService.authorizedAccount(tunnel);
             const correctToken = tunnel.config.transport.token != undefined &&
                 safeEqual(token, tunnel.config.transport.token)
 

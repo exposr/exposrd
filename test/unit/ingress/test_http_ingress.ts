@@ -2,7 +2,6 @@ import assert from 'assert/strict';
 import crypto from 'crypto';
 import dns from 'dns/promises';
 import AccountService from "../../../src/account/account-service.js";
-import EventBus from "../../../src/cluster/eventbus.js";
 import Config from "../../../src/config.js";
 import IngressManager, { IngressType } from "../../../src/ingress/ingress-manager.js";
 import TunnelService from "../../../src/tunnel/tunnel-service.js";
@@ -20,6 +19,7 @@ import { Duplex } from 'stream';
 import CustomError, { ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES } from '../../../src/utils/errors.js';
 import HttpIngress from '../../../src/ingress/http-ingress.js';
 import { httpRequest } from './utils.js';
+import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 
 describe('http ingress', () => {
     let clock: sinon.SinonFakeTimers;
@@ -33,6 +33,7 @@ describe('http ingress', () => {
         storageService = await initStorageService();
 
         clock = sinon.useFakeTimers({shouldAdvanceTime: true});
+        await TunnelConnectionManager.start();
         await IngressManager.listen({
             http: {
                 enabled: true,
@@ -45,6 +46,7 @@ describe('http ingress', () => {
     });
 
     after(async () => {
+        await TunnelConnectionManager.stop();
         await IngressManager.close();
         await clusterService.destroy();
         await storageService.destroy();
@@ -67,9 +69,10 @@ describe('http ingress', () => {
         accountService = new AccountService();
 
         account = await accountService.create();
+        assert(account != undefined);
         const tunnelId = crypto.randomBytes(20).toString('hex');
-        tunnel = await tunnelService.create(tunnelId, account?.id);
-        tunnel = await tunnelService.update(tunnel.id, account?.id, (tunnel) => {
+        tunnel = await tunnelService.create(tunnelId, account.id);
+        tunnel = await tunnelService.update(tunnel.id, account.id, (tunnel) => {
             tunnel.ingress.http.enabled = true;
         });
 
@@ -390,10 +393,11 @@ describe('http ingress', () => {
 
     it('adding altname without cname throws error', async () => {
         assert(tunnel != undefined);
+        assert(account != undefined);
 
         let error: CustomError | undefined;
         try {
-            tunnel = await tunnelService.update(tunnel.id, account?.id, (tunnel) => {
+            tunnel = await tunnelService.update(tunnel.id, account.id, (tunnel) => {
                 tunnel.ingress.http.alt_names = [
                     "custom-name.example"
                 ]
@@ -408,6 +412,7 @@ describe('http ingress', () => {
 
     it('adding altname with wrong cname throws error', async () => {
         assert(tunnel != undefined);
+        assert(account != undefined);
 
         sinon.stub(dns, 'resolveCname')
             .withArgs('custom-name.example')
@@ -415,7 +420,7 @@ describe('http ingress', () => {
 
         let error: CustomError | undefined;
         try {
-            tunnel = await tunnelService.update(tunnel.id, account?.id, (tunnel) => {
+            tunnel = await tunnelService.update(tunnel.id, account.id, (tunnel) => {
                 tunnel.ingress.http.alt_names = [
                     "custom-name.example"
                 ]

@@ -40,10 +40,10 @@ describe('tunnel service', () => {
 
     afterEach(async () => {
         await accountService.destroy();
-        await storageService.destroy();
-        await clusterService.destroy();
-        await TunnelConnectionManager.stop();
         await IngressManager.close();
+        await TunnelConnectionManager.stop();
+        await clusterService.destroy();
+        await storageService.destroy();
         await config.destroy();
         clock.restore();
         sinon.restore();
@@ -497,6 +497,47 @@ describe('tunnel service', () => {
         await tunnelService.destroy();
         await bus.destroy();
         await wsm.destroy();
+        await transport.destroy();
+        await sockPair.terminate();
+    });
+
+    it(`can not connect to tunnel on disabled account`, async () => {
+        const tunnelService = new TunnelService();
+        const bus = new EventBus();
+
+        const account = await accountService.create();
+        assert(account != undefined);
+        const tunnelId = crypto.randomBytes(20).toString('hex');
+
+        let tunnel = await tunnelService.create(tunnelId, account.id);
+        assert(tunnel instanceof Tunnel, `tunnel not created, got ${tunnel}`);
+        assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
+
+        const sockPair = await wsSocketPair.create();
+        const transport = new WebSocketTransport({
+            tunnelId: tunnelId,
+            socket: sockPair.sock1,
+        })
+
+        let authResult = await tunnelService.authorize(tunnel.id, tunnel.config.transport?.token || "");
+        assert(authResult.authorized == true, "authorization failed on enabled account");
+
+        let res = await tunnelService.connect(tunnelId, account.id, transport, {peer: "127.0.0.1"});
+        assert(res == true, `connect did not return true, got ${res}`);
+
+        tunnel = await tunnelService.lookup(tunnelId);
+        assert(tunnel.state.connected == true, "tunnel state is not connected");
+
+        await accountService.disable(account.id, true, "spam");
+
+        tunnel = await tunnelService.lookup(tunnelId);
+        assert(tunnel.state.connected == false, "tunnel state is connected");
+
+        authResult = await tunnelService.authorize(tunnel.id, tunnel.config.transport?.token || "");
+        assert(authResult.authorized == false, "authorization succeeded on disabled account");
+
+        await tunnelService.destroy();
+        await bus.destroy();
         await transport.destroy();
         await sockPair.terminate();
     });

@@ -313,10 +313,9 @@ class ApiController extends KoaController {
         });
 
         const accountProps = (account: Account) => {
-            const {accountId, formatted} = account.getId();
             return {
-                account_id: accountId,
-                account_id_hr: formatted,
+                account_id: account.id,
+                account_id_hr: AccountService.formatId(account.id),
             }
         };
 
@@ -362,10 +361,9 @@ class ApiController extends KoaController {
                     };
                     return;
                 }
-                const {accountId, _} = account.getId();
                 ctx.status = 201;
                 ctx.body = {
-                    token: Buffer.from(accountId).toString('base64'),
+                    token: Buffer.from(account.id).toString('base64'),
                 };
             }]
         });
