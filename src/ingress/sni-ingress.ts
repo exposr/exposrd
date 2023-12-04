@@ -2,10 +2,11 @@ import crypto, { KeyObject, X509Certificate } from 'crypto';
 import fs from 'fs';
 import tls from 'tls';
 import { Logger } from '../logger.js';
-import TunnelService, { CreateConnectionContext } from '../tunnel/tunnel-service.js';
+import TunnelService from '../tunnel/tunnel-service.js';
 import IngressUtils from './utils.js';
 import IngressBase from './ingress-base.js';
 import Tunnel from '../tunnel/tunnel.js';
+import TunnelConnectionManager, { CreateConnectionContext } from '../tunnel/tunnel-connection-manager.js';
 
 export type SniIngressOptions = {
     host?: string | undefined,
@@ -311,7 +312,7 @@ export default class SNIIngress implements IngressBase {
             },
         };
 
-        const targetSock = this.tunnelService.createConnection(tunnel.id, ctx, (err, sock) => {
+        const targetSock = TunnelConnectionManager.createConnection(tunnel.id, ctx, (err, sock) => {
             if (err) {
                 logError(err);
                 return;

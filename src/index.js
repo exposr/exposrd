@@ -10,6 +10,7 @@ import TransportService from './transport/transport-service.js';
 import Version from './version.js';
 import Node from './cluster/cluster-node.js';
 import TunnelService from './tunnel/tunnel-service.js';
+import TunnelConnectionManager from './tunnel/tunnel-connection-manager.js';
 
 export default async (argv) => {
     const config = new Config(argv);
@@ -164,6 +165,7 @@ export default async (argv) => {
     });
 
     const [
+        tunnelConnectionManager,
         ingress,
         transport,
         apiController,
@@ -171,6 +173,7 @@ export default async (argv) => {
         adminController,
     ] = await Promise
         .all([
+            TunnelConnectionManager.start(),
             ingressReady,
             transportReady,
             apiControllerReady,
@@ -211,8 +214,7 @@ export default async (argv) => {
             adminController.setReady(false);
 
             // Drain and block new tunnel connections
-            const tunnelService = new TunnelService();
-            await Promise.race([tunnelService.end(), timeout, force]);
+            await Promise.race([TunnelConnectionManager.stop() , timeout, force]);
 
             if (multiNode) {
                 logger.info("Waiting for connections to drain...");
@@ -222,7 +224,6 @@ export default async (argv) => {
             }
 
             const destruction = Promise.allSettled([
-                tunnelService.destroy(),
                 apiController.destroy(),
                 adminApiController.destroy(),
                 adminController.destroy(),
