@@ -195,6 +195,8 @@ class SSHTransportSocket extends Duplex {
     public bytesWritten?: number;
     public bytesRead?: number;
     public bufferSize: number;
+    private writeBuffer: Array<{ chunk: Buffer, encoding: BufferEncoding, callback: (error: Error | null | undefined) => void }>;
+    private writer: (chunk: Buffer, encoding: BufferEncoding, callback: (error: Error | null | undefined) => void) => void;
 
     private readBuffer: Array<Buffer>;
     private readBufferSize: number;
@@ -224,6 +226,8 @@ class SSHTransportSocket extends Duplex {
         this.bytesWritten = 0;
         this.readBuffer = [];
         this.readBufferSize = 0;
+        this.writeBuffer = [];
+        this.writer = this.bufferedWriter;
 
         this._client = opts.client;
 
@@ -257,6 +261,7 @@ class SSHTransportSocket extends Duplex {
 
         this.readyState = "opening";
         this.connecting = true;
+        this.cork();
 
         const connectionCallback = typeof host == 'function' ?
             (host as () => void) :
@@ -264,7 +269,7 @@ class SSHTransportSocket extends Duplex {
         typeof connectionCallback == 'function' && this.once('connect', connectionCallback);
 
         const connectPort = Hostname.getPort(target);
-        this._client?.forwardOut(target.hostname, connectPort, options.remoteAddr, connectPort, (err, stream) => {
+        this._client?.forwardOut(target.hostname, connectPort, options.remoteAddr, connectPort, async (err, stream) => {
             if (err) {
                 this.destroy(err);
                 return;
@@ -273,7 +278,7 @@ class SSHTransportSocket extends Duplex {
             let socket: Duplex = stream;
 
             const isTLS = Hostname.isTLS(target);
-            let tlsSock: tls.TLSSocket | undefined;
+            let tlsSock: tls.TLSSocket;
             if (isTLS) {
                 const tlsOpts: tls.ConnectionOptions = {
                     servername: target.hostname,
@@ -283,7 +288,20 @@ class SSHTransportSocket extends Duplex {
                     tlsOpts['checkServerIdentity'] = () => undefined;
                     tlsOpts['rejectUnauthorized'] = false;
                 }
-                tlsSock = tls.connect(tlsOpts);
+
+                try {
+                    tlsSock = await new Promise((resolve, reject) => {
+                        const tlsSock = tls.connect(tlsOpts, () => {
+                            resolve(tlsSock);
+                        });
+                        tlsSock.once('error', (err: Error) => {
+                            reject(err);
+                        });
+                    });
+                } catch (e: any) {
+                    this.destroy(e);
+                    return;
+                }
 
                 socket.once('error', (err: Error) => {
                     this.destroy(err)
@@ -321,6 +339,9 @@ class SSHTransportSocket extends Duplex {
             this.connecting = false;
             this.pending = false;
             this.readyState = "open";
+
+            this.flushWriteBuffer();
+            this.writer = this.socket.write.bind(this.socket);
 
             typeof this.constructCallback == 'function' && this.constructCallback();
             this.emit('connect');
@@ -371,23 +392,34 @@ class SSHTransportSocket extends Duplex {
         typeof callback === 'function' && callback(error);
     }
 
+    private bufferedWriter(chunk: Buffer, encoding: BufferEncoding , callback: (error: Error | null | undefined) => void): void {
+        const data = { chunk, encoding };
+        this.writeBuffer.push({chunk, encoding, callback});
+    }
+
+    private flushWriteBuffer(): void {
+        while (true) {
+            const buffer = this.writeBuffer.shift();
+            if (!buffer) {
+                break;
+            }
+            this.socket.write(buffer.chunk, buffer.encoding, buffer.callback);
+        }
+    }
+
     _write(data: Buffer, encoding: BufferEncoding, callback: (error: Error | null | undefined) => void): void {
         assert(this._destroyed == false, "_write on destroyed");
-        this.socket.write(data, encoding, callback);
+        this.writer(data, encoding, callback);
         this.resetTimeout();
     }
 
     _writev(chunks: Array<{ chunk: any; encoding: BufferEncoding; }>, callback: (error: Error | null | undefined) => void): void {
-        if (this.socket._writev) {
-            return this.socket._writev(chunks, callback);
-        } else {
-            for (let i = 0; i < (chunks.length - 1); i++) {
-                const {chunk, encoding} = chunks[i];
-                this.socket.write(chunk, encoding);
-            }
-            const {chunk, encoding} = chunks[chunks.length - 1];
-            this.socket.write(chunk, encoding, callback);
+        for (let i = 0; i < (chunks.length - 1); i++) {
+            const {chunk, encoding} = chunks[i];
+            this.writer(chunk, encoding, () => undefined);
         }
+        const {chunk, encoding} = chunks[chunks.length - 1];
+        this.writer(chunk, encoding, callback);
         this.resetTimeout();
     }
 
