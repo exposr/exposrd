@@ -5,7 +5,7 @@ import EventBus from '../cluster/eventbus.js';
 import Listener from '../listener/listener.js';
 import IngressUtils from './utils.js';
 import { Logger } from '../logger.js';
-import TunnelService, { CreateConnectionContext } from '../tunnel/tunnel-service.js';
+import TunnelService from '../tunnel/tunnel-service.js';
 import AltNameService from '../tunnel/altname-service.js';
 import Node from '../cluster/cluster-node.js';
 import { ERROR_TUNNEL_NOT_FOUND,
@@ -31,6 +31,7 @@ import HttpListener, { HttpRequestCallback, HttpRequestType, HttpUpgradeCallback
 import Tunnel from '../tunnel/tunnel.js';
 import { Duplex } from 'stream';
 import IngressBase from './ingress-base.js';
+import TunnelConnectionManager, { CreateConnectionContext } from '../tunnel/tunnel-connection-manager.js';
 
 type CreateConnectionCallback = (options: object, callback: (err: Error | undefined, sock: Duplex) => void) => Duplex;
 
@@ -192,7 +193,7 @@ export default class HttpIngress implements IngressBase {
                     port: this.httpListener.getPort(),
                 },
             };
-            return this.tunnelService.createConnection(tunnelId, ctx, callback);
+            return TunnelConnectionManager.createConnection(tunnelId, ctx, callback);
         };
 
         const agent = new IngressHttpAgent({
@@ -232,7 +233,7 @@ export default class HttpIngress implements IngressBase {
             headers[HTTP_HEADER_EXPOSR_VIA] = Node.identifier;
         }
 
-        if (this.tunnelService.isLocalConnected(tunnel.id)) {
+        if (TunnelConnectionManager.isLocalConnected(tunnel.id)) {
             // Delete connection header if tunnel is
             // locally connected and it's not an upgrade request
             if (!isUpgrade) {
@@ -429,7 +430,7 @@ export default class HttpIngress implements IngressBase {
                 port: this.httpListener.getPort(),
             }
         };
-        const target = this.tunnelService.createConnection(tunnel.id, ctx, (err) => {
+        const target = TunnelConnectionManager.createConnection(tunnel.id, ctx, (err) => {
             if (!err) {
                 return;
             }

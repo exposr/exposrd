@@ -1,39 +1,24 @@
 import crypto from 'node:crypto';
-import AccountService from "../account/account-service.js";
 import EventBus, { EmitMeta } from "../cluster/eventbus.js";
 import ClusterService from "../cluster/index.js";
 import { Logger } from "../logger.js";
 import Storage from "../storage/index.js";
 import { TunnelConfig, TunnelHttpIngressConfig, TunnelIngressConfig, TunnelIngressTypeConfig, cloneTunnelConfig  } from "./tunnel-config.js";
-import { Tunnel, TunnelConnection, TunnelState } from "./tunnel.js";
+import { Tunnel, TunnelConnection } from "./tunnel.js";
 import Account from '../account/account.js';
 import { difference, safeEqual, symDifference } from '../utils/misc.js';
-import { Duplex } from 'node:stream';
 import Transport from '../transport/transport.js';
 import Node from '../cluster/cluster-node.js';
-import ClusterTransport from '../transport/cluster/cluster-transport.js';
 import { IngressType } from '../ingress/ingress-manager.js';
 import AltNameService from './altname-service.js';
 import CustomError, { ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES } from '../utils/errors.js';
 import IngressService from '../ingress/ingress-service.js';
+import TunnelConnectionManager, { TunnelAnnounce, TunnelDisconnectRequest } from './tunnel-connection-manager.js';
+import AccountTunnelService from '../account/account-tunnel-service.js';
 
 export type ConnectOptions = {
     peer: string,
 }
-
-type CreateConnectionIngressTlsContext = {
-    enabled: boolean,
-    servername?: string,
-    cert?: Buffer,
-};
-
-export type CreateConnectionContext = {
-    remoteAddr: string,
-    ingress: {
-        port: number,
-        tls?: CreateConnectionIngressTlsContext,
-    }
-};
 
 type AuthorizeResult = {
     authorized: boolean,
@@ -48,24 +33,6 @@ type TunnelListResult = {
     tunnels: Array<Tunnel>,
 };
 
-interface TunnelConnectionAnnounce {
-    connection_id: string,
-    node: string,
-    peer: string,
-    connected: boolean,
-    connected_at?: number,
-    disconnected_at?: number,
-};
-
-interface TunnelAnnounce {
-    tunnel_id: string;
-    connections: Array<TunnelConnectionAnnounce>;
-}
-
-interface TunnelDisconnectRequest {
-    tunnel_id: string;
-}
-
 export default class TunnelService {
 
     static TUNNEL_ID_REGEX = /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/;
@@ -73,29 +40,14 @@ export default class TunnelService {
     static instance?: TunnelService;
     static ref: number;
 
-    private tunnelAnnounceInterval: number = 5000;
-    private tunnelAnnounceBatchSize: number = 50;
-    private stateRefreshInterval: number = 10000;
-
-    private tunnelConnectionAliveThreshold: number = 15000;
-    private tunnelConnectionRemoveThreshold: number = 60000;
-    private tunnelRemoveThreshold: number = 60000 * 5;
-
-    private announceTimer: NodeJS.Timeout | undefined;
-    private stateRefreshTimer: NodeJS.Timeout | undefined;
-
-    private ended: boolean = false;
     private destroyed: boolean = false;
     private logger: any;
     private storage!: Storage;
     private ingressService!: IngressService;
     private eventBus!: EventBus;
     private clusterService!: ClusterService;
-    private accountService!: AccountService;
     private altNameService!: AltNameService;
-
-    private connectedTunnels!: { [ id: string ]: TunnelState };
-    private lastConnection!: { [ id: string]: string };
+    private accountTunnelService!: AccountTunnelService;
 
     constructor() {
         if (TunnelService.instance instanceof TunnelService) {
@@ -110,31 +62,8 @@ export default class TunnelService {
         this.ingressService = new IngressService();
         this.eventBus = new EventBus();
         this.clusterService = new ClusterService();
-        this.accountService = new AccountService();
         this.altNameService = new AltNameService();
-
-        this.connectedTunnels = {}
-        this.lastConnection = {};
-
-        this.eventBus.on('tunnel:announce', (announcement: Array<TunnelAnnounce>, meta: EmitMeta) => {
-            this.learnRemoteTunnels(announcement, meta);
-        });
-
-        this.eventBus.on('tunnel:disconnect', async (request: TunnelDisconnectRequest) => {
-            await this.disconnectLocalTunnel(request.tunnel_id);
-        });
-
-        const announceTunnels = async () => {
-            await this.announceLocalTunnels();
-            this.announceTimer = setTimeout(announceTunnels, this.tunnelAnnounceInterval);
-        };
-        this.announceTimer = setTimeout(announceTunnels, this.tunnelAnnounceInterval);
-
-        const refreshState = () => {
-            this.refreshConnectionState();
-            this.stateRefreshTimer = setTimeout(refreshState, this.stateRefreshInterval);
-        };
-        this.stateRefreshTimer = setTimeout(refreshState, this.stateRefreshInterval);
+        this.accountTunnelService = new AccountTunnelService();
     }
 
     public async destroy(): Promise<void> {
@@ -143,186 +72,16 @@ export default class TunnelService {
         }
 
         if (--TunnelService.ref == 0) {
-            await this.end();
-
-            clearTimeout(this.announceTimer);
-            this.announceTimer = undefined;
-
-            clearTimeout(this.stateRefreshTimer);
-            this.stateRefreshTimer = undefined;
-
             this.destroyed = true
             await Promise.allSettled([
                 this.storage.destroy(),
                 this.eventBus.destroy(),
                 this.clusterService.destroy(),
-                this.accountService.destroy(),
                 this.ingressService.destroy(),
                 this.altNameService.destroy(),
+                this.accountTunnelService.destroy(),
             ]);
             TunnelService.instance = undefined;
-        }
-    }
-
-    public async end(): Promise<void> {
-        const results = Object.keys(this.connectedTunnels).map((tunnelId: string) => this.disconnectLocalTunnel(tunnelId))
-        await Promise.allSettled(results);
-        this.ended = true;
-    }
-
-    private async announceLocalTunnels(): Promise<void>;
-    private async announceLocalTunnels(tunnelIds: Array<string>): Promise<void>;
-    private async announceLocalTunnels(tunnelIds?: Array<string>): Promise<void> {
-
-        if (tunnelIds == undefined) {
-            tunnelIds = Object.keys(this.connectedTunnels).filter((tunnelId: string) => {
-                const state = this.connectedTunnels[tunnelId];
-                return state.connections.filter((con) => con.local).length > 0;
-            });
-        }
-
-        const _tunnelIds: Array<string> = tunnelIds;
-        const batchsize = this.tunnelAnnounceBatchSize;
-
-        return new Promise((resolve) => {
-            const processChunk = async () => {
-                const chunk = _tunnelIds.splice(0, batchsize);
-
-                const tunnels: Array<TunnelAnnounce> = chunk.map((tunnelId) => {
-                    const state = this.connectedTunnels[tunnelId];
-
-                    const localConnections: Array<TunnelConnectionAnnounce> = state.connections
-                        .filter((con) => con.local)
-                        .map((con) => {
-                            return {
-                                connection_id: con.connection_id,
-                                node: con.node,
-                                peer: con.peer,
-                                connected: con.connected,
-                                connected_at: con.connected_at,
-                                disconnected_at: con.disconnected_at,
-                            }
-                    });
-
-                    return {
-                        tunnel_id: tunnelId,
-                        connections: localConnections,
-                    }
-                });
-
-                await this.eventBus.publish("tunnel:announce", tunnels);
-                if (_tunnelIds.length > 0) {
-                    setImmediate(processChunk);
-                } else {
-                    resolve();
-                }
-            };
-
-            if (_tunnelIds.length > 0) {
-                setImmediate(processChunk);
-            } else {
-                resolve();
-            }
-        });
-    }
-
-    private learnRemoteTunnels(tunnels: Array<TunnelAnnounce>, meta: EmitMeta): void {
-        const nodeId = meta.node.id;
-        if (nodeId == Node.identifier) {
-            return;
-        }
-
-        for (const tunnel of tunnels) {
-            this.connectedTunnels[tunnel.tunnel_id] ??= {
-                connected: false,
-                alive_connections: 0,
-                connections: [],
-            }
-
-            const state = this.connectedTunnels[tunnel.tunnel_id];
-            state.connections = state.connections.filter((con) => con.node != nodeId);
-
-            const connections: Array<TunnelConnection> = tunnel.connections.map((con) => {
-                const transport = con.connected ?  new ClusterTransport({nodeId}) : undefined;
-                return {
-                    connection_id: con.connection_id,
-                    node: con.node,
-                    peer: con.peer,
-                    connected: con.connected,
-                    connected_at: con.connected_at,
-                    disconnected_at: con.disconnected_at,
-                    alive_at: Date.now(),
-                    local: false,
-                    transport,
-                }
-            });
-
-            this.connectedTunnels[tunnel.tunnel_id].connections = state.connections.concat(connections);
-            this.updateTunnelState(tunnel.tunnel_id);
-        }
-    }
-
-    private refreshConnectionState(): void {
-        const cur = Date.now();
-
-        for (const tunnelId in this.connectedTunnels) {
-            const state = this.connectedTunnels[tunnelId];
-
-            // Mark remote connections that have an alive_at timestamp
-            // exceeding the connection alive threshold as disconnected.
-            state.connections = state.connections.map((con) => {
-                if (!con.local && con.connected && (cur - con.alive_at) > this.tunnelConnectionAliveThreshold) {
-                    con.connected = false;
-                    con.disconnected_at = cur;
-                }
-                return con;
-            });
-
-            // Keep connections that are connected or disconnected
-            // but within the connection removal threshold.
-            const connections = [];
-            for (const con of state.connections) {
-                if (con.connected) {
-                    connections.push(con);
-                    continue;
-                }
-                else if (con.disconnected_at && ((cur - con.disconnected_at) < this.tunnelConnectionRemoveThreshold)) {
-                    connections.push(con);
-                    continue;
-                }
-                con.transport?.destroy();
-                con.transport = undefined;
-            }
-
-            this.connectedTunnels[tunnelId].connections = connections;
-            this.updateTunnelState(tunnelId);
-
-            if (!state.connected &&
-                state.connections.length == 0 &&
-                (!state.disconnected_at || (cur - <number>state.disconnected_at) > this.tunnelRemoveThreshold)) {
-                    delete this.connectedTunnels[tunnelId];
-                    delete this.lastConnection[tunnelId]
-            }
-        }
-    }
-
-    private async disconnectLocalTunnel(tunnelId: string, connectionId?: string): Promise<void> {
-        const state = this.connectedTunnels[tunnelId];
-        if (!state) {
-            return;
-        }
-
-        for (const con of state.connections.filter((tc) => connectionId == undefined || tc.connection_id == connectionId)) {
-            if (!con.local) {
-                continue;
-            }
-            await con.transport?.destroy();
-            con.transport = undefined;
-            con.disconnected_at = Date.now();
-            con.connected = false;
-        }
-        if (this.updateTunnelState(tunnelId)) {
-            this.announceLocalTunnels([tunnelId]);
         }
     }
 
@@ -332,12 +91,12 @@ export default class TunnelService {
         const tunnelConfig = await this.storage.read(tunnelIds, TunnelConfig);
         if (tunnelConfig instanceof Array) {
             return tunnelConfig.map((tc: TunnelConfig) => {
-                const state = this.connectedTunnels[tc.id];
+                const state = TunnelConnectionManager.getConnectedState(tc.id);
                 return new Tunnel(tc, state);
             });
 
         } else if (tunnelConfig instanceof TunnelConfig) {
-            const state = this.connectedTunnels[tunnelConfig.id];
+            const state = TunnelConnectionManager.getConnectedState(tunnelConfig.id);
             return new Tunnel(tunnelConfig, state);
         } else {
             if (tunnelIds instanceof Array) {
@@ -363,11 +122,11 @@ export default class TunnelService {
             throw Error("could_not_create_tunnel");
         }
 
-        await this.accountService.update(accountId, (account: Account) => {
-            if (!account.tunnels.includes(tunnelId)) {
-                account.tunnels.push(tunnelId);
-            }
-        });
+        const assigned = await this.accountTunnelService.assignTunnel(tunnelConfig);
+        if (!assigned) {
+            await this.storage.delete(tunnelId);
+            throw Error("could_not_create_tunnel");
+        }
 
         this.logger
             .withContext('tunnel', tunnelId)
@@ -406,13 +165,6 @@ export default class TunnelService {
                 });
         }
 
-        const updateAccount = this.accountService.update(accountId, (account: Account) => {
-            const pos = account.tunnels.indexOf(tunnelId);
-            if (pos >= 0) {
-                account.tunnels.splice(pos, 1);
-            }
-        });
-
         try {
             await Promise.all([
                 this.altNameService.update(
@@ -422,7 +174,7 @@ export default class TunnelService {
                     tunnel.config.ingress.http.alt_names,
                 ),
                 this.storage.delete(<any>tunnelId),
-                updateAccount,
+                this.accountTunnelService.unassignTunnel(tunnel.config)
             ]);
         } catch (e: any) {
             this.logger
@@ -592,10 +344,7 @@ export default class TunnelService {
 
         try {
             const tunnel = await this._get(tunnelId);
-            const account = await this.accountService.get(tunnel.config.account);
-            if (!(account instanceof Account)) {
-                return result;
-            }
+            const account = await this.accountTunnelService.authorizedAccount(tunnel);
             const correctToken = tunnel.config.transport.token != undefined &&
                 safeEqual(token, tunnel.config.transport.token)
 
@@ -613,7 +362,7 @@ export default class TunnelService {
     }
 
     public async connect(tunnelId: string, accountId: string, transport: Transport, opts: ConnectOptions): Promise<boolean> {
-        if (this.ended) {
+        if (!TunnelConnectionManager.ready) {
             return false;
         }
 
@@ -645,12 +394,10 @@ export default class TunnelService {
             alive_at: Date.now(),
         };
 
-        this.addTunnelConnection(tunnel, connection);
-
+        await TunnelConnectionManager.addTunnelConnection(tunnel, connection);
         transport.once('close', () => {
-            this.disconnectLocalTunnel(tunnelId, connection.connection_id);
+            TunnelConnectionManager.removeTunnelConnection(tunnelId, connection.connection_id);
         });
-        await this.announceLocalTunnels([tunnelId]);
 
         tunnel = await this.update(tunnelId, accountId, (tunnelConfig) => {
             tunnelConfig.transport.token = crypto.randomBytes(64).toString('base64url');
@@ -699,123 +446,5 @@ export default class TunnelService {
             });
 
         return !tunnel.state.connected;
-    }
-
-    private addTunnelConnection(tunnel: Tunnel, connection: TunnelConnection): void {
-        this.connectedTunnels[tunnel.id] ??= {
-            connected: false,
-            alive_connections: 0,
-            connections: [],
-        }
-
-        const connections = this.connectedTunnels[tunnel.id].connections;
-        connections.push(connection);
-        this.connectedTunnels[tunnel.id].connections = connections;
-        this.updateTunnelState(tunnel);
-    }
-
-    private updateTunnelState(tunnel: Tunnel): boolean;
-    private updateTunnelState(tunnelId: string): boolean;
-    private updateTunnelState(tunnel: any): boolean {
-        const tunnelId = tunnel instanceof Tunnel ? tunnel.id : tunnel;
-        let state = this.connectedTunnels[tunnelId];
-        if (!state) {
-            return false;
-        }
-
-        const alive_connections = state.connections.filter((tc) => tc.connected).length;
-        const connected = alive_connections > 0;
-
-        if (connected && !state.connected) {
-            state.connected_at = state.connections
-                .filter((con) => con.connected && con.connected_at)
-                .sort((a, b) => <number>a.connected_at - <number>b.connected_at)[0]?.connected_at || Date.now();
-        } else if (!connected && state.connected) {
-            state.disconnected_at = state.connections
-                .filter((con) => !con.connected && con.disconnected_at)
-                .sort((b, a) => <number>a.disconnected_at - <number>b.disconnected_at)[0]?.disconnected_at || Date.now();
-        }
-
-        const changed = connected != state.connected ||
-            alive_connections != state.alive_connections;
-
-        state.connected = connected;
-        state.alive_connections = alive_connections;
-        if (connected) {
-            state.alive_at = Date.now();
-        }
-
-        this.connectedTunnels[tunnelId] = state;
-        return changed;
-    }
-
-    private getNextConnection(tunnelId: string): TunnelConnection | undefined {
-        const state = this.connectedTunnels[tunnelId];
-        if (!state) {
-            return undefined;
-        }
-
-        const lastConnectionId = this.lastConnection[tunnelId];
-
-        const localConnections = state.connections
-            .filter((con) => con.connected && con.local)
-            .sort((a, b) => a.connection_id.localeCompare(b.connection_id));
-        if (localConnections.length > 0) {
-            let i = 0;
-            for (; i < localConnections.length; i++) {
-                if (localConnections[i].connection_id == lastConnectionId) {
-                    i++;
-                    break;
-                }
-            }
-            i = i % localConnections.length;
-            this.lastConnection[tunnelId] = localConnections[i].connection_id;
-            return localConnections[i];
-        }
-
-        const remoteConnections = state.connections
-            .filter((con) => con.connected && !con.local)
-            .sort((a, b) => a.connection_id.localeCompare(b.connection_id));
-        if (remoteConnections.length > 0) {
-            let i = 0;
-            for (; i < remoteConnections.length; i++) {
-                if (remoteConnections[i].connection_id == lastConnectionId) {
-                    i++;
-                    break;
-                }
-            }
-            i = i % remoteConnections.length;
-            this.lastConnection[tunnelId] = remoteConnections[i].connection_id;
-            return remoteConnections[i];
-        }
-
-        return undefined;
-    }
-
-    public createConnection(tunnelId: string, ctx: CreateConnectionContext, callback: (err: Error | undefined, sock: Duplex) => void): Duplex {
-        const connection = this.getNextConnection(tunnelId);
-        if (!connection?.transport) {
-            callback(new Error('no_transport'), <any>undefined);
-            return <any>undefined;
-        }
-        const sock = connection.transport.createConnection({
-            tunnelId,
-            remoteAddr: ctx.remoteAddr,
-            port: ctx.ingress.port,
-            tls: {
-                enabled: ctx.ingress.tls?.enabled == true,
-                servername: ctx.ingress.tls?.servername,
-                cert: ctx.ingress.tls?.cert,
-            }
-        }, callback);
-        return sock;
-    }
-
-    public isLocalConnected(tunnelId: string): boolean {
-        const state = this.connectedTunnels[tunnelId];
-        if (!state) {
-            return false;
-        }
-        return state.connections.filter((con) => con.connected && con.local).length > 0;
     }
 }

@@ -14,6 +14,7 @@ import Tunnel from '../../../src/tunnel/tunnel.js';
 import Account from '../../../src/account/account.js';
 import sinon from 'sinon';
 import IngressManager from '../../../src/ingress/ingress-manager.js';
+import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 
 describe('SSH transport', () => {
     let clock: sinon.SinonFakeTimers;
@@ -34,6 +35,7 @@ describe('SSH transport', () => {
         ]);
         storageservice = await initStorageService();
         clusterservice = new ClusterService('mem', {});
+        await TunnelConnectionManager.start();
         await IngressManager.listen({
             http: {
                 enabled: true,
@@ -55,6 +57,7 @@ describe('SSH transport', () => {
         await tunnelService.destroy();
         await accountService.destroy();
         await IngressManager.close(); 
+        await TunnelConnectionManager.stop();
         await clusterservice.destroy();
         await storageservice.destroy();
         await config.destroy();

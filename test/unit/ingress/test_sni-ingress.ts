@@ -19,7 +19,7 @@ import { WebSocketMultiplex } from '@exposr/ws-multiplex';
 import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
 import { Duplex } from 'stream';
 import { httpRequest } from './utils.js';
-import { setTimeout } from 'timers/promises';
+import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 
 describe('sni', () => {
 
@@ -110,9 +110,11 @@ describe('sni', () => {
                 accountService = new AccountService();
 
                 account = await accountService.create();
+                assert(account != undefined);
+
                 const tunnelId = 'test';
-                tunnel = await tunnelService.create(tunnelId, account?.id);
-                tunnel = await tunnelService.update(tunnel.id, account?.id, (tunnel) => {
+                tunnel = await tunnelService.create(tunnelId, account.id);
+                tunnel = await tunnelService.update(tunnel.id, account.id, (tunnel) => {
                     tunnel.ingress.sni.enabled = true;
                 });
 
@@ -149,6 +151,7 @@ describe('sni', () => {
             config = new Config();
             storageService = await initStorageService();
             clusterService = initClusterService();
+            await TunnelConnectionManager.start();
             await IngressManager.listen({
                 sni: {
                     enabled: true,
@@ -164,6 +167,7 @@ describe('sni', () => {
         after(async () => {
             await storageService.destroy();
             await clusterService.destroy();
+            await TunnelConnectionManager.stop();
             await IngressManager.close();
             config.destroy()
             clock.restore();
@@ -181,9 +185,10 @@ describe('sni', () => {
             accountService = new AccountService();
     
             account = await accountService.create();
+            assert(account != undefined);
             const tunnelId = crypto.randomBytes(20).toString('hex');
-            tunnel = await tunnelService.create(tunnelId, account?.id);
-            tunnel = await tunnelService.update(tunnel.id, account?.id, (tunnel) => {
+            tunnel = await tunnelService.create(tunnelId, account.id);
+            tunnel = await tunnelService.update(tunnel.id, account.id, (tunnel) => {
                 tunnel.ingress.sni.enabled = true;
             });
 

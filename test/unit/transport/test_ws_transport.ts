@@ -16,6 +16,7 @@ import sinon from 'sinon';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
 import { Duplex } from 'stream';
 import IngressManager from '../../../src/ingress/ingress-manager.js';
+import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 
 describe('WS transport', () => {
     let clock: sinon.SinonFakeTimers;
@@ -37,6 +38,7 @@ describe('WS transport', () => {
         storageservice = await initStorageService();
         clusterservice = new ClusterService('mem', {});
 
+        await TunnelConnectionManager.start();
         await IngressManager.listen({
             http: {
                 enabled: true,
@@ -58,6 +60,7 @@ describe('WS transport', () => {
         await tunnelService.destroy();
         await accountService.destroy();
         await IngressManager.close(); 
+        await TunnelConnectionManager.stop();
         await clusterservice.destroy();
         await storageservice.destroy();
         await config.destroy();
