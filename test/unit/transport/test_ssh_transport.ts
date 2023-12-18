@@ -6,7 +6,6 @@ import Config from '../../../src/config.js';
 import TransportService from '../../../src/transport/transport-service.js'
 import { createEchoHttpServer, initStorageService } from '../test-utils.js';
 import ssh, { PasswordAuthMethod } from 'ssh2';
-import ClusterService from '../../../src/cluster/index.js';
 import { StorageService } from '../../../src/storage/index.js';
 import AccountService from '../../../src/account/account-service.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
@@ -15,12 +14,12 @@ import Account from '../../../src/account/account.js';
 import sinon from 'sinon';
 import IngressManager from '../../../src/ingress/ingress-manager.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('SSH transport', () => {
     let clock: sinon.SinonFakeTimers;
     let config: Config;
     let storageservice: StorageService;
-    let clusterservice: ClusterService;
     let accountService: AccountService;
     let tunnelService: TunnelService;
     let echoServer: any;
@@ -34,7 +33,7 @@ describe('SSH transport', () => {
             "--log-level", "debug"
         ]);
         storageservice = await initStorageService();
-        clusterservice = new ClusterService('mem', {});
+        await ClusterManager.init(ClusterManagerType.MEM);
         await TunnelConnectionManager.start();
         await IngressManager.listen({
             http: {
@@ -58,7 +57,7 @@ describe('SSH transport', () => {
         await accountService.destroy();
         await IngressManager.close(); 
         await TunnelConnectionManager.stop();
-        await clusterservice.destroy();
+        await ClusterManager.close();
         await storageservice.destroy();
         await config.destroy();
         await echoServer.destroy();

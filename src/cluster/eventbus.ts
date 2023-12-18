@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { Logger } from '../logger.js';
-import ClusterService from './index.js';
+import ClusterManager from './cluster-manager.js';
 
 export type EmitMeta = {
     node: {
@@ -13,7 +13,7 @@ export type EmitMeta = {
 
 class EventBus extends EventEmitter {
     private logger: any;
-    private clusterService: ClusterService;
+    private clusterService: ClusterManager;
 
     constructor() {
         super();
@@ -27,14 +27,13 @@ class EventBus extends EventEmitter {
             this.setMaxListeners(this.getMaxListeners() - 1);
         });
 
-        const clusterService = this.clusterService = new ClusterService();
-        clusterService.attach(this);
+        const clusterService = this.clusterService = new ClusterManager();
+        ClusterManager.attach(this);
     }
 
-    public async destroy() {
+    public async destroy(): Promise<void> {
         this.removeAllListeners();
-        this.clusterService.detach(this);
-        return this.clusterService.destroy();
+        ClusterManager.detach(this);
     }
 
     public _emit(event: string, message: any, meta: EmitMeta) {
@@ -49,7 +48,7 @@ class EventBus extends EventEmitter {
     }
 
     async publish(event: string, message: any) {
-        return this.clusterService.publish(event, message);
+        return ClusterManager.publish(event, message);
     }
 
     async waitFor(channel: string, predicate: (message: any, meta: EmitMeta) => boolean, timeout: number | undefined) {

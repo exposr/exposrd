@@ -6,11 +6,10 @@ import fs from 'fs';
 import crypto from 'crypto';
 import net from 'net';
 import tls, { TLSSocket } from 'tls';
-import { createEchoHttpServer, initClusterService, initStorageService, wsSocketPair, wsmPair } from '../test-utils.js'
+import { createEchoHttpServer, initStorageService, wsSocketPair, wsmPair } from '../test-utils.js'
 import Config from '../../../src/config.js';
 import IngressManager, { IngressType } from '../../../src/ingress/ingress-manager.js';
 import { StorageService } from '../../../src/storage/index.js';
-import ClusterService from '../../../src/cluster/index.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
 import Account from '../../../src/account/account.js';
 import AccountService from '../../../src/account/account-service.js';
@@ -20,6 +19,7 @@ import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
 import { Duplex } from 'stream';
 import { httpRequest } from './utils.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('sni', () => {
 
@@ -89,7 +89,6 @@ describe('sni', () => {
         urlTests.forEach(({args, expected}) => {
             it(`baseurl for ${JSON.stringify(args)} returns ${expected}`, async () => {
                 let storageService: StorageService;
-                let clusterService: ClusterService;
                 let tunnelService: TunnelService;
                 let accountService: AccountService;
                 let config: Config;
@@ -98,7 +97,7 @@ describe('sni', () => {
 
                 config = new Config();
                 storageService = await initStorageService();
-                clusterService = initClusterService();
+                await ClusterManager.init(ClusterManagerType.MEM);
                 await IngressManager.listen({
                     sni: {
                         enabled: true,
@@ -126,7 +125,7 @@ describe('sni', () => {
                 await tunnelService.destroy();
                 await IngressManager.close();
                 await storageService.destroy();
-                await clusterService.destroy();
+                await ClusterManager.close();
                 config.destroy();
 
                 assert(url?.href == expected, `expected ${expected}, got ${url?.href}`);
@@ -138,7 +137,6 @@ describe('sni', () => {
 
     describe('ingress', () => {
         let storageService: StorageService;
-        let clusterService: ClusterService;
         let config: Config;
         let echoServer: { destroy: () => Promise<void>; };
 
@@ -150,7 +148,7 @@ describe('sni', () => {
             clock = sinon.useFakeTimers({shouldAdvanceTime: true});
             config = new Config();
             storageService = await initStorageService();
-            clusterService = initClusterService();
+            await ClusterManager.init(ClusterManagerType.MEM);
             await TunnelConnectionManager.start();
             await IngressManager.listen({
                 sni: {
@@ -166,7 +164,7 @@ describe('sni', () => {
 
         after(async () => {
             await storageService.destroy();
-            await clusterService.destroy();
+            await ClusterManager.close();
             await TunnelConnectionManager.stop();
             await IngressManager.close();
             config.destroy()

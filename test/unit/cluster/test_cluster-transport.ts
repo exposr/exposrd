@@ -4,9 +4,9 @@ import tls from 'tls';
 import fs from 'fs';
 import sinon from 'sinon';
 import ClusterTransport from '../../../src/transport/cluster/cluster-transport.js';
-import ClusterService, { ClusterNode } from '../../../src/cluster/index.js';
 import { Duplex } from 'stream';
 import Config from '../../../src/config.js';
+import ClusterManager, { ClusterManagerType, ClusterNode } from '../../../src/cluster/cluster-manager.js';
 
 describe('cluster transport', () => {
     it('can be created and connected', async () => {
@@ -19,9 +19,9 @@ describe('cluster transport', () => {
             server.listen(10000, () => { resolve(undefined); });
         });
 
-        const clusterService = new ClusterService("mem");
+        await ClusterManager.init(ClusterManagerType.MEM);
 
-        sinon.stub(ClusterService.prototype, "getNode").returns(<ClusterNode>{
+        sinon.stub(ClusterManager, "getNode").returns(<ClusterNode>{
             id: "some-node-id",
             host: "some-node-host",
             ip: "127.0.0.1",
@@ -48,7 +48,7 @@ describe('cluster transport', () => {
             });
         });
 
-        await clusterService.destroy();
+        await ClusterManager.close();
         sock.destroy();
         await new Promise((resolve) => {
             server.close(() => {
@@ -79,9 +79,9 @@ describe('cluster transport', () => {
             server.listen(11000, () => { resolve(undefined); });
         });
 
-        const clusterService = new ClusterService("mem");
+        await ClusterManager.init(ClusterManagerType.MEM);
 
-        sinon.stub(ClusterService.prototype, "getNode").returns(<ClusterNode>{
+        sinon.stub(ClusterManager, "getNode").returns(<ClusterNode>{
             id: "some-node-id",
             host: "some-node-host",
             ip: "127.0.0.1",
@@ -113,7 +113,7 @@ describe('cluster transport', () => {
             });
         });
 
-        await clusterService.destroy();
+        await ClusterManager.close();
         sock.destroy();
         await new Promise((resolve) => {
             server.close(() => {

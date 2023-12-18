@@ -1,28 +1,24 @@
 import assert from 'assert/strict';
 import Config from '../../../src/config.js';
-import ClusterService from '../../../src/cluster/index.js';
 import EventBus from '../../../src/cluster/eventbus.js';
 import { REDIS_URL } from '../../env.js';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('redis eventbus', () => {
-    let clusterService;
     let bus;
     let config;
 
     before(async () => {
         config = new Config();
-        return new Promise((resolve) => {
-            clusterService = new ClusterService('redis', {
-                redis: {
-                    redisUrl: REDIS_URL,
-                },
-                callback: (err) => err ? rejects(err) : resolve()
-            });
+        await ClusterManager.init(ClusterManagerType.REDIS, {
+            redis: {
+                redisUrl: REDIS_URL,
+            }
         });
     });
 
     after(async () => {
-        await clusterService.destroy();
+        await ClusterManager.close();
         await config.destroy();
     });
 

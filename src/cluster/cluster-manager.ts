@@ -6,7 +6,22 @@ import Node from './cluster-node.js';
 import { Logger } from '../logger.js';
 import UdpEventBus from './udp-eventbus.js';
 import EventBus from './eventbus.js';
-import EventEmitter from 'node:events';
+
+export type ClusterManagerOptions = {
+    key?: string,
+    staleTimeout?: number,
+    removalTimeout?: number,
+    heartbeatInterval?: number,
+    redis? : any,
+    udp: any,
+}
+
+export enum ClusterManagerType {
+    REDIS = 'redis',
+    UDP = 'udp',
+    SINGLE_NODE = 'single-node',
+    MEM = 'mem',
+}
 
 export type ClusterNode = {
     id: string,
@@ -23,32 +38,34 @@ type ClusterServiceNode = ClusterNode & {
     removalTimer?: NodeJS.Timeout,
 }
 
-class ClusterService extends EventEmitter {
-    private static instance: ClusterService | undefined; 
-    private static ref: number;
+class ClusterManager {
+    //private static instance: ClusterManager | undefined; 
+    //private static ref: number;
 
-    private logger: any;
-    private _key: string = '';
-    private _nodes: { [key: string]: ClusterServiceNode } = {}; 
-    private _listeners: Array<EventBus> = [];
-    private _seq: number = 0;
-    private _window_size!: number;
-    private _staleTimeout!: number;
-    private _removalTimeout!: number;
-    private _heartbeatInterval!: number;
-    private _bus: any;
-    private multiNode: boolean = false;
-    private _heartbeat: NodeJS.Timeout | undefined;
+    private static logger: any;
+    private static _key: string = '';
+    private static _nodes: { [key: string]: ClusterServiceNode } = {}; 
+    private static _listeners: Array<EventBus> = [];
+    private static _seq: number = 0;
+    private static _window_size: number;
+    private static _staleTimeout: number;
+    private static _removalTimeout: number;
+    private static _heartbeatInterval: number;
+    private static _bus: any;
+    private static multiNode: boolean = false;
+    private static _heartbeat: NodeJS.Timeout | undefined;
 
-    constructor(type?: 'redis' | 'udp' | 'single-node' | 'mem', opts?: any) {
-        super();
-        if (ClusterService.instance instanceof ClusterService) {
-            ClusterService.ref++;
-            return ClusterService.instance;
-        }
-        assert(type != null, "type not given");
-        ClusterService.instance = this;
-        ClusterService.ref = 1;
+    private static initialized: boolean = false;
+    private static ready: boolean = false;
+
+    public static async init(type: ClusterManagerType, opts?: ClusterManagerOptions): Promise<void> {
+        //if (ClusterManager.instance instanceof ClusterManager) {
+        //    ClusterManager.ref++;
+        //    return ClusterManager.instance;
+        //}
+        //assert(type != null, "type not given");
+        //ClusterManager.instance = this;
+        //ClusterManager.ref = 1;
 
         this.logger = Logger("cluster-service");
         this._key = opts?.key || '';
@@ -71,53 +88,68 @@ class ClusterService extends EventEmitter {
 
         this._listeners = [];
         const onMessage = (payload: string) => {
-            this._receive(payload)
-        };
-
-        const ready = async (err: Error) => {
-            if (err) {
-                await this.destroy();
-            }
-            this.logger.info(`Clustering mode ${type} initialized`);
-            typeof opts.callback === 'function' && process.nextTick(() => opts.callback(err));
+            this.receive(payload)
         };
 
         const getLearntPeers = () => {
-            return this._getLearntPeers();
+            return this.getLearntPeers();
         };
 
-        switch (type) {
-            case 'redis':
-                this.multiNode = true;
-                this._bus = new RedisEventBus({
-                    ...opts.redis,
-                    callback: ready,
-                    handler: onMessage,
-                })
-                break;
-            case 'udp':
-                this.multiNode = true;
-                this._bus = new UdpEventBus({
-                    ...opts.udp,
-                    callback: ready,
-                    handler: onMessage,
-                    getLearntPeers,
-                });
-                break;
-            case 'single-node':
-            case 'mem':
-                this.multiNode = false;
-                this._bus = new MemoryEventBus({
-                    callback: ready,
-                    handler: onMessage,
-                });
-                break;
-            default:
-                assert.fail(`unknown type ${type}`);
+        try {
+            await new Promise((resolve, reject) => {
+
+                const ready = (err?: Error) => {
+                    err ? reject(err) : resolve(undefined);
+                };
+
+                switch (type) {
+                    case ClusterManagerType.REDIS:
+                        this.multiNode = true;
+                        this._bus = new RedisEventBus({
+                            ...opts?.redis,
+                            callback: ready,
+                            handler: onMessage,
+                        })
+                        break;
+                    case ClusterManagerType.UDP:
+                        this.multiNode = true;
+                        this._bus = new UdpEventBus({
+                            ...opts?.udp,
+                            callback: ready,
+                            handler: onMessage,
+                            getLearntPeers,
+                        });
+                        break;
+                    case ClusterManagerType.SINGLE_NODE:
+                    case ClusterManagerType.MEM:
+                        this.multiNode = false;
+                        this._bus = new MemoryEventBus({
+                            callback: ready,
+                            handler: onMessage,
+                        });
+                        break;
+                    default:
+                        reject(new Error(`no_such_cluster_type`));
+                }
+            });
         }
+         catch (e: any) {
+            throw e;
+        }
+
+        this.initialized = true;
+        this.logger.info(`Clustering mode ${type} initialized`);
     }
 
-    public async setReady(ready: boolean = true): Promise<boolean> {
+    public static async close(): Promise<void> {
+        if (!this.initialized) {
+            return;
+        }
+        await this._bus.destroy();
+        this._bus = undefined;
+    }
+
+    public static async setReady(ready: boolean = true): Promise<boolean> {
         if (!ready) {
             clearInterval(this._heartbeat);
             return this.multiNode;
@@ -146,21 +178,21 @@ class ClusterService extends EventEmitter {
         return this.multiNode;
     }
 
-    public attach(bus: EventBus): void {
+    public static attach(bus: EventBus): void {
         this._listeners.push(bus);
     }
 
-    public detach(bus: EventBus): void {
+    public static detach(bus: EventBus): void {
         this._listeners = this._listeners.filter((x) => x != bus);
     }
 
-    private _getLearntPeers(): Array<string> {
+    public static getLearntPeers(): Array<string> {
         return Array.from(new Set(Object.keys(this._nodes)
             .filter((k) => !this._nodes[k].stale)
             .map((k) => this._nodes[k].ip)));
     }
 
-    private _learnNode(node: ClusterNode): ClusterServiceNode | undefined {
+    private static _learnNode(node: ClusterNode): ClusterServiceNode | undefined {
         if (node?.id == undefined) {
             return undefined;
         }
@@ -209,16 +241,15 @@ class ClusterService extends EventEmitter {
         return cnode;
     }
 
-    private _forgetNode(node: ClusterServiceNode): void {
+    private static _forgetNode(node: ClusterServiceNode): void {
         delete this._nodes[node.id];
         this.logger.info({
             message: `Node ${node.id} ${node.host} (${node.ip}) permanently removed from peer list`,
             total_nodes: Object.keys(this._nodes).length,
         });
-        this.emit('removed', {nodeId: node.id});
     }
 
-    private _staleNode(node: ClusterServiceNode): void {
+    private static _staleNode(node: ClusterServiceNode): void {
         if (!this._nodes[node?.id]) {
             return;
         }
@@ -227,10 +258,9 @@ class ClusterService extends EventEmitter {
             message: `marking ${node.id} as stale`
         });
 
-        this.emit('stale', {nodeId: node.id});
     }
 
-    public getSelf(): ClusterNode  {
+    public static getSelf(): ClusterNode  {
         return  {
             id: Node.identifier,
             host: Node.hostname,
@@ -240,7 +270,7 @@ class ClusterService extends EventEmitter {
         };
     }
 
-    public getNode(id: string): ClusterNode | undefined {
+    public static getNode(id: string): ClusterNode | undefined {
         const node: ClusterServiceNode = this._nodes[id];
         if (node?.stale === false) {
             return {
@@ -255,7 +285,7 @@ class ClusterService extends EventEmitter {
         }
     }
 
-    public getNodes(): Array<ClusterNode> {
+    public static getNodes(): Array<ClusterNode> {
         return Object.keys(this._nodes).map((k) => {
             return {
                 id: this._nodes[k].id,
@@ -267,7 +297,7 @@ class ClusterService extends EventEmitter {
         })
     }
 
-    private _receive(payload: string): boolean | Error {
+    public static receive(payload: string): boolean | Error {
         try {
             const msg = JSON.parse(payload);
             const {s, ...data} = msg;
@@ -342,7 +372,7 @@ class ClusterService extends EventEmitter {
         }
     }
 
-    public async publish(event: any, message: any = {}) {
+    public static async publish(event: any, message: any = {}) {
         const payload = {
             event,
             message,
@@ -366,14 +396,6 @@ class ClusterService extends EventEmitter {
         return this._bus.publish(JSON.stringify(msg));
     }
 
-    public async destroy() {
-        if (--ClusterService.ref == 0) {
-            await this._bus.destroy();
-            this._bus = undefined;
-            this.removeAllListeners();
-            ClusterService.instance = undefined;
-        }
-    }
 }
 
-export default ClusterService;
+export default ClusterManager;

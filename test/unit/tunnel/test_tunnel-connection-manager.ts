@@ -6,12 +6,11 @@ import EventBus from '../../../src/cluster/eventbus.js';
 import Config from '../../../src/config.js';
 import { initStorageService } from '../test-utils.js';
 import { StorageService } from '../../../src/storage/index.js';
-import ClusterService from '../../../src/cluster/index.js';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('tunnel connection manager', () => {
     let config: Config;
     let storageService: StorageService;
-    let clusterService: ClusterService;
     let clock: sinon.SinonFakeTimers;
 
     beforeEach(async () => {
@@ -19,13 +18,13 @@ describe('tunnel connection manager', () => {
 
         config = new Config();
         storageService = await initStorageService();
-        clusterService = new ClusterService('mem', {});
+        await ClusterManager.init(ClusterManagerType.MEM);
         await TunnelConnectionManager.start();
     });
 
     afterEach(async () => {
         await TunnelConnectionManager.stop();
-        await clusterService.destroy();
+        await ClusterManager.close();
         await storageService.destroy();
         clock.restore();
         sinon.restore();
