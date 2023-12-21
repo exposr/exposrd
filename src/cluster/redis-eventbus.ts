@@ -1,9 +1,30 @@
 import assert from 'assert/strict';
-import Redis from 'redis';
+import Redis, { RedisClientType } from 'redis';
 import { Logger } from '../logger.js';
+import EventBusInterface, { EventBusInterfaceOptions } from './eventbus-interface.js';
 
-class RedisEventBus {
-    constructor(opts) {
+export type RedisEventBusOptions = {
+    redisUrl: URL
+}
+
+type _RedisEventBusOptions = EventBusInterfaceOptions & RedisEventBusOptions & {
+    callback: (error?: Error) => void
+}
+
+class RedisEventBus extends EventBusInterface{
+    private logger: any;
+    private _channel: string;
+
+    private _subscriber: RedisClientType;
+    private _subscriber_error: Error | undefined;
+    private _subscriber_was_ready: boolean = false;
+
+    private _publisher: RedisClientType;
+    private _publisher_error: Error | undefined;
+    private _publisher_was_ready: boolean = false;
+
+    constructor(opts: _RedisEventBusOptions) {
+        super(opts);
 
         this.logger = Logger("redis-eventbus");
         this._channel = "exposr";
@@ -21,10 +42,11 @@ class RedisEventBus {
         });
         this._publisher = this._subscriber.duplicate();
 
-        const readyHandler = (client) => {
-            const clientProp = `_${client}`;
-            const errorProp = `_${client}_error`;
-            const wasReadyProp = `_${client}_was_ready`;
+        const readyHandler = (client: "subscriber" | "publisher") => {
+
+            const clientProp: "_subscriber" | "_publisher" = `_${client}`;
+            const errorProp: "_subscriber_error" | "_publisher_error" = `_${client}_error`;
+            const wasReadyProp:  "_subscriber_was_ready" | "_publisher_was_ready" = `_${client}_was_ready`;
 
             this[clientProp].hello()
                 .catch(() => {})
@@ -44,10 +66,11 @@ class RedisEventBus {
                 });
         };
 
-        const errorHandler = (err, client) => {
-            const clientProp = `_${client}`;
-            const errorProp = `_${client}_error`;
-            const wasReadyProp = `_${client}_was_ready`;
+        const errorHandler = (err: Error, client: "subscriber" | "publisher") => {
+
+            const clientProp: "_subscriber" | "_publisher" = `_${client}`;
+            const errorProp: "_subscriber_error" | "_publisher_error" = `_${client}_error`;
+            const wasReadyProp:  "_subscriber_was_ready" | "_publisher_was_ready" = `_${client}_was_ready`;
 
             if (this[errorProp]?.message != err?.message) {
                 this.logger.error({
@@ -105,8 +128,8 @@ class RedisEventBus {
 
                 this._subscriber.subscribe(this._channel, (message) => {
                     try {
-                        opts.handler(message);
-                    } catch (e) {
+                        this.receive(message);
+                    } catch (e: any) {
                         this.logger.debug({
                             message: `failed to receive message: ${e.message}`,
                             operation: 'redis_channel_error',
@@ -128,7 +151,7 @@ class RedisEventBus {
                     errorHandler(err, 'publisher');
                 });
             }),
-        ]).catch((err) => {
+        ]).catch((err: any) => {
             this.logger.error({
                 message: `failed to connect to ${redisUrl}: ${err.message}`,
                 operation: 'connect',
@@ -142,13 +165,7 @@ class RedisEventBus {
         });
     }
 
-    async destroy() {
-        if (this.destroyed) {
-            return;
-        }
-
-        this.destroyed = true;
-
+    protected async _destroy(): Promise<void> {
         this.logger.trace({
             operation: 'destroy',
             message: 'initiated'
@@ -156,7 +173,7 @@ class RedisEventBus {
 
         try {
             await this._subscriber.unsubscribe(this._channel);
-        } catch (err) {
+        } catch (err: any) {
             this.logger.error({
                 operation: 'destroy',
                 msg: 'could not unsubscribe',
@@ -164,26 +181,15 @@ class RedisEventBus {
             });
         }
 
-        const quit = (client) => {
-            return client.quit((res) => {
-                this.logger.trace({
-                    client: client.name,
-                    operation: 'destroy',
-                    message: 'complete',
-                    res,
-                });
-            });
-        };
-
-        return Promise.allSettled([
-            quit(this._publisher),
-            quit(this._subscriber)
+        await Promise.allSettled([
+            this._publisher.quit(),
+            this._subscriber.quit(),
         ]);
     }
 
-    async publish(message) {
-        return this._publisher.publish(this._channel, message)
-            .catch((err) => {
+    protected async _publish(message: any): Promise<void> {
+        await this._publisher.publish(this._channel, message)
+            .catch((err: any) => {
                 this.logger.error({
                     message: `failed to publish message ${message.event}: ${err.message}`,
                     operation: 'publish',

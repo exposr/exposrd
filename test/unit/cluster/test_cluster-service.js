@@ -273,9 +273,9 @@ describe('cluster service', () => {
         it(`are sending heartbeat`, async () => {
             const spy = sinon.spy(ClusterManager, "publish");
 
-            // Heartbeat sent on ready
-            await ClusterManager.setReady();
-            assert(spy.calledOnceWithExactly("cluster:heartbeat"), "initial onready heartbeat not sent");
+            // Heartbeat sent on start
+            await ClusterManager.start();
+            assert(spy.calledOnceWithExactly("cluster:heartbeat"), "initial start heartbeat not sent");
 
             // Heartbeat sent after interval
             await clock.tickAsync(ClusterManager._heartbeatInterval + 1);

@@ -1,19 +1,19 @@
-import { strict as assert } from 'assert';
 import crypto from 'node:crypto';
 import MemoryEventBus from './memory-eventbus.js';
-import RedisEventBus from './redis-eventbus.js';
+import RedisEventBus, { RedisEventBusOptions } from './redis-eventbus.js';
 import Node from './cluster-node.js';
 import { Logger } from '../logger.js';
-import UdpEventBus from './udp-eventbus.js';
-import EventBus from './eventbus.js';
+import UdpEventBus, { UdpEventBusOptions } from './udp-eventbus.js';
+import { EmitMeta } from './eventbus.js';
+import EventBusInterface from './eventbus-interface.js';
 
 export type ClusterManagerOptions = {
     key?: string,
     staleTimeout?: number,
     removalTimeout?: number,
     heartbeatInterval?: number,
-    redis? : any,
-    udp: any,
+    redis?: RedisEventBusOptions,
+    udp?: UdpEventBusOptions,
 }
 
 export enum ClusterManagerType {
@@ -38,20 +38,19 @@ type ClusterServiceNode = ClusterNode & {
     removalTimer?: NodeJS.Timeout,
 }
 
-class ClusterManager {
-    //private static instance: ClusterManager | undefined; 
-    //private static ref: number;
+export type EmitCallback = (event: string, message: any, meta: EmitMeta) => void;
 
+class ClusterManager {
     private static logger: any;
     private static _key: string = '';
     private static _nodes: { [key: string]: ClusterServiceNode } = {}; 
-    private static _listeners: Array<EventBus> = [];
+    private static _listeners: Array<EmitCallback> = [];
     private static _seq: number = 0;
     private static _window_size: number;
     private static _staleTimeout: number;
     private static _removalTimeout: number;
     private static _heartbeatInterval: number;
-    private static _bus: any;
+    private static _bus: EventBusInterface;
     private static multiNode: boolean = false;
     private static _heartbeat: NodeJS.Timeout | undefined;
 
@@ -59,14 +58,6 @@ class ClusterManager {
     private static ready: boolean = false;
 
     public static async init(type: ClusterManagerType, opts?: ClusterManagerOptions): Promise<void> {
-        //if (ClusterManager.instance instanceof ClusterManager) {
-        //    ClusterManager.ref++;
-        //    return ClusterManager.instance;
-        //}
-        //assert(type != null, "type not given");
-        //ClusterManager.instance = this;
-        //ClusterManager.ref = 1;
-
         this.logger = Logger("cluster-service");
         this._key = opts?.key || '';
         this._nodes = {};
@@ -87,13 +78,6 @@ class ClusterManager {
         this._heartbeatInterval = opts?.heartbeatInterval || 9500;
 
         this._listeners = [];
-        const onMessage = (payload: string) => {
-            this.receive(payload)
-        };
-
-        const getLearntPeers = () => {
-            return this.getLearntPeers();
-        };
 
         try {
             await new Promise((resolve, reject) => {
@@ -106,18 +90,15 @@ class ClusterManager {
                     case ClusterManagerType.REDIS:
                         this.multiNode = true;
                         this._bus = new RedisEventBus({
-                            ...opts?.redis,
+                            ...<RedisEventBusOptions>opts?.redis,
                             callback: ready,
-                            handler: onMessage,
                         })
                         break;
                     case ClusterManagerType.UDP:
                         this.multiNode = true;
                         this._bus = new UdpEventBus({
-                            ...opts?.udp,
+                            ...<UdpEventBusOptions>opts?.udp,
                             callback: ready,
-                            handler: onMessage,
-                            getLearntPeers,
                         });
                         break;
                     case ClusterManagerType.SINGLE_NODE:
@@ -125,19 +106,18 @@ class ClusterManager {
                         this.multiNode = false;
                         this._bus = new MemoryEventBus({
                             callback: ready,
-                            handler: onMessage,
                         });
                         break;
                     default:
                         reject(new Error(`no_such_cluster_type`));
                 }
             });
-        }
-         catch (e: any) {
+        } catch (e: any) {
             throw e;
         }
 
         this.initialized = true;
+        this.ready = false;
         this.logger.info(`Clustering mode ${type} initialized`);
     }
 
@@ -145,15 +125,22 @@ class ClusterManager {
         if (!this.initialized) {
             return;
         }
+        this.stop();
         await this._bus.destroy();
-        this._bus = undefined;
+        this._bus = <any>undefined;
+        this.initialized = false;
     }
 
-    public static async setReady(ready: boolean = true): Promise<boolean> {
-        if (!ready) {
-            clearInterval(this._heartbeat);
-            return this.multiNode;
+    public static isMultinode(): boolean {
+        return this.multiNode;
+    }
+
+    public static async start(): Promise<void> {
+        if (this.ready) {
+            return;
         }
+
+        this.ready = true;
 
         const heartbeat = () => {
             this.publish("cluster:heartbeat");
@@ -162,7 +149,7 @@ class ClusterManager {
         this._heartbeat = setInterval(heartbeat, this._heartbeatInterval);
 
         if (!this.multiNode) {
-            return this.multiNode;
+            return;
         }
 
         const rapidHeartbeat = setInterval(heartbeat, 2000);
@@ -175,15 +162,20 @@ class ClusterManager {
             setTimeout(resolve, waitTime);
         });
         clearInterval(rapidHeartbeat);
-        return this.multiNode;
     }
 
-    public static attach(bus: EventBus): void {
-        this._listeners.push(bus);
+    public static stop(): void {
+        this.ready = false;
+        clearInterval(this._heartbeat);
+        this._heartbeat = undefined;
     }
 
-    public static detach(bus: EventBus): void {
-        this._listeners = this._listeners.filter((x) => x != bus);
+    public static attach(callback: EmitCallback): void {
+        this._listeners.push(callback);
+    }
+
+    public static detach(callback: EmitCallback): void {
+        this._listeners = this._listeners.filter((x) => x != callback);
     }
 
     public static getLearntPeers(): Array<string> {
@@ -354,7 +346,7 @@ class ClusterManager {
             }
             csnode.seq_win |= (1 << rel_seq);
 
-            this._listeners.forEach((l) => l._emit(event, message, {
+            this._listeners.forEach((cb) => cb(event, message, {
                 node: {
                     id: cnode.id,
                     ip: cnode.ip,

@@ -325,7 +325,7 @@ describe('UDP eventbus', () => {
                 discoveryMethod: 'kubernetes',
             });
 
-            sinon.stub(ClusterManager._bus._discoveryMethod, '_getLearntPeers')
+            sinon.stub(ClusterManager, 'getLearntPeers')
                 .returns([]);
 
             sinon.stub(dns, 'resolve4')
@@ -344,7 +344,7 @@ describe('UDP eventbus', () => {
                 discoveryMethod: 'kubernetes'
             });
 
-            sinon.stub(ClusterManager._bus._discoveryMethod, '_getLearntPeers')
+            sinon.stub(ClusterManager, 'getLearntPeers')
                 .returns([]);
 
             sinon.stub(dns, 'resolve4')
@@ -431,7 +431,7 @@ describe('UDP eventbus', () => {
                 discoveryMethod: 'kubernetes'
             });
 
-            sinon.stub(ClusterManager._bus._discoveryMethod, '_getLearntPeers')
+            sinon.stub(ClusterManager, 'getLearntPeers')
                 .returns(["127.0.0.2"]);
 
             sinon.stub(dns, 'resolve4')
@@ -452,7 +452,7 @@ describe('UDP eventbus', () => {
                 discoveryMethod: 'kubernetes'
             });
 
-            sinon.stub(ClusterManager._bus._discoveryMethod, '_getLearntPeers')
+            sinon.stub(ClusterManager, 'getLearntPeers')
                 .returns(["127.0.0.1"]);
 
             sinon.stub(dns, 'resolve4')

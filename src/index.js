@@ -176,7 +176,7 @@ export default async (argv) => {
             process.exit(-1);
         });
 
-    await ClusterManager.setReady();
+    await ClusterManager.start();
     adminController.setReady();
     logger.info("exposrd ready");
 
@@ -200,13 +200,13 @@ export default async (argv) => {
 
         let result;
         try {
-            const multiNode = ClusterManager.setReady(false);
-            adminController.setReady(false);
-
             // Drain and block new tunnel connections
             await Promise.race([TunnelConnectionManager.stop() , timeout, force]);
 
-            if (multiNode) {
+            adminController.setReady(false);
+            ClusterManager.stop();
+
+            if (ClusterManager.isMultinode()) {
                 logger.info("Waiting for connections to drain...");
                 await Promise.race([new Promise((resolve) => {
                     setTimeout(resolve, drainTimeout);

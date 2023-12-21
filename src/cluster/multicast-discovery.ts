@@ -1,4 +1,8 @@
-function inCidr(ipAddress, cidrPrefix) {
+import dgram from 'dgram';
+import DiscoveryMethod from "./discovery-method.js";
+import { Logger } from '../logger.js';
+
+function inCidr(ipAddress: string, cidrPrefix: string): boolean {
     const [subnet, prefixLength] = cidrPrefix.split('/');
     const subnetOctets = subnet.split('.').map(Number);
     const ipOctets = ipAddress.split('.')?.map(Number);
@@ -13,27 +17,35 @@ function inCidr(ipAddress, cidrPrefix) {
                   (ipOctets[2] << 8) |
                   ipOctets[3];
 
-    const mask = (0xffffffff << (32 - prefixLength)) >>> 0;
+    const mask = (0xffffffff << (32 - Number.parseInt(prefixLength))) >>> 0;
   
     return (subnetInt & mask) === (ipInt & mask);
 }
 
-class MulticastDiscovery {
+export type MulticastDiscoveryOptions = {
+    group: string,
+}
 
-    constructor(opts) {
+class MulticastDiscovery implements DiscoveryMethod {
+    public readonly name: string;
+
+    private _multicastgroup: string;
+    private logger: any;
+
+    constructor(opts: MulticastDiscoveryOptions) {
         this._multicastgroup = opts.group || '239.0.0.1';
         if (!inCidr(this._multicastgroup, "239.0.0.0/8")) {
             throw new Error(`${this._multicastgroup} is not within the private multicast range 239.0.0.0/8`);
         }
-        this.logger = opts.logger;
+        this.logger = Logger('multicast-discovery');
         this.name = `multicast group ${this._multicastgroup}`;
     }
 
-    eligible() {
+    public eligible(): number {
         return 0;
     }
 
-    init(socket) {
+    public init(socket: dgram.Socket): void {
         if (!socket) {
             this.logger.error({
                 message: `Unable to initialize multicast discovery, no IPv4 socket available`
@@ -47,7 +59,7 @@ class MulticastDiscovery {
         });
     }
 
-    async getPeers() {
+    public async getPeers(): Promise<Array<string>> {
         return [this._multicastgroup];
     }
 }

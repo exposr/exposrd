@@ -38,11 +38,10 @@ describe('redis eventbus', () => {
         });
 
         await bus.publish('test2', {data: 10});
-        let res = await bus.publish('test', {data: 42});
-        assert(res == true, `failed to publish message, got ${res}`);
+        await bus.publish('test', {data: 42});
 
-        res = await recv;
-        assert(res.data == 42);
+        let res = await recv;
+        assert(res.data == 42, `did not get expected message, got ${res.data}`);
     });
 
     it('redis bus waitfor', async () => {
@@ -52,8 +51,6 @@ describe('redis eventbus', () => {
 
         let res = await bus.publish('test', {data: 42});
         
-        assert(res == true, `failed to publish message, got ${res}`);
-
         res = await recv;
         assert(res.data == 42);
         assert(bus.listenerCount('test') == 0, 'listener still attached');
@@ -65,7 +62,6 @@ describe('redis eventbus', () => {
         }, 100);
 
         let res = await bus.publish('test', {data: 10});
-        assert(res == true, `failed to publish message, got ${res}`);
 
         try {
             await recv;
