@@ -319,7 +319,7 @@ class ClusterManager {
 
             let csnode: ClusterServiceNode | undefined = this._nodes[cnode.id];
             if (event == 'cluster:heartbeat' || csnode == undefined) {
-                csnode = this._learnNode(node);
+                csnode = this._learnNode(cnode);
             }
 
             if (csnode == undefined) {

@@ -314,6 +314,22 @@ describe('cluster service', () => {
             await bus.destroy();
         });
 
+        it(`getNodes() returns all nodes`, async () => {
+            const bus = new EventBus();
+
+            await clock.tickAsync(1);
+            await publish(bus, 'foo', {data: 42});
+            await clock.tickAsync(1);
+
+            const nodes = ClusterManager.getNodes();
+            assert(nodes.length == 2, "unexpected number of nodes");
+
+            assert(nodes[0].last_ts == 2);
+            assert(nodes[1].ip == "127.0.0.127");
+            assert(nodes[1].last_ts == 1);
+
+            await bus.destroy();
+        });
     });
 
 });
