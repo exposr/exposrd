@@ -2,12 +2,12 @@ import assert from 'assert/strict';
 import crypto from 'crypto';
 import sinon from 'sinon';
 import AccountService from '../../../src/account/account-service.js';
-import { initClusterService, initStorageService } from '../test-utils.js';
+import { initStorageService } from '../test-utils.js';
 import Config from '../../../src/config.js';
 import { StorageService } from '../../../src/storage/index.js';
 import Account from '../../../src/account/account.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
-import ClusterService from '../../../src/cluster/index.js';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('account service', () => {
     it('can generate account ids', async () => {
@@ -48,14 +48,13 @@ describe('account service', () => {
 
     let config: Config;
     let storageService: StorageService;
-    let clusterService: ClusterService;
     let accountService: AccountService;
     let tunnelService: TunnelService;
 
     beforeEach(async () => {
         config = new Config();
         storageService = await initStorageService();
-        clusterService = initClusterService();
+        await ClusterManager.init(ClusterManagerType.MEM);
         accountService = new AccountService();
         tunnelService = new TunnelService();
     });
@@ -64,7 +63,7 @@ describe('account service', () => {
         await accountService.destroy(); 
         await tunnelService.destroy();
         await storageService.destroy();
-        await clusterService.destroy();
+        await ClusterManager.close();
         await config.destroy();
         sinon.restore();
     })

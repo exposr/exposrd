@@ -1,28 +1,24 @@
 import assert from 'assert/strict';
 import Config from '../../../src/config.js';
-import ClusterService from '../../../src/cluster/index.js';
 import EventBus from '../../../src/cluster/eventbus.js';
 import { REDIS_URL } from '../../env.js';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('redis eventbus', () => {
-    let clusterService;
     let bus;
     let config;
 
     before(async () => {
         config = new Config();
-        return new Promise((resolve) => {
-            clusterService = new ClusterService('redis', {
-                redis: {
-                    redisUrl: REDIS_URL,
-                },
-                callback: (err) => err ? rejects(err) : resolve()
-            });
+        await ClusterManager.init(ClusterManagerType.REDIS, {
+            redis: {
+                redisUrl: REDIS_URL,
+            }
         });
     });
 
     after(async () => {
-        await clusterService.destroy();
+        await ClusterManager.close();
         await config.destroy();
     });
 
@@ -42,11 +38,10 @@ describe('redis eventbus', () => {
         });
 
         await bus.publish('test2', {data: 10});
-        let res = await bus.publish('test', {data: 42});
-        assert(res == true, `failed to publish message, got ${res}`);
+        await bus.publish('test', {data: 42});
 
-        res = await recv;
-        assert(res.data == 42);
+        let res = await recv;
+        assert(res.data == 42, `did not get expected message, got ${res.data}`);
     });
 
     it('redis bus waitfor', async () => {
@@ -56,8 +51,6 @@ describe('redis eventbus', () => {
 
         let res = await bus.publish('test', {data: 42});
         
-        assert(res == true, `failed to publish message, got ${res}`);
-
         res = await recv;
         assert(res.data == 42);
         assert(bus.listenerCount('test') == 0, 'listener still attached');
@@ -69,7 +62,6 @@ describe('redis eventbus', () => {
         }, 100);
 
         let res = await bus.publish('test', {data: 10});
-        assert(res == true, `failed to publish message, got ${res}`);
 
         try {
             await recv;

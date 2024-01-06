@@ -2,7 +2,7 @@ import { Duplex } from "stream";
 import tls from "tls";
 import net from "net";
 import Transport, { TransportConnectionOptions, TransportOptions } from "../transport.js";
-import ClusterService from "../../cluster/index.js";
+import ClusterManager from "../../cluster/cluster-manager.js";
 
 export interface ClusterTransportOptions extends TransportOptions {
     nodeId: string,
@@ -10,16 +10,14 @@ export interface ClusterTransportOptions extends TransportOptions {
 
 export default class ClusterTransport extends Transport {
     private nodeId: string;
-    private clusterService: ClusterService;
     constructor(opts: ClusterTransportOptions) {
         super(opts);
         this.nodeId = opts.nodeId;
-        this.clusterService = new ClusterService();
     }
 
     public createConnection(opts: TransportConnectionOptions, callback: (err: Error | undefined, sock: Duplex) => void): Duplex {
 
-        const clusterNode = this.clusterService.getNode(this.nodeId);
+        const clusterNode = ClusterManager.getNode(this.nodeId);
         if (!clusterNode) {
             const sock = new net.Socket();
             sock.destroy(new Error('node_does_not_exist'));
@@ -63,6 +61,5 @@ export default class ClusterTransport extends Transport {
     }
 
     protected async _destroy(): Promise<void> {
-        await this.clusterService.destroy();
     }
 }

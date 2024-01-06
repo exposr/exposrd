@@ -5,7 +5,6 @@ import net from 'net';
 import Config from '../../../src/config.js';
 import { StorageService } from '../../../src/storage/index.js';
 import { initStorageService, wsSocketPair } from '../test-utils.js';
-import ClusterService from '../../../src/cluster/index.js';
 import AccountService from '../../../src/account/account-service.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 import IngressManager from '../../../src/ingress/ingress-manager.js';
@@ -14,19 +13,19 @@ import Tunnel from '../../../src/tunnel/tunnel.js';
 import EventBus from '../../../src/cluster/eventbus.js';
 import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('tunnel service', () => {
     let clock: sinon.SinonFakeTimers;
     let config: Config;
     let storageService: StorageService;
-    let clusterService: ClusterService;
     let accountService: AccountService;
 
     beforeEach(async () => {
         clock = sinon.useFakeTimers({shouldAdvanceTime: true, now: 10000});
         config = new Config();
         storageService = await initStorageService();
-        clusterService = new ClusterService('mem', {});
+        await ClusterManager.init(ClusterManagerType.MEM);
         await TunnelConnectionManager.start();
         await IngressManager.listen({
             http: {
@@ -42,7 +41,7 @@ describe('tunnel service', () => {
         await accountService.destroy();
         await IngressManager.close();
         await TunnelConnectionManager.stop();
-        await clusterService.destroy();
+        await ClusterManager.close();
         await storageService.destroy();
         await config.destroy();
         clock.restore();
@@ -378,7 +377,7 @@ describe('tunnel service', () => {
         assert(tunnel instanceof Tunnel, `tunnel not created, got ${tunnel}`);
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
 
-        sinon.stub(ClusterService.prototype, 'getNode').returns({
+        sinon.stub(ClusterManager, 'getNode').returns({
             id: "node-1",
             host: "some-node-host",
             ip: "127.0.0.1",

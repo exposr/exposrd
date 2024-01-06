@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { Logger } from '../logger.js';
-import ClusterService from './index.js';
+import ClusterManager, { EmitCallback } from './cluster-manager.js';
 
 export type EmitMeta = {
     node: {
@@ -13,7 +13,7 @@ export type EmitMeta = {
 
 class EventBus extends EventEmitter {
     private logger: any;
-    private clusterService: ClusterService;
+    private emitCallback: EmitCallback;
 
     constructor() {
         super();
@@ -27,29 +27,27 @@ class EventBus extends EventEmitter {
             this.setMaxListeners(this.getMaxListeners() - 1);
         });
 
-        const clusterService = this.clusterService = new ClusterService();
-        clusterService.attach(this);
+        const emitCallback: EmitCallback = this.emitCallback = (event, message, meta) => {
+            super.emit(event, message, meta);
+            this.logger.isTraceEnabled() &&
+               this.logger.trace({
+                   operation: 'emit',
+                   event,
+                   message,
+                   meta
+               });
+        };
+
+        ClusterManager.attach(emitCallback);
     }
 
-    public async destroy() {
+    public async destroy(): Promise<void> {
         this.removeAllListeners();
-        this.clusterService.detach(this);
-        return this.clusterService.destroy();
-    }
-
-    public _emit(event: string, message: any, meta: EmitMeta) {
-        super.emit(event, message, meta);
-        this.logger.isTraceEnabled() &&
-           this.logger.trace({
-               operation: 'emit',
-               event,
-               message,
-               meta
-           });
+        ClusterManager.detach(this.emitCallback);
     }
 
     async publish(event: string, message: any) {
-        return this.clusterService.publish(event, message);
+        return ClusterManager.publish(event, message);
     }
 
     async waitFor(channel: string, predicate: (message: any, meta: EmitMeta) => boolean, timeout: number | undefined) {

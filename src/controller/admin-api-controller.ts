@@ -9,7 +9,7 @@ import {
     ERROR_UNKNOWN_ERROR,
 } from '../utils/errors.js';
 import KoaController from './koa-controller.js';
-import ClusterService from '../cluster/index.js';
+import ClusterManager from '../cluster/cluster-manager.js';
 import Account from '../account/account.js';
 import Tunnel from '../tunnel/tunnel.js';
 
@@ -21,7 +21,6 @@ class AdminApiController extends KoaController {
     private accountService!: AccountService;
     private _tunnelService!: TunnelService;
     private _transportService!: TransportService;
-    private _clusterService!: ClusterService;
 
     constructor(opts: any) {
         const logger: any = Logger("admin-api");
@@ -41,7 +40,6 @@ class AdminApiController extends KoaController {
         this.accountService = new AccountService();
         this._tunnelService = new TunnelService();
         this._transportService = new TransportService();
-        this._clusterService = new ClusterService();
 
         if (this.apiKey != undefined) {
             logger.info("Admin API resource enabled with API key");
@@ -378,7 +376,7 @@ class AdminApiController extends KoaController {
             },
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
                 const now = new Date().getTime();
-                const nodes = this._clusterService.getNodes().map((node) => {
+                const nodes = ClusterManager.getNodes().map((node) => {
                     return {
                         node_id: node.id,
                         host: node.host,
@@ -402,7 +400,6 @@ class AdminApiController extends KoaController {
             this.accountService.destroy(),
             this._tunnelService.destroy(),
             this._transportService.destroy(),
-            this._clusterService.destroy(),
         ]);
     }
 }

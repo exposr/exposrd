@@ -2,7 +2,7 @@ import Config from './config.js';
 import AdminApiController from './controller/admin-api-controller.js';
 import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
-import ClusterService from './cluster/index.js';
+import ClusterManager from './cluster/cluster-manager.js';
 import IngressManager from './ingress/ingress-manager.js';
 import { Logger } from './logger.js';
 import { StorageService } from './storage/index.js';
@@ -45,39 +45,29 @@ export default async (argv) => {
         }
     });
 
-    const clusterServiceReady = new Promise((resolve, reject) => {
-        try {
-            const type = config.get('cluster');
-
-            const clusterService = new ClusterService(type, {
-                callback: (err) => {
-                    err ? reject(err) : resolve(clusterService);
-                },
-                key: config.get('cluster-key'),
-                redis: {
-                    redisUrl: config.get('cluster-redis-url'),
-                },
-                udp: {
-                    port: config.get('cluster-udp-port'),
-                    discoveryMethod: config.get('cluster-udp-discovery') != 'auto' ? config.get('cluster-udp-discovery'): undefined,
-                    multicast: {
-                        group: config.get('cluster-udp-discovery-multicast-group')
-                    },
-                    kubernetes: {
-                        serviceNameEnv: config.get('cluster-udp-discovery-kubernetes-service-env'),
-                        namespaceEnv: config.get('cluster-udp-discovery-kubernetes-namespace-env'),
-                        serviceName: config.get('cluster-udp-discovery-kubernetes-service'),
-                        namespace: config.get('cluster-udp-discovery-kubernetes-namespace'),
-                        clusterDomain: config.get('cluster-udp-discovery-kubernetes-cluster-domain'),
-                    }
-                }
-            });
-        } catch (e) {
-            reject(e);
+    const clusterType = config.get('cluster');
+    const clusterServiceReady = ClusterManager.init(clusterType, {
+        key: config.get('cluster-key'),
+        redis: {
+            redisUrl: config.get('cluster-redis-url'),
+        },
+        udp: {
+            port: config.get('cluster-udp-port'),
+            discoveryMethod: config.get('cluster-udp-discovery') != 'auto' ? config.get('cluster-udp-discovery'): undefined,
+            multicast: {
+                group: config.get('cluster-udp-discovery-multicast-group')
+            },
+            kubernetes: {
+                serviceNameEnv: config.get('cluster-udp-discovery-kubernetes-service-env'),
+                namespaceEnv: config.get('cluster-udp-discovery-kubernetes-namespace-env'),
+                serviceName: config.get('cluster-udp-discovery-kubernetes-service'),
+                namespace: config.get('cluster-udp-discovery-kubernetes-namespace'),
+                clusterDomain: config.get('cluster-udp-discovery-kubernetes-cluster-domain'),
+            }
         }
     });
 
-    const [storageService, clusterService] = await Promise
+    const [storageService, _] = await Promise
         .all([
             storageServiceReady,
             clusterServiceReady
@@ -186,7 +176,7 @@ export default async (argv) => {
             process.exit(-1);
         });
 
-    await clusterService.setReady();
+    await ClusterManager.start();
     adminController.setReady();
     logger.info("exposrd ready");
 
@@ -210,13 +200,13 @@ export default async (argv) => {
 
         let result;
         try {
-            const multiNode = clusterService.setReady(false);
-            adminController.setReady(false);
-
             // Drain and block new tunnel connections
             await Promise.race([TunnelConnectionManager.stop() , timeout, force]);
 
-            if (multiNode) {
+            adminController.setReady(false);
+            ClusterManager.stop();
+
+            if (ClusterManager.isMultinode()) {
                 logger.info("Waiting for connections to drain...");
                 await Promise.race([new Promise((resolve) => {
                     setTimeout(resolve, drainTimeout);
@@ -230,7 +220,7 @@ export default async (argv) => {
                 transport.destroy(),
                 IngressManager.close(),
                 storageService.destroy(),
-                clusterService.destroy(),
+                ClusterManager.close(),
                 config.destroy(),
             ]);
 

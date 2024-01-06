@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
 import EventBus, { EmitMeta } from "../cluster/eventbus.js";
-import ClusterService from "../cluster/index.js";
 import { Logger } from "../logger.js";
 import Storage from "../storage/index.js";
 import { TunnelConfig, TunnelHttpIngressConfig, TunnelIngressConfig, TunnelIngressTypeConfig, cloneTunnelConfig  } from "./tunnel-config.js";
@@ -45,7 +44,6 @@ export default class TunnelService {
     private storage!: Storage;
     private ingressService!: IngressService;
     private eventBus!: EventBus;
-    private clusterService!: ClusterService;
     private altNameService!: AltNameService;
     private accountTunnelService!: AccountTunnelService;
 
@@ -61,7 +59,6 @@ export default class TunnelService {
         this.storage = new Storage("tunnel");
         this.ingressService = new IngressService();
         this.eventBus = new EventBus();
-        this.clusterService = new ClusterService();
         this.altNameService = new AltNameService();
         this.accountTunnelService = new AccountTunnelService();
     }
@@ -76,7 +73,6 @@ export default class TunnelService {
             await Promise.allSettled([
                 this.storage.destroy(),
                 this.eventBus.destroy(),
-                this.clusterService.destroy(),
                 this.ingressService.destroy(),
                 this.altNameService.destroy(),
                 this.accountTunnelService.destroy(),

@@ -5,14 +5,13 @@ import AccountService from "../../../src/account/account-service.js";
 import Config from "../../../src/config.js";
 import IngressManager, { IngressType } from "../../../src/ingress/ingress-manager.js";
 import TunnelService from "../../../src/tunnel/tunnel-service.js";
-import { createEchoHttpServer, initClusterService, initStorageService, wsSocketPair, wsmPair } from "../test-utils.js";
+import { createEchoHttpServer, initStorageService, wsSocketPair, wsmPair } from "../test-utils.js";
 import sinon from 'sinon';
 import net from 'net'
 import http from 'http';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import Account from '../../../src/account/account.js';
 import { StorageService } from '../../../src/storage/index.js';
-import ClusterService from '../../../src/cluster/index.js';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
 import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
 import { Duplex } from 'stream';
@@ -20,16 +19,16 @@ import CustomError, { ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES } from '../../../src/ut
 import HttpIngress from '../../../src/ingress/http-ingress.js';
 import { httpRequest } from './utils.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('http ingress', () => {
     let clock: sinon.SinonFakeTimers;
     let storageService: StorageService;
-    let clusterService: ClusterService;
     let config: Config;
 
     before(async () => {
         config = new Config();
-        clusterService = initClusterService();
+        await ClusterManager.init(ClusterManagerType.MEM);
         storageService = await initStorageService();
 
         clock = sinon.useFakeTimers({shouldAdvanceTime: true});
@@ -48,8 +47,8 @@ describe('http ingress', () => {
     after(async () => {
         await TunnelConnectionManager.stop();
         await IngressManager.close();
-        await clusterService.destroy();
         await storageService.destroy();
+        await ClusterManager.close();
         await config.destroy();
         await echoServer.destroy();
         clock.restore();

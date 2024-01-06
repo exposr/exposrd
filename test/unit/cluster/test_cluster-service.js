@@ -1,26 +1,25 @@
 import assert from 'assert/strict';
 import sinon from 'sinon';
 import crypto from 'crypto';
-import ClusterService from "../../../src/cluster/index.js";
 import EventBus from "../../../src/cluster/eventbus.js";
 import Config from "../../../src/config.js";
 import Node from '../../../src/cluster/cluster-node.js';
+import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
 
 describe('cluster service', () => {
     const sendingNode = crypto.createHash('sha1').update(new Date().getTime().toString()).digest('hex');
-    let clusterservice;
     let config;
     let clock;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         config = new Config();
         clock = sinon.useFakeTimers({shouldAdvanceTime: true});
-        clusterservice = new ClusterService('mem', {});
+        await ClusterManager.init(ClusterManagerType.MEM);
     });
 
     afterEach(async () => {
         clock.restore();
-        await clusterservice.destroy();
+        await ClusterManager.close();
         config.destroy();
         sinon.restore();
     })
@@ -52,14 +51,14 @@ describe('cluster service', () => {
         });
 
         it(`messages with invalid signatures are rejected`, async () => {
-            const spy = sinon.spy(ClusterService.prototype, "_receive");
+            const spy = sinon.spy(ClusterManager, "receive");
             const bus = new EventBus();
 
             const recv = bus.waitFor('test', (message) => {
                 return message.data == 42;
             }, 100);
 
-            clusterservice._bus.publish(JSON.stringify({
+            ClusterManager._bus.publish(JSON.stringify({
                 event: 'test',
                 message: { data: 42 },
                 node: {
@@ -101,24 +100,24 @@ describe('cluster service', () => {
             };
 
             let recv;
-            for (let i = 0; i < (clusterservice._window_size * 2) + 3; i++) {
+            for (let i = 0; i < (ClusterManager._window_size * 2) + 3; i++) {
                 recv = waitmsg();
                 await publish(bus, 'foo', {data: 42});
                 assert((await recv)?.data == 42, "did not receive published message");
             }
 
-            let prev_seq = clusterservice._seq;
-            clusterservice._seq += 2; 
+            let prev_seq = ClusterManager._seq;
+            ClusterManager._seq += 2; 
             await publish(bus, 'foo', {data: 42});
             assert((await recv)?.data == 42, "did not receive published message");
-            assert(clusterservice._nodes[sendingNode].seq_win.toString(2) == '1111111111111001',
-                `got ${clusterservice._nodes[sendingNode].seq_win.toString(2)}`);
+            assert(ClusterManager._nodes[sendingNode].seq_win.toString(2) == '1111111111111001',
+                `got ${ClusterManager._nodes[sendingNode].seq_win.toString(2)}`);
 
-            clusterservice._seq = prev_seq; 
+            ClusterManager._seq = prev_seq; 
             await publish(bus, 'foo', {data: 42});
             assert((await recv)?.data == 42, "did not receive published message");
-            assert(clusterservice._nodes[sendingNode].seq_win.toString(2) == '1111111111111101',
-                `got ${clusterservice._nodes[sendingNode].seq_win.toString(2)}`);
+            assert(ClusterManager._nodes[sendingNode].seq_win.toString(2) == '1111111111111101',
+                `got ${ClusterManager._nodes[sendingNode].seq_win.toString(2)}`);
 
             await bus.destroy();
         });
@@ -134,32 +133,32 @@ describe('cluster service', () => {
                 });
             };
 
-            clusterservice._seq = 2;
+            ClusterManager._seq = 2;
             let recv = waitmsg();
             await publish(bus, 'foo', {data: 42});
             assert((await recv)?.data == 42, "did not receive published message");
-            assert(clusterservice._nodes[sendingNode].seq_win.toString(2) == '1',
-                `got ${clusterservice._nodes[sendingNode].seq_win.toString(2)}`);
+            assert(ClusterManager._nodes[sendingNode].seq_win.toString(2) == '1',
+                `got ${ClusterManager._nodes[sendingNode].seq_win.toString(2)}`);
 
-            clusterservice._seq = 0;
+            ClusterManager._seq = 0;
             recv = waitmsg();
             await publish(bus, 'foo', {data: 43});
             assert((await recv)?.data == 43, "did not receive published message");
-            assert(clusterservice._nodes[sendingNode].seq_win.toString(2) == '101',
-                `got ${clusterservice._nodes[sendingNode].seq_win.toString(2)}`);
+            assert(ClusterManager._nodes[sendingNode].seq_win.toString(2) == '101',
+                `got ${ClusterManager._nodes[sendingNode].seq_win.toString(2)}`);
 
-            clusterservice._seq = 1;
+            ClusterManager._seq = 1;
             recv = waitmsg();
             await publish(bus, 'foo', {data: 44});
             assert((await recv)?.data == 44, "did not receive published message");
-            assert(clusterservice._nodes[sendingNode].seq_win.toString(2) == '111',
-                `got ${clusterservice._nodes[sendingNode].seq_win.toString(2)}`);
+            assert(ClusterManager._nodes[sendingNode].seq_win.toString(2) == '111',
+                `got ${ClusterManager._nodes[sendingNode].seq_win.toString(2)}`);
 
             await bus.destroy();
         });
 
         it(`repeated messages are rejected`, async () => {
-            const spy = sinon.spy(ClusterService.prototype, "_receive");
+            const spy = sinon.spy(ClusterManager, "receive");
             const bus = new EventBus();
 
             const waitmsg = () => {
@@ -178,7 +177,7 @@ describe('cluster service', () => {
             await publish(bus, 'foo', {data: 42});
             assert((await recv)?.data == 42, "did not receive published message");
 
-            clusterservice._seq = 1;
+            ClusterManager._seq = 1;
             recv = bus.waitFor('test', (message) => {
                 return message.data == 43;
             }, 100);
@@ -195,94 +194,94 @@ describe('cluster service', () => {
 
     describe('cluster nodes', () => {
         it(`are learned when messages are received`, async () => {
-            const spy = sinon.spy(ClusterService.prototype, "_learnNode");
+            const spy = sinon.spy(ClusterManager, "_learnNode");
             const bus = new EventBus();
 
             await publish(bus, 'foo', {data: 42});
 
             assert(spy.calledOnce == true, "_learnNode not called");
 
-            const node = clusterservice.getNode(sendingNode);
+            const node = ClusterManager.getNode(sendingNode);
             assert(node?.id == sendingNode, "node not learnt");
-            assert(clusterservice._nodes[sendingNode].stale == false, "node marked as stale");
+            assert(ClusterManager._nodes[sendingNode].stale == false, "node marked as stale");
             sinon.restore();
             await bus.destroy();
         });
 
         it(`are marked stale after stale timeout`, async () => {
-            const spy = sinon.spy(ClusterService.prototype, "_staleNode");
+            const spy = sinon.spy(ClusterManager, "_staleNode");
             const bus = new EventBus();
 
             await publish(bus, 'foo', {data: 42});
 
-            let node = clusterservice.getNode(sendingNode);
+            let node = ClusterManager.getNode(sendingNode);
             assert(node?.id == sendingNode, "node not learnt");
 
-            await clock.tickAsync(clusterservice._staleTimeout + 1);
+            await clock.tickAsync(ClusterManager._staleTimeout + 1);
 
             assert(spy.calledOnce == true, "_staleNode not called");
 
-            node = clusterservice.getNode(sendingNode)
+            node = ClusterManager.getNode(sendingNode)
             assert(node == undefined, "getNode returned stale node");
 
-            node = clusterservice._nodes[sendingNode]
-            assert(clusterservice._nodes[sendingNode].stale == true, "node marked as stale");
+            node = ClusterManager._nodes[sendingNode]
+            assert(ClusterManager._nodes[sendingNode].stale == true, "node marked as stale");
 
             await bus.destroy();
         });
 
         it(`are not marked stale when heartbeat is received`, async () => {
-            const spy = sinon.spy(ClusterService.prototype, "_staleNode");
+            const spy = sinon.spy(ClusterManager, "_staleNode");
             const bus = new EventBus();
 
             await publish(bus, 'cluster:heartbeat', {});
 
-            let node = clusterservice.getNode(sendingNode);
+            let node = ClusterManager.getNode(sendingNode);
             assert(node?.id == sendingNode, "node not learnt");
 
-            await clock.tickAsync(clusterservice._staleTimeout / 2);
+            await clock.tickAsync(ClusterManager._staleTimeout / 2);
             await publish(bus, 'cluster:heartbeat', {});
 
-            await clock.tickAsync((clusterservice._staleTimeout / 2) + 1);
+            await clock.tickAsync((ClusterManager._staleTimeout / 2) + 1);
 
             assert(spy.calledOnce == false, "_staleNode called");
             await bus.destroy();
         });
 
         it(`are deleted after removal timeout`, async () => {
-            const spy = sinon.spy(ClusterService.prototype, "_forgetNode");
+            const spy = sinon.spy(ClusterManager, "_forgetNode");
             const bus = new EventBus();
 
             await publish(bus, 'foo', {data: 42});
 
-            let node = clusterservice.getNode(sendingNode);
+            let node = ClusterManager.getNode(sendingNode);
             assert(node?.id == sendingNode, "node not learnt");
 
-            await clock.tickAsync(clusterservice._removalTimeout + 1);
+            await clock.tickAsync(ClusterManager._removalTimeout + 1);
 
             assert(spy.calledOnce == true, "_forgetNode not called");
 
-            node = clusterservice.getNode(sendingNode)
+            node = ClusterManager.getNode(sendingNode)
             assert(node == undefined, "getNode returned node, should be deleted");
 
-            node = clusterservice._nodes[sendingNode]
+            node = ClusterManager._nodes[sendingNode]
             assert(node == undefined, "node not removed");
 
             await bus.destroy();
         });
 
         it(`are sending heartbeat`, async () => {
-            const spy = sinon.spy(ClusterService.prototype, "publish");
+            const spy = sinon.spy(ClusterManager, "publish");
 
-            // Heartbeat sent on ready
-            clusterservice.setReady();
-            assert(spy.calledOnceWithExactly("cluster:heartbeat"), "initial onready heartbeat not sent");
+            // Heartbeat sent on start
+            await ClusterManager.start();
+            assert(spy.calledOnceWithExactly("cluster:heartbeat"), "initial start heartbeat not sent");
 
             // Heartbeat sent after interval
-            await clock.tickAsync(clusterservice._heartbeatInterval + 1);
+            await clock.tickAsync(ClusterManager._heartbeatInterval + 1);
             assert(spy.getCall(1)?.calledWithExactly("cluster:heartbeat"), "heartbeat not sent");
 
-            await clock.tickAsync(clusterservice._heartbeatInterval + 1);
+            await clock.tickAsync(ClusterManager._heartbeatInterval + 1);
             assert(spy.getCall(2)?.calledWithExactly("cluster:heartbeat"), "heartbeat not sent");
 
             sinon.restore();
@@ -292,29 +291,45 @@ describe('cluster service', () => {
             const bus = new EventBus();
             await publish(bus, 'foo', {data: 42});
 
-            const nodes = clusterservice._getLearntPeers();
+            const nodes = ClusterManager.getLearntPeers();
             assert(nodes.length == 2, "unexpected numbers of peers");
 
             await bus.destroy();
         });
 
         it(`are not returned by _getLearntPeers if stale`, async () => {
-            const spy = sinon.spy(ClusterService.prototype, "_staleNode");
+            const spy = sinon.spy(ClusterManager, "_staleNode");
             const bus = new EventBus();
 
             await publish(bus, 'foo', {data: 42});
 
-            let node = clusterservice.getNode(sendingNode);
+            let node = ClusterManager.getNode(sendingNode);
             assert(node?.id == sendingNode, "node not learnt");
 
-            await clock.tickAsync(clusterservice._staleTimeout + 1);
+            await clock.tickAsync(ClusterManager._staleTimeout + 1);
 
-            const nodes = clusterservice._getLearntPeers();
+            const nodes = ClusterManager.getLearntPeers();
             assert(nodes.length == 1, "unexpected numbers of peers");
 
             await bus.destroy();
         });
 
+        it(`getNodes() returns all nodes`, async () => {
+            const bus = new EventBus();
+
+            await clock.tickAsync(1);
+            await publish(bus, 'foo', {data: 42});
+            await clock.tickAsync(1);
+
+            const nodes = ClusterManager.getNodes();
+            assert(nodes.length == 2, "unexpected number of nodes");
+
+            assert(nodes[0].last_ts == 2);
+            assert(nodes[1].ip == "127.0.0.127");
+            assert(nodes[1].last_ts == 1);
+
+            await bus.destroy();
+        });
     });
 
 });

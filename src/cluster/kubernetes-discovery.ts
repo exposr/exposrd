@@ -1,10 +1,30 @@
 import fs from 'fs';
 import dns from 'dns/promises';
 import { Logger } from '../logger.js';
+import DiscoveryMethod from './discovery-method.js';
+import ClusterManager from './cluster-manager.js';
 
-class KubernetesDiscovery {
-    constructor(opts) {
-        this.logger = opts?.logger || Logger("kubernetes-discovery");
+export type KubernetesDiscoveryOptions = {
+    serviceNameEnv?: string,
+    namespaceEnv?: string,
+    serviceName?: string,
+    namespace?: string,
+    clusterDomain?: string,
+}
+
+class KubernetesDiscovery implements DiscoveryMethod {
+    public readonly name: string;
+
+    private logger: any;
+    private _serviceName: string;
+    private _namespace: string;
+    private _clusterDomain: string;
+    private _serviceHost: string;
+    private _cacheTime: number;
+    private _cachedPeers: Array<string> | undefined;
+
+    constructor(opts: KubernetesDiscoveryOptions) {
+        this.logger = Logger("kubernetes-discovery");
 
         const serviceNameEnv = opts?.serviceNameEnv || 'SERVICE_NAME';
         const namespaceEnv = opts?.namespaceEnv || 'POD_NAMESPACE';
@@ -15,13 +35,11 @@ class KubernetesDiscovery {
 
         this._serviceHost = `${this._serviceName}.${this._namespace}.svc.${this._clusterDomain}`;
 
-        this._getLearntPeers = opts.getLearntPeers;
-
         this.name = `kubernetes service ${this._serviceHost}`;
         this._cacheTime = Date.now() - 1000;
     }
 
-    eligible() {
+    public eligible(): number {
         const namespaceFile = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
         if (!fs.existsSync(namespaceFile)) {
@@ -34,30 +52,29 @@ class KubernetesDiscovery {
         return 10;
     }
 
-    init() {
+    public init(): void {
         this.logger.debug({
             message: `using ${this._serviceHost} headless service for pod discovery`,
         });
     }
 
-    async getPeers() {
+    public async getPeers(): Promise<Array<string>> {
         if (this._cachedPeers && (Date.now() - this._cacheTime) < 1000) {
             return this._cachedPeers;
         }
-        const peers = await this._resolvePeers()
-            .then((p) => {
-                this._cachedPeers = p;
-                this._cacheTime = Date.now();
-                return p;
-            })
-            .catch((err) => {
-                this.logger.warn({
-                    message: `failed to resolve ${this._serviceHost}: ${err.message}`
-                });
-                return [];
-            });
 
-        const learntPeers = this._getLearntPeers();
+        let peers: Array<string> = [];
+        try {
+            peers = await this._resolvePeers();
+            this._cachedPeers = peers;
+            this._cacheTime = Date.now();
+        } catch (err: any) {
+            this.logger.warn({
+                message: `failed to resolve ${this._serviceHost}: ${err.message}`
+            });
+        }
+
+        const learntPeers = ClusterManager.getLearntPeers();
         for (let i = 0; i < learntPeers.length; i++) {
             if (peers.indexOf(learntPeers[i]) === -1) {
                 peers.push(learntPeers[i]);
@@ -77,8 +94,12 @@ class KubernetesDiscovery {
                 return result4.value;
             } else if (result6.status == 'fulfilled' && result6.value?.length > 0) {
                 return result6.value;
+            } else if (result4.status == 'rejected') {
+                throw result4.reason;
+            } else if (result6.status == 'rejected') {
+                throw result6.reason;
             } else {
-                throw result4?.reason || result6?.reason || new Error('unknown');
+                throw new Error('unknown');
             }
         });
     }

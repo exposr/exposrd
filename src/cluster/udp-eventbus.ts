@@ -2,12 +2,33 @@ import assert from 'assert/strict';
 import dgram from 'dgram';
 import net from 'net';
 import { Logger } from '../logger.js';
-import MulticastDiscovery from './multicast-discovery.js';
-import KubernetesDiscovery from './kubernetes-discovery.js';
+import MulticastDiscovery, { MulticastDiscoveryOptions } from './multicast-discovery.js';
+import KubernetesDiscovery, { KubernetesDiscoveryOptions } from './kubernetes-discovery.js';
+import EventBusInterface, { EventBusInterfaceOptions } from './eventbus-interface.js';
+import DiscoveryMethod from './discovery-method.js';
 
-class UdpEventBus {
+export type UdpEventBusOptions = {
+    port: number,
+    discoveryMethod: "multicast" | "kubernetes" | undefined,
+    multicast: MulticastDiscoveryOptions,
+    kubernetes: KubernetesDiscoveryOptions,
+}
 
-    constructor(opts) {
+type _UdpEventBusOptions = EventBusInterfaceOptions & UdpEventBusOptions & {
+    callback: (error?: Error) => void
+}
+
+class UdpEventBus extends EventBusInterface {
+    private logger: any;
+    private _port: number;
+    private _discoveryMethods: { [key: string]: DiscoveryMethod } = {}; 
+    private _discoveryMethod: DiscoveryMethod | undefined;
+    private _socket: dgram.Socket | undefined;
+    private _socket6: dgram.Socket | undefined;
+
+    constructor(opts: _UdpEventBusOptions) {
+        super(opts);
+
         this.logger = Logger("udp-eventbus");
 
         this._port = opts.port || 1025;
@@ -15,17 +36,13 @@ class UdpEventBus {
         try {
             this._discoveryMethods = {
                 multicast: new MulticastDiscovery({
-                    logger: this.logger,
-                    getLearntPeers: opts.getLearntPeers,
                     ...opts.multicast,
                 }),
                 kubernetes: new KubernetesDiscovery({
-                    logger: this.logger,
-                    getLearntPeers: opts.getLearntPeers,
                     ...opts.kubernetes
                 }),
             };
-        } catch (e) {
+        } catch (e: any) {
             if (typeof opts.callback === 'function') {
                 process.nextTick(() => { opts.callback(e) });
             } else {
@@ -58,10 +75,13 @@ class UdpEventBus {
             this._discoveryMethod = eligibleMethods.length > 0 ? eligibleMethods[0].method : undefined;
         }
 
+        if (this._discoveryMethod == undefined) {
+            process.nextTick(() => { opts.callback(new Error('No working discovery methods available'))});
+            return
+        }
         assert(this._discoveryMethod != undefined);
-        assert(opts.handler != undefined);
 
-        const onMessage = (data, rinfo) => {
+        const onMessage = (data: Buffer, rinfo: dgram.RemoteInfo) => {
             if (data.length <= 5) {
                 return;
             }
@@ -73,15 +93,21 @@ class UdpEventBus {
                 return;
             }
 
-            opts.handler(msg.toString('utf-8'));
+            try {
+                this.receive(msg.toString('utf-8'));
+            } catch (e: any) {
+                this.logger.error({
+                    message: `Failed to receive message ${msg}`
+                });
+            }
         };
 
-        const createSocket = (type) => {
+        const createSocket = (type: dgram.SocketType): Promise<dgram.Socket> => {
             return new Promise((resolve, reject) => {
-                const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+                const sock = dgram.createSocket({ type, reuseAddr: true });
                 sock.on('message', onMessage);
 
-                const connectError = (err) => {
+                const connectError = (err: Error) => {
                     sock.close();
                     reject(err);
                 };
@@ -109,47 +135,48 @@ class UdpEventBus {
                 this._socket6 = result6.value;
                 mode += `${mode != '' ? '/' : ''}IPv6`;
             }
-            if (!this._socket && !this._socket6) {
+
+            if (result4.status == 'rejected' && result6.status == 'rejected') {
                 typeof opts.callback === 'function' && process.nextTick(() => { opts.callback(result4.reason) });
                 return;
             }
 
-            this._discoveryMethod.init(this._socket, this._socket6);
+            this._discoveryMethod?.init(this._socket, this._socket6);
             this.logger.info({
-                message: `Cluster interface on ${this._port} (${mode}) using discovery method ${this._discoveryMethod.name}`,
+                message: `Cluster interface on ${this._port} (${mode}) using discovery method ${this._discoveryMethod?.name}`,
             });
             typeof opts.callback === 'function' && process.nextTick(opts.callback);
         });
     }
 
-    async destroy() {
-        return Promise.allSettled([
+    protected async _destroy(): Promise<void> {
+        await Promise.allSettled([
             new Promise((resolve, reject) => {
                 if (this._socket) {
-                    this._socket.close(resolve);
+                    this._socket.close(() => { resolve(undefined) });
                 } else {
-                    resolve();
+                    resolve(undefined);
                 }
             }),
             new Promise((resolve, reject) => {
                 if (this._socket6) {
-                    this._socket6.close(resolve);
+                    this._socket6.close(() => { resolve(undefined) });
                 } else {
-                    resolve();
+                    resolve(undefined);
                 }
             })
         ])
     }
 
-    async publish(message) {
-        this._receivers = await this._discoveryMethod.getPeers();
+    protected async _publish(message: any): Promise<void> {
+        const receivers = (await this._discoveryMethod?.getPeers()) || [];
 
         const header = Buffer.allocUnsafe(4);
         header.writeUInt8(0xE0, 0);
         header.writeUInt8(0x05, 1);
         header.writeUInt16BE(0, 2);
 
-        const promises = this._receivers.map((receiver) => {
+        const promises = receivers.map((receiver: string) => {
             return new Promise((resolve, reject) => {
                 const sock = net.isIPv6(receiver) ? this._socket6 : this._socket;
                 if (!sock) {
@@ -161,13 +188,13 @@ class UdpEventBus {
                     if (err) {
                         reject(err);
                     } else {
-                        resolve();
+                        resolve(undefined);
                     }
                 });
             });
         });
 
-        return Promise.allSettled(promises);
+        await Promise.allSettled(promises);
     }
 }
 export default UdpEventBus;
