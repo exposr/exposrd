@@ -1,14 +1,17 @@
 import assert from 'assert/strict';
 import crypto from 'crypto';
-import sinon from 'sinon';
-import Pgsql from 'pg';
-import Storage, { StorageService } from '../../../src/storage/index.js';
 import Config from '../../../src/config.js';
 import { setTimeout } from 'timers/promises';
-import { PGSQL_URL } from '../../env.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
+import Storage, { ListResult } from '../../../src/storage/storage.js';
+import { Serializable } from '../../../src/storage/serializer.js';
 
-class Data {
-    constructor(foo, bar) {
+class Data implements Serializable {
+    public foo: any;
+    public bar: any;
+    public obj: any;
+
+    constructor(foo?: any, bar?: any) {
         this.foo = foo;
         this.bar = bar;
         this.obj = {
@@ -20,54 +23,32 @@ class Data {
     }
 }
 
-describe('pgsql storage', () => {
-    let storageService;
-    let config;
-    let clock;
+describe('storage service', () => {
+    let config: any;
 
     before(async () => {
         config = new Config();
-        clock = sinon.useFakeTimers({shouldAdvanceTime: true});
-        await new Promise((resolve, reject) => {
-            storageService = new StorageService({
-                url: new URL(PGSQL_URL),
-                callback: (err) => err ? reject(err) : resolve()
-            });
-        });
+        StorageManager.init(new URL('memory://'));
     });
 
     after(async () => {
-        await storageService.destroy();
+        StorageManager.close();
         await config.destroy();
-        clock.restore();
-        sinon.restore();
     });
 
-    it('pgsql storage basic set/get', async () => {
+    it('basic set/get', async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         await storage.set(key, {test: 1234});
-        const data = await storage.get(key);
+        const data: any = await storage.get(key);
 
-        assert(data?.test == 1234, `set/get key=${key} got=${data}`);
-
-        await storage.destroy();
-    });
-
-    it('pgsql storage basic set/get ns with special characters', async () => {
-        const storage = new Storage("test-namespace");
-        const key = crypto.randomBytes(20).toString('hex');
-
-        await storage.set(key, {test: 1234});
-        const data = await storage.get(key);
-
-        assert(data?.test == 1234, `set/get key=${key} got=${data}`);
+        assert(data.test == 1234, `set/get key=${key} got=${data}`);
 
         await storage.destroy();
     });
 
-    it('pgsql storage key namespace', async () => {
+    it('storage key namespace', async () => {
         const storage = new Storage("test");
         const storage2 = new Storage("test2");
         const key = crypto.randomBytes(20).toString('hex');
@@ -81,7 +62,7 @@ describe('pgsql storage', () => {
         await storage2.destroy();
     });
 
-    it('pgsql storage multi key get: all found', async () => {
+    it('storage multi key get: all found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -90,7 +71,7 @@ describe('pgsql storage', () => {
         await storage.set(key1, {test: 1234});
         await storage.set(key2, {test: 4321});
 
-        const data = await storage.get([key1, key2]);
+        const data: Array<any>  = await storage.get([key1, key2]);
 
         assert(data[0].test == 1234, `get key=${key1} got=${data[0]}`);
         assert(data[1].test == 4321, `get key=${key2} got=${data[1]}`);
@@ -98,7 +79,7 @@ describe('pgsql storage', () => {
         await storage.destroy();
     });
 
-    it('pgsql storage multi key get: one found', async () => {
+    it('storage multi key get: one found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -106,7 +87,7 @@ describe('pgsql storage', () => {
 
         await storage.set(key1, {test: 1234});
 
-        const data = await storage.get([key1, key2]);
+        const data: Array<any> = await storage.get([key1, key2]);
 
         assert(data[0].test == 1234, `get key=${key1} got=${data[0]}`);
         assert(data[1] == null, `get key=${key2} got=${data[1]}`);
@@ -114,7 +95,7 @@ describe('pgsql storage', () => {
         await storage.destroy();
     });
 
-    it('pgsql storage multi key get: none found', async () => {
+    it('storage multi key get: none found', async () => {
         const storage = new Storage("test");
 
         const key1 = crypto.randomBytes(20).toString('hex');
@@ -128,12 +109,12 @@ describe('pgsql storage', () => {
         await storage.destroy();
     });
 
-    it('pgsql storage delete', async () => {
+    it('storage delete', async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         await storage.set(key, {test: 1234});
-        const data = await storage.get(key);
+        const data: any = await storage.get(key);
 
         assert(data.test == 1234, `set/get key=${key} got=${data}`);
 
@@ -146,49 +127,47 @@ describe('pgsql storage', () => {
         await storage.destroy();
     });
 
-    it(`pgsql storage create/read`, async () => {
+    it(`storage create/read`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data);
+        const res = await storage.create(key, data);
+        assert(res == true, "create failed");
 
-        assert(res instanceof Data, `unexpected create result ${res}`);
-        assert(res.foo == 1234),
-        assert(res.bar == "string"),
-
-        res = await storage.read(key, Data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
-        assert(res.foo == 1234);
-        assert(res.bar == "string");
+        const readData = await storage.read<Data>(key, Data);
+        assert(readData instanceof Data, `unexpected create result ${readData}}`);
+        assert(readData.foo == 1234);
+        assert(readData.bar == "string");
 
         await storage.destroy();
     });
 
-    it(`pgsql storage read not found`, async () => {
+    it(`storage read not found`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
-        const res = await storage.read(key, Data);
+        const res = await storage.read<Data>(key, Data);
         assert(res === null, `unexpected create result ${res}`);
 
         await storage.destroy();
     });
 
-    it(`pgsql storage create/read complex object`, async () => {
+    it(`storage create/read complex object`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
-        const data = new Data(1234, "string")
+        const data = new Data(1234, "string");
         data.obj.child.foobar = 42;
         data.obj.list = [
             { asdf: 1 },
             { asdf: 2 }
-        ]
-        let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        ];
 
-        res = await storage.read(key, Data);
+        let createRes = await storage.create(key, data);
+        assert(createRes == true, "create failed");
+
+        let res = await storage.read<Data>(key, Data);
         assert(res instanceof Data, `unexpected create result ${res}`);
         assert(res.foo == 1234);
         assert(res.obj.child.foobar == 42);
@@ -198,113 +177,117 @@ describe('pgsql storage', () => {
         await storage.destroy();
     });
 
-    it(`pgsql storage create exclusive`, async () => {
+    it(`storage create exclusive`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data, {NX: true});
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        let res = await storage.create(key, data);
+        assert(res == true, `unexpected create result ${res}`);
 
-        res = await storage.create(key, data, {NX: true});
+        res = await storage.create(key, data);
         assert(res == false, `overwrote key same got ${JSON.stringify(res)}`);
 
         await storage.destroy();
     });
 
-    it(`pgsql storage create non-exclusive`, async () => {
+    it(`storage put`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data, {NX: false});
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        let res = await storage.put(key, data);
+        assert(res == true, `unexpected put result, got ${res}`);
 
-        res = await storage.create(key, data, {NX: false});
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        res = await storage.put(key, data);
+        assert(res == true, `unexpected put result, got ${res}`);
 
         await storage.destroy();
     });
 
-    it(`pgsql storage create/delete`, async () => {
+    it(`storage create/delete`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
         let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        assert(res === true, `unexpected create result ${res}`);
 
         res = await storage.delete(key);
         assert(res === true, `unexpected delete result ${res}`);
 
-        res = await storage.get(key);
-        assert(res == null, `unexpected get result ${res}`);
+        const getRes = await storage.get(key);
+        assert(getRes == null, `unexpected get result ${res}`);
 
         await storage.destroy();
     });
 
-    it(`pgsql storage update`, async () => {
+    it(`storage update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
         let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        assert(res == true, `unexpected create result ${res}`);
 
-        let updated = await storage.update(key, Data, (data) => {
+        let updated = await storage.update<Data>(key, Data, async (data) => {
             data.foo = 42;
             return true;
         });
         assert(updated instanceof Data, `unexpected update result ${JSON.stringify(updated)}`);
         assert(updated.foo == 42);
 
-        updated = await storage.update(key, Data, (data) => {
+        updated = await storage.update<Data>(key, Data, async (data) => {
             data.foo = 43;
             return false;
         });
 
-        res = await storage.read(key, Data);
-        assert(res.foo == 42, `got ${JSON.stringify(res)}`);
+        const readData = await storage.read<Data>(key, Data);
+        assert(readData instanceof Data, `unexpected read result ${readData}`);
+        assert(readData != null, `unexpected read result ${readData}`);
+        assert(readData.foo == 42, `got ${JSON.stringify(res)}`);
 
         await storage.destroy();
     });
 
-    it(`pgsql storage concurrent update`, async () => {
+    it(`storage concurrent update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
         let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        assert(res == true, `unexpected create result ${res}`);
 
         const update1 = storage.update(key, Data, async (data) => {
             await setTimeout(1000);
-            assert(data.foo == 1234);
+            assert(data.foo == 1234, `expected data.foo=1234, got ${data}`);
             data.foo = 42;
             return true;
         });
 
         await setTimeout(250);
         const update2 = storage.update(key, Data, async (data) => {
-            assert(data.foo == 42);
+            assert(data.foo == 42, `expected data.foo=42, got ${JSON.stringify(data)}`);
             data.foo++;
             return true;
         });
 
         await Promise.all([update1, update2]);
-        res = await storage.read(key, Data);
-        assert(res.foo == 43, `expected 42, got ${JSON.stringify(res)}`);
+        const readRes = await storage.read<Data>(key, Data);
+        assert(readRes instanceof Data, `unexpected read result ${readRes}`);
+        assert(readRes != null, `unexpected read result ${readRes}`);
+        assert(readRes.foo == 43, `expected 43, got ${JSON.stringify(res)}`);
 
         await storage.destroy();
     });
 
-    it(`pgsql storage long-running update`, async () => {
+    it(`storage long-running update`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
         let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        assert(res == true, `unexpected create result ${res}`);
 
         const update = await storage.update(key, Data, async (data) => {
             await setTimeout(1200);
@@ -319,7 +302,7 @@ describe('pgsql storage', () => {
         await storage.destroy();
     });
 
-    it(`pgsql storage list`, async () => {
+    it(`storage list`, async () => {
         const keyPrefix = crypto.randomBytes(20).toString('hex');
         const storage = new Storage(keyPrefix);
 
@@ -327,22 +310,21 @@ describe('pgsql storage', () => {
 
         for (let index = 0; index < 10; index++) {
             data.foo = index;
-            await storage.create(index, data);
+            await storage.create(String(index), data);
         }
 
         let result = 0;
-        let res;
+        let state: ListResult | undefined = undefined;
         while (true) {
-            res = await storage.list(res, 1);
-            assert(res != undefined, "failed to list");
-            const keys = res.data;
+            state = await storage.list(state, 1);
+            const keys = state.keys;
 
             if (keys.length > 0) {
-                assert(keys.length == 1, `expected one entry, got ${keys.length}, ${JSON.stringify(res)}`);
+                assert(keys.length == 1, `expected one entry, got ${keys.length}, ${JSON.stringify(state)}`);
                 result += keys.length;
             }
 
-            if (res.cursor == null) {
+            if (state.cursor == null) {
                 break;
             }
         }
@@ -351,43 +333,4 @@ describe('pgsql storage', () => {
         await storage.destroy();
     });
 
-    it(`pgsql can auto-expire entries`, async () => {
-        const storage = new Storage("test");
-        const key = crypto.randomBytes(20).toString('hex');
-
-        const data = new Data(1234, "string")
-        let res = await storage.create(key, data, {TTL: 1});
-        assert(res instanceof Data, `unexpected create result ${res}`);
-
-        await clock.tickAsync(2000);
-
-        res = await storage.get(key);
-        assert(res == null, `storage returned expired entry, got ${res}`);
-
-        await storage.destroy();
-    });
-
-    it(`pgsql expired entries are removed from database`, async () => {
-        const storage = new Storage("test");
-        const key = crypto.randomBytes(20).toString('hex');
-
-        const data = new Data(1234, "string")
-        let res = await storage.create(key, data, {TTL: 1});
-        assert(res instanceof Data, `unexpected create result ${res}`);
-
-        await clock.tickAsync(2000);
-
-        res = await storage.get(key);
-        assert(res == null, `storage returned expired entry, got ${res}`);
-
-        await clock.tickAsync(storage._storage.expiryCleanInterval * 2);
-
-        const db = new Pgsql.Client({connectionString: PGSQL_URL });
-        await db.connect();
-        res = await db.query('SELECT key FROM test WHERE key = $1', [key]);
-        assert(res.rowCount == 0, `got ${res.rowCount} rows`);
-
-        await db.end();
-        await storage.destroy();
-    });
 });

@@ -1,8 +1,8 @@
 import Tunnel from "../tunnel/tunnel.js";
 import Account from "./account.js";
-import Storage from '../storage/index.js';
 import AccountService from "./account-service.js";
 import { TunnelConfig } from "../tunnel/tunnel-config.js";
+import Storage from "../storage/storage.js";
 
 export default class AccountTunnelService {
 
@@ -17,10 +17,14 @@ export default class AccountTunnelService {
     }
 
     public async assignTunnel(tunnelConfig: TunnelConfig): Promise<boolean> {
+        const normalizedId = AccountService.normalizeId(<string>tunnelConfig.account);
+        if (normalizedId == undefined) {
+            return false;
+        }
 
-        const res = await this.storage.update(AccountService.normalizeId(tunnelConfig.account), Account, (account: Account) => {
-            if (!account.tunnels.includes(tunnelConfig.account)) {
-                account.tunnels.push(tunnelConfig.id);
+        const res = await this.storage.update(normalizedId, Account, async (account: Account) => {
+            if (!account.tunnels.includes(<string>tunnelConfig.account)) {
+                account.tunnels.push(<string>tunnelConfig.id);
             }
             account.updated_at = new Date().toISOString();
             return true;
@@ -29,9 +33,13 @@ export default class AccountTunnelService {
     }
 
     public async unassignTunnel(tunnelConfig: TunnelConfig): Promise<boolean> {
+        const normalizedId = AccountService.normalizeId(<string>tunnelConfig.account);
+        if (normalizedId == undefined) {
+            return false;
+        }
 
-        const res = await this.storage.update(AccountService.normalizeId(tunnelConfig.account), Account, (account: Account) => {
-            const pos = account.tunnels.indexOf(tunnelConfig.id);
+        const res = await this.storage.update(normalizedId, Account, async (account: Account) => {
+            const pos = account.tunnels.indexOf(<string>tunnelConfig.id);
             if (pos >= 0) {
                 account.tunnels.splice(pos, 1);
             }
@@ -42,11 +50,16 @@ export default class AccountTunnelService {
     }
 
     public async authorizedAccount(tunnel: Tunnel): Promise<Account> {
-        const account = await this.storage.read(AccountService.normalizeId(tunnel.account), Account);
+        const normalizedId = AccountService.normalizeId(<string>tunnel.account);
+        if (normalizedId == undefined) {
+            throw new Error("no_account_on_tunnel");
+        }
+
+        const account = await this.storage.read(normalizedId, Account);
         if (!(account instanceof Account)) {
             throw new Error("dangling_account");
         }
-        if (!account.tunnels.includes(tunnel.id)) {
+        if (!account.tunnels.includes(<string>tunnel.id)) {
             this.assignTunnel(tunnel.config);
         }
         return account;

@@ -1,5 +1,5 @@
 import dns from 'dns';
-import Storage from '../storage/index.js';
+import Storage from '../storage/storage.js';
 import { Logger } from '../logger.js';
 
 class AltNameService {
@@ -17,7 +17,7 @@ class AltNameService {
     }
 
     async _set(service, altName, tunnelId) {
-        return this.db.set(this._key(service, altName), {
+        return this.db.put(this._key(service, altName), {
             tunnelId,
             created_at: new Date().toISOString(),
         }, { NX: true });

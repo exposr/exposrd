@@ -136,17 +136,17 @@ export default class TunnelConnectionManager {
     }
 
     public static async addTunnelConnection(tunnel: Tunnel, connection: TunnelConnection): Promise<void> {
-        this.connectedTunnels[tunnel.id] ??= {
+        this.connectedTunnels[<string>tunnel.id] ??= {
             connected: false,
             alive_connections: 0,
             connections: [],
         }
 
-        const connections = this.connectedTunnels[tunnel.id].connections;
+        const connections = this.connectedTunnels[<string>tunnel.id].connections;
         connections.push(connection);
-        this.connectedTunnels[tunnel.id].connections = connections;
+        this.connectedTunnels[<string>tunnel.id].connections = connections;
         this.updateTunnelState(tunnel);
-        await this.announceLocalTunnels([tunnel.id]);
+        await this.announceLocalTunnels([<string>tunnel.id]);
     }
 
     public static createConnection(tunnelId: string, ctx: CreateConnectionContext, callback: (err: Error | undefined, sock: Duplex) => void): Duplex {

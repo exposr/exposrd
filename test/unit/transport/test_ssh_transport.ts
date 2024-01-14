@@ -4,9 +4,8 @@ import net from 'net';
 import http from 'node:http';
 import Config from '../../../src/config.js';
 import TransportService from '../../../src/transport/transport-service.js'
-import { createEchoHttpServer, initStorageService } from '../test-utils.js';
+import { createEchoHttpServer } from '../test-utils.js';
 import ssh, { PasswordAuthMethod } from 'ssh2';
-import { StorageService } from '../../../src/storage/index.js';
 import AccountService from '../../../src/account/account-service.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
 import Tunnel from '../../../src/tunnel/tunnel.js';
@@ -15,11 +14,11 @@ import sinon from 'sinon';
 import IngressManager from '../../../src/ingress/ingress-manager.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
 
 describe('SSH transport', () => {
     let clock: sinon.SinonFakeTimers;
     let config: Config;
-    let storageservice: StorageService;
     let accountService: AccountService;
     let tunnelService: TunnelService;
     let echoServer: any;
@@ -32,7 +31,7 @@ describe('SSH transport', () => {
         config = new Config([
             "--log-level", "debug"
         ]);
-        storageservice = await initStorageService();
+        await StorageManager.init(new URL("memory://"));
         await ClusterManager.init(ClusterManagerType.MEM);
         await TunnelConnectionManager.start();
         await IngressManager.listen({
@@ -47,9 +46,12 @@ describe('SSH transport', () => {
 
         echoServer = await createEchoHttpServer();
 
-        account = <any>await accountService.create();
+        const createdAccount = await accountService.create();
+        assert(createdAccount instanceof Account)
+        assert(createdAccount.id != undefined);
+        account = createdAccount
         tunnelId = crypto.randomBytes(20).toString('hex');
-        tunnel = await tunnelService.create(tunnelId, account.id);
+        tunnel = await tunnelService.create(tunnelId, <string>account.id);
     });
 
     afterEach(async () => {
@@ -58,7 +60,7 @@ describe('SSH transport', () => {
         await IngressManager.close(); 
         await TunnelConnectionManager.stop();
         await ClusterManager.close();
-        await storageservice.destroy();
+        await StorageManager.close();
         await config.destroy();
         await echoServer.destroy();
         clock.restore();
@@ -92,7 +94,7 @@ describe('SSH transport', () => {
             }
         });
 
-        tunnel = await tunnelService.update(tunnelId, account.id, (tunnelConfig) => {
+        tunnel = await tunnelService.update(tunnelId, <string>account.id, (tunnelConfig) => {
             tunnelConfig.transport.ssh.enabled = true;
             tunnelConfig.ingress.http.enabled = true;
         });
@@ -212,7 +214,7 @@ describe('SSH transport', () => {
             }
         });
 
-        tunnel = await tunnelService.update(tunnelId, account.id, (tunnelConfig) => {
+        tunnel = await tunnelService.update(tunnelId, <string>account.id, (tunnelConfig) => {
             tunnelConfig.transport.ssh.enabled = true;
             tunnelConfig.ingress.http.enabled = true;
         });
@@ -376,16 +378,16 @@ describe('SSH transport', () => {
             }
         });
 
-        tunnel = await tunnelService.update(tunnelId, account.id, (tunnelConfig) => {
+        tunnel = await tunnelService.update(tunnelId, <string>account.id, (tunnelConfig) => {
             tunnelConfig.transport.ssh.enabled = true;
             tunnelConfig.ingress.http.enabled = true;
             tunnelConfig.target.url = "http://localhost:20000";
         });
 
         const tunnelId2 = crypto.randomBytes(20).toString('hex');
-        let tunnel2 = await tunnelService.create(tunnelId2, account.id);
+        let tunnel2 = await tunnelService.create(tunnelId2, <string>account.id);
 
-        tunnel2 = await tunnelService.update(tunnelId2, account.id, (tunnelConfig) => {
+        tunnel2 = await tunnelService.update(tunnelId2, <string>account.id, (tunnelConfig) => {
             tunnelConfig.transport.ssh.enabled = true;
             tunnelConfig.ingress.http.enabled = true;
         });
@@ -487,7 +489,7 @@ describe('SSH transport', () => {
             }
         });
 
-        tunnel = await tunnelService.update(tunnelId, account.id, (tunnelConfig) => {
+        tunnel = await tunnelService.update(tunnelId, <string>account.id, (tunnelConfig) => {
             tunnelConfig.transport.ssh.enabled = true;
             tunnelConfig.ingress.http.enabled = true;
             tunnelConfig.target.url = "https://localhost:20001";

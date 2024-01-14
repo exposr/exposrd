@@ -4,18 +4,8 @@ import fs from 'node:fs';
 import { Duplex } from 'node:stream';
 import * as url from 'node:url';
 import { WebSocket, WebSocketServer } from "ws";
-import { StorageService } from "../../src/storage/index.js";
 import WebSocketTransport from "../../src/transport/ws/ws-transport.js";
 import { WebSocketMultiplex } from "@exposr/ws-multiplex";
-
-export const initStorageService = async (): Promise<StorageService> => {
-    return new Promise((resolve) => {
-        const storage = new StorageService({
-            url: new URL('memory://'),
-            callback: () => { resolve(storage) }
-        });
-    });
-};
 
 export const socketPair = () => {
     const sock1 = new Duplex({read(size) {}});

@@ -1,13 +1,19 @@
 import crypto from 'crypto';
 import assert from 'assert/strict';
-import Storage, { StorageService } from '../../../src/storage/index.js';
 import { setTimeout } from 'timers/promises';
 import { REDIS_URL } from '../../env.js';
 import Config from '../../../src/config.js';
 import Redis from 'redis';
+import { Serializable } from '../../../src/storage/serializer.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
+import Storage, { ListResult } from '../../../src/storage/storage.js';
 
-class Data {
-    constructor(foo, bar) {
+class Data implements Serializable {
+    public foo: any;
+    public bar: any;
+    public obj: any;
+
+    constructor(foo?: any, bar?: any) {
         this.foo = foo;
         this.bar = bar;
         this.obj = {
@@ -21,22 +27,16 @@ class Data {
 
 describe('redis storage', () => {
     const redisUrl = REDIS_URL;
-    let storageService;
-    let config;
+    let config: any;
 
 
     before(async () => {
         config = new Config();
-        await new Promise((resolve, reject) => {
-            storageService = new StorageService({
-                url: new URL(redisUrl),
-                callback: (err) => err ? reject(err) : resolve()
-            });
-        });
+        await StorageManager.init(new URL(redisUrl));
     });
 
     after(async () => {
-        await storageService.destroy();
+        await StorageManager.close();
         await config.destroy();
     });
 
@@ -45,7 +45,7 @@ describe('redis storage', () => {
         const key = crypto.randomBytes(20).toString('hex');
 
         await storage.set(key, {test: 1234});
-        const data = await storage.get(key);
+        const data = await storage.get(key) as { test: number };
 
         assert(data.test == 1234, `set/get key=${key} got=${data}`);
 
@@ -93,7 +93,7 @@ describe('redis storage', () => {
         await storage.set(key1, {test: 1234});
         await storage.set(key2, {test: 4321});
 
-        const data = await storage.get([key1, key2]);
+        const data: any = await storage.get([key1, key2]);
 
         assert(data[0].test == 1234, `get key=${key1} got=${data[0]}`);
         assert(data[1].test == 4321, `get key=${key2} got=${data[1]}`);
@@ -109,7 +109,7 @@ describe('redis storage', () => {
 
         await storage.set(key1, {test: 1234});
 
-        const data = await storage.get([key1, key2]);
+        const data: any = await storage.get([key1, key2]);
 
         assert(data[0].test == 1234, `get key=${key1} got=${data[0]}`);
         assert(data[1] == null, `get key=${key2} got=${data[1]}`);
@@ -136,7 +136,7 @@ describe('redis storage', () => {
         const key = crypto.randomBytes(20).toString('hex');
 
         await storage.set(key, {test: 1234});
-        const data = await storage.get(key);
+        const data: any = await storage.get(key);
 
         assert(data.test == 1234, `set/get key=${key} got=${data}`);
 
@@ -154,13 +154,10 @@ describe('redis storage', () => {
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data);
+        const createRes = await storage.create(key, data);
+        assert(createRes == true, `unexpected create result, got ${createRes}`);
 
-        assert(res instanceof Data, `unexpected create result ${res}`);
-        assert(res.foo == 1234),
-        assert(res.bar == "string"),
-
-        res = await storage.read(key, Data);
+        const res = await storage.read(key, Data);
         assert(res instanceof Data, `unexpected create result ${res}`);
         assert(res.foo == 1234);
         assert(res.bar == "string");
@@ -187,11 +184,11 @@ describe('redis storage', () => {
         data.obj.list = [
             { asdf: 1 },
             { asdf: 2 }
-        ]
-        let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        ];
+        const createRes = await storage.create(key, data);
+        assert(createRes == true, `unexpected create result, got ${createRes}`);
 
-        res = await storage.read(key, Data);
+        const res = await storage.read(key, Data);
         assert(res instanceof Data, `unexpected create result ${res}`);
         assert(res.foo == 1234);
         assert(res.obj.child.foobar == 42);
@@ -201,30 +198,30 @@ describe('redis storage', () => {
         await storage.destroy();
     });
 
-    it(`redis storage create exclusive`, async () => {
+    it(`redis storage create`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data, {NX: true});
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        let res = await storage.create(key, data);
+        assert(res == true, `unexpected create result, got ${res}`);
 
-        res = await storage.create(key, data, {NX: true});
+        res = await storage.create(key, data);
         assert(res == false, `overwrote key same got ${JSON.stringify(res)}`);
 
         await storage.destroy();
     });
 
-    it(`redis storage create non-exclusive`, async () => {
+    it(`redis storage put`, async () => {
         const storage = new Storage("test");
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data, {NX: false});
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        let res = await storage.put(key, data);
+        assert(res == true, `unexpected create result, got ${res}`);
 
-        res = await storage.create(key, data, {NX: false});
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        res = await storage.put(key, data);
+        assert(res == true, `unexpected create result, got ${res}`);
 
         await storage.destroy();
     });
@@ -234,13 +231,13 @@ describe('redis storage', () => {
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        const createRes = await storage.create(key, data);
+        assert(createRes == true, `unexpected create result, got ${createRes}`);
 
-        res = await storage.delete(key);
-        assert(res === true, `unexpected delete result ${res}`);
+        const deleteRes = await storage.delete(key);
+        assert(deleteRes === true, `unexpected delete result, got ${deleteRes}`);
 
-        res = await storage.get(key);
+        const res = await storage.get(key);
         assert(res == null, `unexpected get result ${res}`);
 
         await storage.destroy();
@@ -251,22 +248,23 @@ describe('redis storage', () => {
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        const createRes = await storage.create(key, data);
+        assert(createRes == true, `unexpected create result, got ${createRes}`);
 
-        let updated = await storage.update(key, Data, (data) => {
+        let updated = await storage.update(key, Data, async (data) => {
             data.foo = 42;
             return true;
         });
         assert(updated instanceof Data, `unexpected update result ${JSON.stringify(updated)}`);
         assert(updated.foo == 42);
 
-        updated = await storage.update(key, Data, (data) => {
+        updated = await storage.update(key, Data, async (data) => {
             data.foo = 43;
             return false;
         });
 
-        res = await storage.read(key, Data);
+        const res = await storage.read(key, Data);
+        assert(res instanceof Data, `unexpected read result ${res}`)
         assert(res.foo == 42, `got ${JSON.stringify(res)}`);
 
         await storage.destroy();
@@ -277,8 +275,8 @@ describe('redis storage', () => {
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        const createRes = await storage.create(key, data);
+        assert(createRes == true, `unexpected create result, got ${createRes}`);
 
         const update1 = storage.update(key, Data, async (data) => {
             await setTimeout(1000);
@@ -295,7 +293,8 @@ describe('redis storage', () => {
         });
 
         await Promise.all([update1, update2]);
-        res = await storage.read(key, Data);
+        const res = await storage.read(key, Data);
+        assert(res instanceof Data, `unexpected read result ${res}`)
         assert(res.foo == 43, `expected 42, got ${JSON.stringify(res)}`);
 
         await storage.destroy();
@@ -306,8 +305,8 @@ describe('redis storage', () => {
         const key = crypto.randomBytes(20).toString('hex');
 
         const data = new Data(1234, "string")
-        let res = await storage.create(key, data);
-        assert(res instanceof Data, `unexpected create result ${res}`);
+        const createRes = await storage.create(key, data);
+        assert(createRes == true, `unexpected create result, got ${createRes}`);
 
         const update = await storage.update(key, Data, async (data) => {
             await setTimeout(1200);
@@ -330,15 +329,15 @@ describe('redis storage', () => {
 
         for (let index = 0; index < 10; index++) {
             data.foo = index;
-            await storage.create(index, data);
+            await storage.create(String(index), data);
         }
 
         let result = 0;
-        let res;
+        let res: ListResult | undefined;
         while (true) {
             res = await storage.list(res, 1);
             assert(res != undefined, "failed to list");
-            const keys = res.data;
+            const keys = res.keys;
 
             if (keys.length > 0) {
                 assert(keys.length == 1, `expected one entry, got ${keys.length}, ${JSON.stringify(res)}`);

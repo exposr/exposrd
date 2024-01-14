@@ -5,13 +5,12 @@ import AccountService from "../../../src/account/account-service.js";
 import Config from "../../../src/config.js";
 import IngressManager, { IngressType } from "../../../src/ingress/ingress-manager.js";
 import TunnelService from "../../../src/tunnel/tunnel-service.js";
-import { createEchoHttpServer, initStorageService, wsSocketPair, wsmPair } from "../test-utils.js";
+import { createEchoHttpServer, wsSocketPair, wsmPair } from "../test-utils.js";
 import sinon from 'sinon';
 import net from 'net'
 import http from 'http';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import Account from '../../../src/account/account.js';
-import { StorageService } from '../../../src/storage/index.js';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
 import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
 import { Duplex } from 'stream';
@@ -20,16 +19,16 @@ import HttpIngress from '../../../src/ingress/http-ingress.js';
 import { httpRequest } from './utils.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
 
 describe('http ingress', () => {
     let clock: sinon.SinonFakeTimers;
-    let storageService: StorageService;
     let config: Config;
 
     before(async () => {
         config = new Config();
         await ClusterManager.init(ClusterManagerType.MEM);
-        storageService = await initStorageService();
+        await StorageManager.init(new URL("memory://"));
 
         clock = sinon.useFakeTimers({shouldAdvanceTime: true});
         await TunnelConnectionManager.start();
@@ -47,7 +46,7 @@ describe('http ingress', () => {
     after(async () => {
         await TunnelConnectionManager.stop();
         await IngressManager.close();
-        await storageService.destroy();
+        await StorageManager.close();
         await ClusterManager.close();
         await config.destroy();
         await echoServer.destroy();
@@ -70,8 +69,8 @@ describe('http ingress', () => {
         account = await accountService.create();
         assert(account != undefined);
         const tunnelId = crypto.randomBytes(20).toString('hex');
-        tunnel = await tunnelService.create(tunnelId, account.id);
-        tunnel = await tunnelService.update(tunnel.id, account.id, (tunnel) => {
+        tunnel = await tunnelService.create(tunnelId, <string>account.id);
+        tunnel = await tunnelService.update(tunnelId, <string>account.id, (tunnel) => {
             tunnel.ingress.http.enabled = true;
         });
 
@@ -122,6 +121,8 @@ describe('http ingress', () => {
     const connectTunnel = async (): Promise<void> => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         let res = await tunnelService.connect(tunnel.id, account.id, transport, {peer: "127.0.0.1"});
         assert(res == true, "failed to connect tunnel");
@@ -138,6 +139,8 @@ describe('http ingress', () => {
     it('can send traffic', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         client.on('connection', (sock: Duplex) => {
             const targetSock = new net.Socket();
@@ -207,6 +210,8 @@ describe('http ingress', () => {
     it('agent does not timeout during transfer', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         let res = await tunnelService.connect(tunnel.id, account.id, transport, {peer: "127.0.0.1"});
         assert(res == true, "failed to connect tunnel");
@@ -260,6 +265,8 @@ describe('http ingress', () => {
     it('agent timeout on idle', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         forwardTo("localhost", 20000);
         await connectTunnel();
@@ -289,6 +296,8 @@ describe('http ingress', () => {
     it(`http ingress can handle websocket upgrades`, async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         client.on('connection', (sock: Duplex) => {
             const targetSock = new net.Socket();
@@ -359,6 +368,8 @@ describe('http ingress', () => {
     it('handles ingress altname', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         sinon.stub(dns, 'resolveCname')
             .withArgs('custom-name.example')
@@ -369,6 +380,9 @@ describe('http ingress', () => {
                 "custom-name.example"
             ]
         });
+
+        assert(tunnel instanceof Tunnel);
+        assert(tunnel.id != undefined);
 
         forwardTo("localhost", 20000);
         await connectTunnel();
@@ -393,6 +407,8 @@ describe('http ingress', () => {
     it('adding altname without cname throws error', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         let error: CustomError | undefined;
         try {
@@ -412,6 +428,8 @@ describe('http ingress', () => {
     it('adding altname with wrong cname throws error', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         sinon.stub(dns, 'resolveCname')
             .withArgs('custom-name.example')
@@ -437,10 +455,14 @@ describe('http ingress', () => {
     it('request headers are rewritten with the target host for http', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         tunnel = await tunnelService.update(tunnel.id, account?.id, (config) => {
             config.target.url = "https://echo.localhost.example"
         });
+        assert(tunnel instanceof Tunnel);
+        assert(tunnel.id != undefined);
 
         forwardTo("localhost", 20000);
         await connectTunnel();
@@ -471,10 +493,14 @@ describe('http ingress', () => {
     it('request headers are not rewritten with the target host for non-http', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         tunnel = await tunnelService.update(tunnel.id, account?.id, (config) => {
             config.target.url = "tcps://echo.localhost.example"
         });
+        assert(tunnel instanceof Tunnel);
+        assert(tunnel.id != undefined);
 
         forwardTo("localhost", 20000);
         await connectTunnel();
@@ -505,6 +531,8 @@ describe('http ingress', () => {
     it('forwarded headers are added to request', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         forwardTo("localhost", 20000);
         await connectTunnel();
@@ -538,6 +566,8 @@ describe('http ingress', () => {
     it('x-forwarded headers from request are read', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         forwardTo("localhost", 20000);
         await connectTunnel();
@@ -572,6 +602,8 @@ describe('http ingress', () => {
     it('exposr via header is added to request', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         forwardTo("localhost", 20000);
         await connectTunnel();
@@ -595,6 +627,8 @@ describe('http ingress', () => {
     it('request loops returns 508', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         forwardTo("localhost", 10000);
         await connectTunnel();
@@ -617,6 +651,8 @@ describe('http ingress', () => {
     it('un-responsive target returns 502', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         forwardTo("localhost", 20001);
         await connectTunnel();
@@ -673,10 +709,14 @@ describe('http ingress', () => {
     it('disabled ingress returns 403', async () => {
         assert(tunnel != undefined);
         assert(account != undefined);
+        assert(tunnel.id != undefined);
+        assert(account.id != undefined);
 
         tunnel = await tunnelService.update(tunnel.id, account?.id, (config) => {
             config.ingress.http.enabled = false;
         });
+        assert(tunnel instanceof Tunnel);
+        assert(tunnel.id != undefined);
 
         forwardTo("localhost", 20000);
         await connectTunnel();

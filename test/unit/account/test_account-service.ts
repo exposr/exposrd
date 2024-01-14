@@ -2,12 +2,11 @@ import assert from 'assert/strict';
 import crypto from 'crypto';
 import sinon from 'sinon';
 import AccountService from '../../../src/account/account-service.js';
-import { initStorageService } from '../test-utils.js';
 import Config from '../../../src/config.js';
-import { StorageService } from '../../../src/storage/index.js';
 import Account from '../../../src/account/account.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
 import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
 
 describe('account service', () => {
     it('can generate account ids', async () => {
@@ -47,13 +46,12 @@ describe('account service', () => {
     });
 
     let config: Config;
-    let storageService: StorageService;
     let accountService: AccountService;
     let tunnelService: TunnelService;
 
     beforeEach(async () => {
         config = new Config();
-        storageService = await initStorageService();
+        await StorageManager.init(new URL("memory://"));
         await ClusterManager.init(ClusterManagerType.MEM);
         accountService = new AccountService();
         tunnelService = new TunnelService();
@@ -62,7 +60,7 @@ describe('account service', () => {
     afterEach(async () => {
         await accountService.destroy(); 
         await tunnelService.destroy();
-        await storageService.destroy();
+        await StorageManager.close();
         await ClusterManager.close();
         await config.destroy();
         sinon.restore();
@@ -71,6 +69,7 @@ describe('account service', () => {
     it(`can create account`, async () => {
         const account = await accountService.create();
         assert(account instanceof Account);
+        assert(account.id != undefined);
         assert(account.created_at != undefined);
         assert(account.created_at == account.updated_at);
 
@@ -216,6 +215,7 @@ describe('account service', () => {
         await accountService.disable(account.id, true, "spam");
 
         account = await accountService.get(account.id);
+        assert(account?.id != undefined);
         assert(account?.status.disabled == true);
         assert(account?.status.disabled_at != undefined);
         assert(account?.status.disabled_reason == "spam");

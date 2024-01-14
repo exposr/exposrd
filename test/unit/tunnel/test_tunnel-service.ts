@@ -3,8 +3,7 @@ import crypto from 'crypto';
 import sinon from 'sinon';
 import net from 'net';
 import Config from '../../../src/config.js';
-import { StorageService } from '../../../src/storage/index.js';
-import { initStorageService, wsSocketPair } from '../test-utils.js';
+import { wsSocketPair } from '../test-utils.js';
 import AccountService from '../../../src/account/account-service.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 import IngressManager from '../../../src/ingress/ingress-manager.js';
@@ -14,17 +13,18 @@ import EventBus from '../../../src/cluster/eventbus.js';
 import WebSocketTransport from '../../../src/transport/ws/ws-transport.js';
 import { WebSocketMultiplex } from '@exposr/ws-multiplex';
 import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
+import Account from '../../../src/account/account.js';
 
 describe('tunnel service', () => {
     let clock: sinon.SinonFakeTimers;
     let config: Config;
-    let storageService: StorageService;
     let accountService: AccountService;
 
     beforeEach(async () => {
         clock = sinon.useFakeTimers({shouldAdvanceTime: true, now: 10000});
         config = new Config();
-        storageService = await initStorageService();
+        await StorageManager.init(new URL("memory://"));
         await ClusterManager.init(ClusterManagerType.MEM);
         await TunnelConnectionManager.start();
         await IngressManager.listen({
@@ -42,7 +42,7 @@ describe('tunnel service', () => {
         await IngressManager.close();
         await TunnelConnectionManager.stop();
         await ClusterManager.close();
-        await storageService.destroy();
+        await StorageManager.close();
         await config.destroy();
         clock.restore();
         sinon.restore();
@@ -52,7 +52,8 @@ describe('tunnel service', () => {
         const tunnelService = new TunnelService();
 
         const account = await accountService.create();
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
         const tunnelId = crypto.randomBytes(20).toString('hex');
 
         const tunnel = await tunnelService.create(tunnelId, account.id);
@@ -70,7 +71,8 @@ describe('tunnel service', () => {
         const tunnelService = new TunnelService();
 
         let account = await accountService.create();
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
         const tunnelId = crypto.randomBytes(20).toString('hex');
 
         let tunnel = await tunnelService.create(tunnelId, account.id);
@@ -79,7 +81,8 @@ describe('tunnel service', () => {
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
 
         account = await accountService.get(account.id);
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
         assert(account.tunnels.indexOf(tunnelId) != -1, "account does not own created tunnel");
 
         await tunnelService.update(tunnelId, account.id, (tunnelConfig) => {
@@ -108,7 +111,8 @@ describe('tunnel service', () => {
     it(`can list tunnels`, async () => {
         const tunnelService = new TunnelService();
         let account = await accountService.create();
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
 
         for (let i = 0; i < 100; i++) {
             const tunnelId = crypto.randomBytes(20).toString('hex');
@@ -144,7 +148,8 @@ describe('tunnel service', () => {
         const bus = new EventBus();
 
         const account = await accountService.create();
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
         const tunnelId = crypto.randomBytes(20).toString('hex');
 
         let tunnel = await tunnelService.create(tunnelId, account.id);
@@ -194,7 +199,8 @@ describe('tunnel service', () => {
         const bus = new EventBus();
 
         const account = await accountService.create();
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
         const tunnelId = crypto.randomBytes(20).toString('hex');
 
         let tunnel = await tunnelService.create(tunnelId, account.id);
@@ -258,7 +264,8 @@ describe('tunnel service', () => {
         const bus = new EventBus();
 
         const account = await accountService.create();
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
         const tunnelId = crypto.randomBytes(20).toString('hex');
 
         let tunnel = await tunnelService.create(tunnelId, account.id);
@@ -301,7 +308,9 @@ describe('tunnel service', () => {
     it(`can authorize a tunnel`, async () => {
         const tunnelService = new TunnelService();
         const account = await accountService.create();
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
+
         const tunnelId = crypto.randomBytes(20).toString('hex');
         const tunnel = await tunnelService.create(tunnelId, account.id);
 
@@ -323,7 +332,9 @@ describe('tunnel service', () => {
         const bus = new EventBus();
 
         const account = await accountService.create();
-        assert(account != undefined);
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
+
         const tunnelId = crypto.randomBytes(20).toString('hex');
 
         let tunnel = await tunnelService.create(tunnelId, account.id);
@@ -370,9 +381,10 @@ describe('tunnel service', () => {
         const bus = new EventBus();
 
         const account = await accountService.create();
-        assert(account != undefined);
-        const tunnelId = crypto.randomBytes(20).toString('hex');
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
 
+        const tunnelId = crypto.randomBytes(20).toString('hex');
         let tunnel = await tunnelService.create(tunnelId, account.id);
         assert(tunnel instanceof Tunnel, `tunnel not created, got ${tunnel}`);
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
@@ -446,9 +458,10 @@ describe('tunnel service', () => {
         const bus = new EventBus();
 
         const account = await accountService.create();
-        assert(account != undefined);
-        const tunnelId = crypto.randomBytes(20).toString('hex');
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
 
+        const tunnelId = crypto.randomBytes(20).toString('hex');
         let tunnel = await tunnelService.create(tunnelId, account.id);
         assert(tunnel instanceof Tunnel, `tunnel not created, got ${tunnel}`);
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
@@ -505,9 +518,10 @@ describe('tunnel service', () => {
         const bus = new EventBus();
 
         const account = await accountService.create();
-        assert(account != undefined);
-        const tunnelId = crypto.randomBytes(20).toString('hex');
+        assert(account instanceof Account, "did not create account");
+        assert(account.id != undefined, "account id is undefined");
 
+        const tunnelId = crypto.randomBytes(20).toString('hex');
         let tunnel = await tunnelService.create(tunnelId, account.id);
         assert(tunnel instanceof Tunnel, `tunnel not created, got ${tunnel}`);
         assert(tunnel?.id == tunnelId, `expected id ${tunnelId}, got ${tunnel?.id}`);
@@ -532,7 +546,7 @@ describe('tunnel service', () => {
         tunnel = await tunnelService.lookup(tunnelId);
         assert(tunnel.state.connected == false, "tunnel state is connected");
 
-        authResult = await tunnelService.authorize(tunnel.id, tunnel.config.transport?.token || "");
+        authResult = await tunnelService.authorize(<string>tunnel.id, tunnel.config.transport?.token || "");
         assert(authResult.authorized == false, "authorization succeeded on disabled account");
 
         await tunnelService.destroy();

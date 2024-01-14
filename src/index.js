@@ -4,17 +4,23 @@ import AdminController from './controller/admin-controller.js';
 import ApiController from './controller/api-controller.js';
 import ClusterManager from './cluster/cluster-manager.js';
 import IngressManager from './ingress/ingress-manager.js';
+import StorageManager from './storage/storage-manager.js';
 import { Logger } from './logger.js';
-import { StorageService } from './storage/index.js';
 import TransportService from './transport/transport-service.js';
 import Version from './version.js';
 import Node from './cluster/cluster-node.js';
-import TunnelService from './tunnel/tunnel-service.js';
 import TunnelConnectionManager from './tunnel/tunnel-connection-manager.js';
 
 export default async (argv) => {
     const config = new Config(argv);
     const logger = Logger();
+
+    const exitError = (err) => {
+        logger.error(`Failed to start up: ${err.message}`);
+        logger.debug(err.stack);
+        process.exit(-1);
+    }
+
     logger.info(`exposrd ${Version.version.version}`);
     logger.info({
         node_id: Node.identifier,
@@ -28,55 +34,42 @@ export default async (argv) => {
         process.exit(-1);
     });
 
-    // Initialize storage and cluster service
-    const storageServiceReady = new Promise((resolve, reject) => {
-        try {
-            const storage = new StorageService({
-                callback: (err) => {
-                    err ? reject(err) : resolve(storage);
-                },
-                url: config.get('storage-url'),
-                pgsql: {
-                    poolSize: config.get('storage-pgsql-connection-pool-size'),
-                }
-            });
-        } catch (e) {
-            reject(e);
-        }
-    });
 
-    const clusterType = config.get('cluster');
-    const clusterServiceReady = ClusterManager.init(clusterType, {
-        key: config.get('cluster-key'),
-        redis: {
-            redisUrl: config.get('cluster-redis-url'),
-        },
-        udp: {
-            port: config.get('cluster-udp-port'),
-            discoveryMethod: config.get('cluster-udp-discovery') != 'auto' ? config.get('cluster-udp-discovery'): undefined,
-            multicast: {
-                group: config.get('cluster-udp-discovery-multicast-group')
-            },
-            kubernetes: {
-                serviceNameEnv: config.get('cluster-udp-discovery-kubernetes-service-env'),
-                namespaceEnv: config.get('cluster-udp-discovery-kubernetes-namespace-env'),
-                serviceName: config.get('cluster-udp-discovery-kubernetes-service'),
-                namespace: config.get('cluster-udp-discovery-kubernetes-namespace'),
-                clusterDomain: config.get('cluster-udp-discovery-kubernetes-cluster-domain'),
+    try {
+        StorageManager.init(config.get('storage-url'), { 
+            pgsql: {
+                poolSize: config.get('storage-pgsql-connection-pool-size'),
             }
-        }
-    });
-
-    const [storageService, _] = await Promise
-        .all([
-            storageServiceReady,
-            clusterServiceReady
-        ])
-        .catch((err) => {
-            logger.error(`Failed to start up: ${err.message}`);
-            logger.debug(err.stack);
-            process.exit(-1);
         });
+    } catch (e) {
+        exitError(e);
+    }
+
+    try {
+        const clusterType = config.get('cluster');
+        ClusterManager.init(clusterType, {
+            key: config.get('cluster-key'),
+            redis: {
+                redisUrl: config.get('cluster-redis-url'),
+            },
+            udp: {
+                port: config.get('cluster-udp-port'),
+                discoveryMethod: config.get('cluster-udp-discovery') != 'auto' ? config.get('cluster-udp-discovery'): undefined,
+                multicast: {
+                    group: config.get('cluster-udp-discovery-multicast-group')
+                },
+                kubernetes: {
+                    serviceNameEnv: config.get('cluster-udp-discovery-kubernetes-service-env'),
+                    namespaceEnv: config.get('cluster-udp-discovery-kubernetes-namespace-env'),
+                    serviceName: config.get('cluster-udp-discovery-kubernetes-service'),
+                    namespace: config.get('cluster-udp-discovery-kubernetes-namespace'),
+                    clusterDomain: config.get('cluster-udp-discovery-kubernetes-cluster-domain'),
+                }
+            }
+        });
+    } catch (e) {
+        exitError(e);
+    }
 
     // Setup tunnel data ingress (incoming tunnel data)
     const ingressReady = IngressManager.listen({
@@ -219,8 +212,8 @@ export default async (argv) => {
                 adminController.destroy(),
                 transport.destroy(),
                 IngressManager.close(),
-                storageService.destroy(),
                 ClusterManager.close(),
+                StorageManager.close(),
                 config.destroy(),
             ]);
 

@@ -312,7 +312,7 @@ export default class SNIIngress implements IngressBase {
             },
         };
 
-        const targetSock = TunnelConnectionManager.createConnection(tunnel.id, ctx, (err, sock) => {
+        const targetSock = TunnelConnectionManager.createConnection(<string>tunnel.id, ctx, (err, sock) => {
             if (err) {
                 logError(err);
                 return;

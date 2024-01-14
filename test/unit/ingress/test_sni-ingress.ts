@@ -6,10 +6,9 @@ import fs from 'fs';
 import crypto from 'crypto';
 import net from 'net';
 import tls, { TLSSocket } from 'tls';
-import { createEchoHttpServer, initStorageService, wsSocketPair, wsmPair } from '../test-utils.js'
+import { createEchoHttpServer, wsSocketPair, wsmPair } from '../test-utils.js'
 import Config from '../../../src/config.js';
 import IngressManager, { IngressType } from '../../../src/ingress/ingress-manager.js';
-import { StorageService } from '../../../src/storage/index.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
 import Account from '../../../src/account/account.js';
 import AccountService from '../../../src/account/account-service.js';
@@ -20,6 +19,7 @@ import { Duplex } from 'stream';
 import { httpRequest } from './utils.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
 
 describe('sni', () => {
 
@@ -88,7 +88,6 @@ describe('sni', () => {
 
         urlTests.forEach(({args, expected}) => {
             it(`baseurl for ${JSON.stringify(args)} returns ${expected}`, async () => {
-                let storageService: StorageService;
                 let tunnelService: TunnelService;
                 let accountService: AccountService;
                 let config: Config;
@@ -96,7 +95,7 @@ describe('sni', () => {
                 let tunnel: Tunnel;
 
                 config = new Config();
-                storageService = await initStorageService();
+                await StorageManager.init(new URL("memory://"));
                 await ClusterManager.init(ClusterManagerType.MEM);
                 await IngressManager.listen({
                     sni: {
@@ -110,12 +109,18 @@ describe('sni', () => {
 
                 account = await accountService.create();
                 assert(account != undefined);
+                assert(account.id != undefined);
 
                 const tunnelId = 'test';
                 tunnel = await tunnelService.create(tunnelId, account.id);
+                assert(tunnel instanceof Tunnel);
+                assert(tunnel.id == tunnelId);
+
                 tunnel = await tunnelService.update(tunnel.id, account.id, (tunnel) => {
                     tunnel.ingress.sni.enabled = true;
                 });
+                assert(tunnel instanceof Tunnel);
+                assert(tunnel.id == tunnelId);
 
                 const url = IngressManager.getIngress(IngressType.INGRESS_SNI).getBaseUrl(tunnel.id);
 
@@ -124,7 +129,7 @@ describe('sni', () => {
                 await accountService.destroy();
                 await tunnelService.destroy();
                 await IngressManager.close();
-                await storageService.destroy();
+                await StorageManager.close();
                 await ClusterManager.close();
                 config.destroy();
 
@@ -136,7 +141,6 @@ describe('sni', () => {
     });
 
     describe('ingress', () => {
-        let storageService: StorageService;
         let config: Config;
         let echoServer: { destroy: () => Promise<void>; };
 
@@ -147,7 +151,7 @@ describe('sni', () => {
         before(async () => {
             clock = sinon.useFakeTimers({shouldAdvanceTime: true});
             config = new Config();
-            storageService = await initStorageService();
+            await StorageManager.init(new URL("memory://"));
             await ClusterManager.init(ClusterManagerType.MEM);
             await TunnelConnectionManager.start();
             await IngressManager.listen({
@@ -163,10 +167,10 @@ describe('sni', () => {
         });
 
         after(async () => {
-            await storageService.destroy();
             await ClusterManager.close();
             await TunnelConnectionManager.stop();
             await IngressManager.close();
+            await StorageManager.close();
             config.destroy()
             clock.restore();
             await echoServer.destroy();
@@ -185,8 +189,8 @@ describe('sni', () => {
             account = await accountService.create();
             assert(account != undefined);
             const tunnelId = crypto.randomBytes(20).toString('hex');
-            tunnel = await tunnelService.create(tunnelId, account.id);
-            tunnel = await tunnelService.update(tunnel.id, account.id, (tunnel) => {
+            tunnel = await tunnelService.create(tunnelId, <string>account.id);
+            tunnel = await tunnelService.update(tunnelId, <string>account.id, (tunnel) => {
                 tunnel.ingress.sni.enabled = true;
             });
 
@@ -208,6 +212,8 @@ describe('sni', () => {
         const connectTunnel = async (): Promise<void> => {
             assert(tunnel != undefined);
             assert(account != undefined);
+            assert(tunnel.id != undefined);
+            assert(account.id != undefined);
     
             let res = await tunnelService.connect(tunnel.id, account.id, transport, {peer: "127.0.0.1"});
             assert(res == true, "failed to connect tunnel");
@@ -253,6 +259,8 @@ describe('sni', () => {
         it(`can send traffic`, async () => {
             assert(tunnel != undefined);
             assert(account != undefined);
+            assert(tunnel.id != undefined);
+            assert(account.id != undefined);
     
             forwardTo("localhost", 20000);
             await connectTunnel();
@@ -306,12 +314,16 @@ describe('sni', () => {
         it(`tls handshake fails for disabled ingress`, async () => {
             assert(tunnel != undefined);
             assert(account != undefined);
+            assert(tunnel.id != undefined);
+            assert(account.id != undefined);
 
             const url = new URL(`${tunnel.config.ingress.sni.url}`);
 
             tunnel = await tunnelService.update(tunnel.id, account?.id, (config) => {
                 config.ingress.sni.enabled = false;
             });
+            assert(tunnel instanceof Tunnel);
+            assert(tunnel.id != undefined)
 
             forwardTo("localhost", 20000);
             await connectTunnel();

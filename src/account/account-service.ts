@@ -1,8 +1,8 @@
-import Storage from '../storage/index.js';
 import Account from './account.js';
 import crypto from 'crypto';
 import { Logger } from '../logger.js';
 import TunnelService from '../tunnel/tunnel-service.js';
+import Storage, { ListState } from '../storage/storage.js';
 
 type AccountListResult = {
     cursor: string | null,
@@ -60,19 +60,22 @@ class AccountService {
             return undefined;
         }
 
-        const account = await this._db.read(normalizedId, Account);
+        const account = await this._db.read<Account>(normalizedId, Account);
+        if (!(account instanceof Account)) {
+            return undefined
+        }
         return account;
     }
 
     public async create(): Promise<undefined | Account> {
         let maxTries = 100;
-        let created;
-        let account;
+        let created: boolean | null;
+        let account: Account;
         do {
             account = new Account(AccountService.generateId());
             account.created_at = new Date().toISOString();
             account.updated_at = account.created_at;
-            created = await this._db.create(account.id, account);
+            created = await this._db.create(<string>account.id, account);
         } while (!created && maxTries-- > 0);
 
         if (!created) {
@@ -93,6 +96,8 @@ class AccountService {
             await Promise.allSettled(tunnels.map((tunnelId) => {
                 return this.tunnelService.delete(tunnelId, accountId)
             }));
+
+            return await this._db.delete(<string>account.id);
         } catch (e) {
             this.logger.error({
                 message: `Failed to delete account`,
@@ -100,9 +105,6 @@ class AccountService {
             });
             return false;
         }
-
-        await this._db.delete(account.id);
-        return true;
     }
 
     async update(accountId: string, callback: (account: Account) => void): Promise<undefined | Account> {
@@ -110,22 +112,32 @@ class AccountService {
         if (normalizedId == undefined) {
             return undefined;
         }
-        return this._db.update(AccountService.normalizeId(normalizedId), Account, (account: Account) => {
+
+        const updatedAccount = await this._db.update(normalizedId, Account, async (account: Account) => {
             callback(account);
             account.updated_at = new Date().toISOString();
             return true;
         });
+        return updatedAccount ?? undefined
     }
 
     public async list(cursor: string | undefined, count: number = 10, verbose: boolean = false): Promise<AccountListResult> {
-        const res = await this._db.list(<any>cursor, count);
 
-        const data: Array<Account> = verbose ? (await this._db.read(res.data, Account) || []) : res.data.map((id: string) => {
+        const listState: ListState | undefined = cursor ? { cursor } : undefined;
+        let res = await this._db.list(listState, count);
+
+        const keys = res.keys;
+        if (res.pending > 0) {
+            res = await this._db.list(res, res.pending);
+            keys.push(...res.keys);
+        }
+
+        const data: Array<Account | null> = verbose ? (await this._db.read(keys, Account) || []) : keys.map((id: string) => {
             return new Account(id);
         });
         return {
             cursor: res.cursor,
-            accounts: data,
+            accounts: data.filter((d) => d != null) as Array<Account>,
         }
     }
 

@@ -26,15 +26,15 @@ export type TunnelState = {
 }
 
 export class Tunnel {
-    public readonly id;
-    public readonly account;
+    public readonly id?: string;
+    public readonly account?: string;
     public config: TunnelConfig;
     public readonly state: TunnelState
 
-    constructor(config: TunnelConfig, state?: TunnelState) {
+    constructor(config?: TunnelConfig, state?: TunnelState) {
         this.id = config?.id;
         this.account = config?.account;
-        this.config = config;
+        this.config = config || new TunnelConfig();
         this.state = state || {
             connected: false,
             alive_connections: 0,

@@ -193,11 +193,11 @@ export default class WebSocketEndpoint extends TransportEndpoint {
         this.wss.handleUpgrade(req, sock, head, async (ws) => {
             clearTimeout(timeout);
             const transport = new WebSocketTransport({
-                tunnelId: tunnel.id,
+                tunnelId: <string>tunnel.id,
                 max_connections: this.max_connections,
                 socket: ws,
             })
-            const res = await this.tunnelService.connect(tunnel.id, account.id, transport, {
+            const res = await this.tunnelService.connect(<string>tunnel.id, <string>account.id, transport, {
                 peer: this._getRequestClientIp(req),
             });
             if (!res) {
