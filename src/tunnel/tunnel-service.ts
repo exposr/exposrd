@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 import EventBus, { EmitMeta } from "../cluster/eventbus.js";
 import { Logger } from "../logger.js";
-import Storage from "../storage/index.js";
 import { TunnelConfig, TunnelHttpIngressConfig, TunnelIngressConfig, TunnelIngressTypeConfig, cloneTunnelConfig  } from "./tunnel-config.js";
 import { Tunnel, TunnelConnection } from "./tunnel.js";
 import Account from '../account/account.js';
@@ -14,6 +13,7 @@ import CustomError, { ERROR_TUNNEL_INGRESS_BAD_ALT_NAMES } from '../utils/errors
 import IngressService from '../ingress/ingress-service.js';
 import TunnelConnectionManager, { TunnelAnnounce, TunnelDisconnectRequest } from './tunnel-connection-manager.js';
 import AccountTunnelService from '../account/account-tunnel-service.js';
+import Storage, { ListState } from '../storage/storage.js';
 
 export type ConnectOptions = {
     peer: string,
@@ -87,12 +87,12 @@ export default class TunnelService {
         const tunnelConfig = await this.storage.read(tunnelIds, TunnelConfig);
         if (tunnelConfig instanceof Array) {
             return tunnelConfig.map((tc: TunnelConfig) => {
-                const state = TunnelConnectionManager.getConnectedState(tc.id);
+                const state = TunnelConnectionManager.getConnectedState(<string>tc.id);
                 return new Tunnel(tc, state);
             });
 
         } else if (tunnelConfig instanceof TunnelConfig) {
-            const state = TunnelConnectionManager.getConnectedState(tunnelConfig.id);
+            const state = TunnelConnectionManager.getConnectedState(<string>tunnelConfig.id);
             return new Tunnel(tunnelConfig, state);
         } else {
             if (tunnelIds instanceof Array) {
@@ -113,7 +113,7 @@ export default class TunnelService {
         tunnelConfig.updated_at = tunnelConfig.created_at;
         tunnelConfig.transport.token = crypto.randomBytes(64).toString('base64url');
 
-        const created: boolean = await this.storage.create(tunnelId, tunnelConfig);
+        const created: boolean | null = await this.storage.create(tunnelId, tunnelConfig);
         if (!created) {
             throw Error("could_not_create_tunnel");
         }
@@ -203,7 +203,7 @@ export default class TunnelService {
                 }
             }
 
-            const baseUrl = this.ingressService.getIngressURL(IngressType.INGRESS_HTTP, tunnelConfig.id);
+            const baseUrl = this.ingressService.getIngressURL(IngressType.INGRESS_HTTP, <string>tunnelConfig.id);
 
             let altNames = tunnelConfig.ingress.http.alt_names || [];
             const prevAltNames = prevTunnelConfig.ingress.http.alt_names || [];
@@ -258,7 +258,7 @@ export default class TunnelService {
                 }
             }
 
-            const baseUrl = this.ingressService.getIngressURL(IngressType.INGRESS_SNI, tunnelConfig.id);
+            const baseUrl = this.ingressService.getIngressURL(IngressType.INGRESS_SNI, <string>tunnelConfig.id);
             return {
                 enabled: true,
                 url: baseUrl.href,
@@ -301,14 +301,25 @@ export default class TunnelService {
             return true;
         });
 
+        if (!updatedConfig) {
+            throw new Error('could_not_update_tunnel');
+        }
         tunnel.config = updatedConfig;
         return tunnel;
     }
 
     public async list(cursor: string | undefined, count: number = 10, verbose: boolean = false): Promise<TunnelListResult> {
-        const res = await this.storage.list(<any>cursor, count);
 
-        const data: Array<Tunnel> = verbose ? await this._get(res.data) : res.data.map((id: string) => {
+        const listState: ListState | undefined = cursor ? { cursor } : undefined;
+        let res = await this.storage.list(listState, count);
+
+        const keys = res.keys;
+        if (res.pending > 0) {
+            res = await this.storage.list(res, res.pending);
+            keys.push(...res.keys);
+        }
+
+        const data: Array<Tunnel> = verbose ? await this._get(keys) : keys.map((id: string) => {
             return new Tunnel(new TunnelConfig(id, <any>undefined), undefined)
         });
         return {

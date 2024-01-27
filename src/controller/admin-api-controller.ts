@@ -111,7 +111,7 @@ class AdminApiController extends KoaController {
         const accountProps = (account: Account) => {
             return {
                 account_id: account.id,
-                account_id_hr: AccountService.formatId(account.id),
+                account_id_hr: AccountService.formatId(<string>account.id),
                 tunnels: account.tunnels,
                 status: account.status,
                 created_at: account.created_at,
@@ -298,7 +298,7 @@ class AdminApiController extends KoaController {
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
                 try {
                     const tunnel = await this._tunnelService.lookup(ctx.params.tunnel_id);
-                    const result = await this._tunnelService.delete(tunnel.id, tunnel.account);
+                    const result = await this._tunnelService.delete(<string>tunnel.id, <string>tunnel.account);
                     if (result) {
                         ctx.status = 204;
                     } else {
@@ -327,7 +327,7 @@ class AdminApiController extends KoaController {
             handler: [handleAdminAuth, handleError, async (ctx, next) => {
                 try {
                     const tunnel = await this._tunnelService.lookup(ctx.params.tunnel_id);
-                    const res = await this._tunnelService.disconnect(tunnel.id, tunnel.account);
+                    const res = await this._tunnelService.disconnect(<string>tunnel.id, <string>tunnel.account);
                     ctx.status = 200;
                     ctx.body = {
                         result: res

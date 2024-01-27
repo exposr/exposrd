@@ -31,8 +31,8 @@ export type TunnelTargetConfig = {
 }
 
 export class TunnelConfig implements Serializable {
-    public id: string;
-    public account: string;
+    public readonly id?: string;
+    public readonly account?: string;
 
     public transport: TunnelTransportConfig = {
         token: undefined,
@@ -66,7 +66,7 @@ export class TunnelConfig implements Serializable {
     public created_at?: string;
     public updated_at?: string;
 
-    constructor(tunnelId: string, account: string) {
+    constructor(tunnelId?: string, account?: string) {
         this.id = tunnelId;
         this.account = account;
     }

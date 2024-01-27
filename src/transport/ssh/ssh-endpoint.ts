@@ -138,7 +138,7 @@ export default class SSHEndpoint extends TransportEndpoint {
     public getEndpoint(tunnel: Tunnel, baseUrl: URL): SSHEndpointResult {
         const host = this.opts.host ?? baseUrl.hostname;
         const port = this.opts.port;
-        const username = tunnel.id;
+        const username = <string>tunnel.id;
         const password = tunnel.config.transport.token || "";
         const fingerprint = this._fingerprint;
 
@@ -203,13 +203,13 @@ export default class SSHEndpoint extends TransportEndpoint {
 
         client.once('ready', async () => {
             const transport = new SSHTransport({
-                tunnelId: tunnel.id,
+                tunnelId: <string>tunnel.id,
                 target: tunnel.config.target.url,
                 max_connections: this.opts.max_connections,
                 allowInsecureTarget: this.opts.allowInsecureTarget,
                 client,
             });
-            const res = await this.tunnelService.connect(tunnel.id, account.id, transport, { peer: info.ip });
+            const res = await this.tunnelService.connect(<string>tunnel.id, <string>account.id, transport, { peer: info.ip });
             if (res) {
                 this._clients.push(transport);
                 transport.once('close', () => {

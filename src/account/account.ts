@@ -7,14 +7,14 @@ type AccountStatus = {
 }
 
 class Account implements Serializable {
-    public accountId: string;
-    public id: string;
+    public accountId?: string;
+    public id?: string;
     public created_at?: string;
     public updated_at?: string;
     public tunnels: Array<string>;
     public status: AccountStatus;
 
-    constructor(accountId: string) {
+    constructor(accountId?: string) {
         this.accountId = accountId;
         this.id = accountId;
         this.created_at = undefined;

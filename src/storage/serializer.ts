@@ -11,7 +11,7 @@ export default class Serializer {
         });
     }
 
-    static deserialize<Type>(json: string | object, type:  { new(): Type ;} ): Type {
+    static deserialize<Type extends Serializable>(json: string | object, type: { new(): Type ;} ): Type {
         const obj = typeof json == 'object' ? json : JSON.parse(json) || {};
 
         const merge = (target: any, source: any): Type => {

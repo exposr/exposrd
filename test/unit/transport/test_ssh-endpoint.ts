@@ -1,11 +1,11 @@
 import assert from 'assert/strict';
 import Tunnel from '../../../src/tunnel/tunnel.js';
 import SSHEndpoint from '../../../src/transport/ssh/ssh-endpoint.js';
-import { initStorageService } from '../test-utils.js'
 import Config from '../../../src/config.js';
 import IngressManager from '../../../src/ingress/ingress-manager.js';
 import { TunnelConfig } from '../../../src/tunnel/tunnel-config.js';
 import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
 
 describe('ssh endpoint', () => {
 
@@ -40,7 +40,7 @@ describe('ssh endpoint', () => {
     endpointTests.forEach(({args, baseUrl, expected}) => {
         it(`getEndpoint() for ${JSON.stringify(args)}, ${baseUrl} returns ${expected}`, async () => {
             const config = new Config();
-            const storageService = await initStorageService();
+            await StorageManager.init(new URL("memory://"));
             await ClusterManager.init(ClusterManagerType.MEM);
             await IngressManager.listen({
                 http: {
@@ -65,7 +65,7 @@ describe('ssh endpoint', () => {
             await endpoint.destroy();
 
             assert(ep.url == expected, `got ${ep.url}`);
-            await storageService.destroy();
+            await StorageManager.close();
             await ClusterManager.close();
             await IngressManager.close();
             await config.destroy();

@@ -5,8 +5,7 @@ import http from 'node:http';
 import WebSocket from 'ws';
 import Config from '../../../src/config.js';
 import TransportService from '../../../src/transport/transport-service.js'
-import { createEchoHttpServer, initStorageService } from '../test-utils.js';
-import { StorageService } from '../../../src/storage/index.js';
+import { createEchoHttpServer } from '../test-utils.js';
 import AccountService from '../../../src/account/account-service.js';
 import TunnelService from '../../../src/tunnel/tunnel-service.js';
 import Tunnel from '../../../src/tunnel/tunnel.js';
@@ -17,11 +16,11 @@ import { Duplex } from 'stream';
 import IngressManager from '../../../src/ingress/ingress-manager.js';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
 
 describe('WS transport', () => {
     let clock: sinon.SinonFakeTimers;
     let config: Config;
-    let storageservice: StorageService;
     let accountService: AccountService;
     let tunnelService: TunnelService;
     let echoServer: any;
@@ -34,7 +33,7 @@ describe('WS transport', () => {
         config = new Config([
             "--log-level", "debug"
         ]);
-        storageservice = await initStorageService();
+        await StorageManager.init(new URL("memory://"));
         await ClusterManager.init(ClusterManagerType.MEM);
         await TunnelConnectionManager.start();
         await IngressManager.listen({
@@ -49,9 +48,12 @@ describe('WS transport', () => {
 
         echoServer = await createEchoHttpServer();
 
-        account = <any>await accountService.create();
+        const createdAccount = await accountService.create();
+        assert(createdAccount instanceof Account, "did not create account");
+        assert(createdAccount.id != undefined, "account id is undefined");
+        account = createdAccount
         tunnelId = crypto.randomBytes(20).toString('hex');
-        tunnel = await tunnelService.create(tunnelId, account.id);
+        tunnel = await tunnelService.create(tunnelId, <string>account.id);
     });
 
     afterEach(async () => {
@@ -60,7 +62,7 @@ describe('WS transport', () => {
         await IngressManager.close(); 
         await TunnelConnectionManager.stop();
         await ClusterManager.close();
-        await storageservice.destroy();
+        await StorageManager.close();
         await config.destroy();
         await echoServer.destroy();
         clock.restore();
@@ -95,7 +97,7 @@ describe('WS transport', () => {
             }
         });
 
-        tunnel = await tunnelService.update(tunnelId, account.id, (tunnelConfig) => {
+        tunnel = await tunnelService.update(tunnelId, <string>account.id, (tunnelConfig) => {
             tunnelConfig.transport.ws.enabled = true;
             tunnelConfig.ingress.http.enabled = true;
         });

@@ -233,7 +233,7 @@ export default class HttpIngress implements IngressBase {
             headers[HTTP_HEADER_EXPOSR_VIA] = Node.identifier;
         }
 
-        if (TunnelConnectionManager.isLocalConnected(tunnel.id)) {
+        if (TunnelConnectionManager.isLocalConnected(<string>tunnel.id)) {
             // Delete connection header if tunnel is
             // locally connected and it's not an upgrade request
             if (!isUpgrade) {
@@ -344,7 +344,7 @@ export default class HttpIngress implements IngressBase {
             method: req.method,
         };
 
-        const agent = opt.agent = this._getAgent(tunnel.id, req);
+        const agent = opt.agent = this._getAgent(<string>tunnel.id, req);
         opt.headers = this._requestHeaders(req, tunnel, baseUrl, false);
 
         this.logger.isTraceEnabled() &&
@@ -430,7 +430,7 @@ export default class HttpIngress implements IngressBase {
                 port: this.httpListener.getPort(),
             }
         };
-        const target = TunnelConnectionManager.createConnection(tunnel.id, ctx, (err) => {
+        const target = TunnelConnectionManager.createConnection(<string>tunnel.id, ctx, (err) => {
             if (!err) {
                 return;
             }

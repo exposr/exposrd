@@ -112,7 +112,7 @@ class SSHTransport extends Transport {
                 if (bindUrl.hostname != this._target.hostname || bindUrl.port != this._target.port) {
                     this._target.hostname = bindUrl.hostname;
                     this._target.port = bindUrl.port;
-                    this._tunnelService.update(tunnel.id, tunnel.account, (tunnelConfig) => {
+                    await this._tunnelService.update(tunnel.id, <string>tunnel.account, (tunnelConfig) => {
                         tunnelConfig.target.url = this._target.href;
                     });
                     this.logger.info({

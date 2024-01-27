@@ -4,20 +4,18 @@ import crypto from 'crypto';
 import TunnelConnectionManager from '../../../src/tunnel/tunnel-connection-manager.js';
 import EventBus from '../../../src/cluster/eventbus.js';
 import Config from '../../../src/config.js';
-import { initStorageService } from '../test-utils.js';
-import { StorageService } from '../../../src/storage/index.js';
 import ClusterManager, { ClusterManagerType } from '../../../src/cluster/cluster-manager.js';
+import StorageManager from '../../../src/storage/storage-manager.js';
 
 describe('tunnel connection manager', () => {
     let config: Config;
-    let storageService: StorageService;
     let clock: sinon.SinonFakeTimers;
 
     beforeEach(async () => {
         clock = sinon.useFakeTimers({shouldAdvanceTime: true, now: 10000});
 
         config = new Config();
-        storageService = await initStorageService();
+        await StorageManager.init(new URL("memory://"));
         await ClusterManager.init(ClusterManagerType.MEM);
         await TunnelConnectionManager.start();
     });
@@ -25,7 +23,7 @@ describe('tunnel connection manager', () => {
     afterEach(async () => {
         await TunnelConnectionManager.stop();
         await ClusterManager.close();
-        await storageService.destroy();
+        await StorageManager.close();
         clock.restore();
         sinon.restore();
     })
