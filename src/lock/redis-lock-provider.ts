@@ -1,9 +1,20 @@
-import Redis from 'redis';
+import Redis, { RedisClientType } from 'redis';
 import Redlock from 'redlock';
 import { Logger } from '../logger.js';
+import LockProvider, { ProviderLock } from './lock-provider.js';
 
-class RedisLock {
-    constructor(opts) {
+export type RedisLockOpts = {
+    redisUrl: URL;
+    callback: (err?: Error) => void;
+};
+
+export default class RedisLockProvider implements LockProvider {
+    private _redisClient: RedisClientType;
+    private redlock!: Redlock;
+    private logger: any;
+    private destroyed: boolean = false;
+
+    constructor(opts: RedisLockOpts) {
         const redisUrl = opts.redisUrl;
 
         const redis = this._redisClient = Redis.createClient({
@@ -29,7 +40,7 @@ class RedisLock {
                         err
                     });
                 });
-                this.redlock = new Redlock([redis], {
+                this.redlock = new Redlock([<any>redis], {
                     retryDelay: 200,
                     retryCount: 25,
                 });
@@ -57,30 +68,36 @@ class RedisLock {
             });
     }
 
-    async lock(resource) {
+    async lock(resource: string): Promise<ProviderLock | null> {
         const leaseTime = 1000;
-        return this.redlock.acquire([resource], leaseTime)
-            .catch((err) => {
-                this.logger.error({
-                    message: `failed to acquire lock on ${resource}: ${err.message}`,
+        try {
+            const lock = await this.redlock.acquire([resource], leaseTime)
+            this.logger.isTraceEnabled() &&
+                this.logger.trace({
                     operation: 'redlock',
+                    resource,
+                    leaseTime
                 });
-                return undefined;
-            }).then((lock) => {
-                this.logger.isTraceEnabled() &&
-                    this.logger.trace({
-                        operation: 'redlock',
-                        resource,
-                        leaseTime
-                    });
-
-                return new LockWrapper(this.redlock, lock, resource, leaseTime, this.logger);
+            return new LockWrapper(this.redlock, lock, resource, leaseTime, this.logger);
+        } catch (e: any) {
+            this.logger.error({
+                message: `failed to acquire lock on ${resource}: ${e.message}`,
+                operation: 'redlock',
             });
+            return null;
+        }
     }
 }
 
-class LockWrapper {
-    constructor(redlock, lock, resource, leaseTime, logger) {
+class LockWrapper implements ProviderLock {
+    private redlock: Redlock;
+    private lock: Redlock.Lock;
+    private resource: string;
+    private lock_active: boolean;
+    private logger: any;
+    private extendTimer: NodeJS.Timeout;
+
+    constructor(redlock: Redlock, lock: Redlock.Lock, resource: string, leaseTime: number, logger: any) {
         this.logger = logger;
         this.redlock = redlock;
         this.lock = lock;
@@ -109,7 +126,7 @@ class LockWrapper {
         this.extendTimer = setTimeout(extend, leaseTime/2);
     }
 
-    unlock() {
+    public async unlock(): Promise<void> {
         this.lock_active = false;
         clearTimeout(this.extendTimer)
         return this.lock.unlock()
@@ -121,10 +138,8 @@ class LockWrapper {
             });
     }
 
-    active() {
+    public active(): boolean {
         return this.lock_active;
     }
 
 };
-
-export default RedisLock;

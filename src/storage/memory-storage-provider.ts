@@ -19,7 +19,7 @@ class MemoryStorageProvider extends StorageProvider {
 
         new Promise((resolve: (lockService: LockService) => void, reject) => {
             const lock = new LockService("mem", {
-                callback: (err: Error) => { err ? reject(err) : resolve(lock) },
+                callback: (err?: Error) => { err ? reject(err) : resolve(lock) },
             });
         }).catch((err) => {
             typeof opts.callback === 'function' && process.nextTick(() => { opts.callback(err) });

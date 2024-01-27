@@ -1,11 +1,15 @@
 class Mutex {
+    private _locked: boolean;
+    private _pending: { index: number, acquire: () => void }[];
+    private _index: number;
+
     constructor() {
         this._locked = false;
         this._pending = [];
         this._index = 0;
     }
 
-    async acquire(cancelSignal) {
+    public async acquire(cancelSignal: AbortSignal): Promise<boolean> {
 
         return new Promise((resolve, reject) => {
             const index = this._index++;
@@ -42,13 +46,17 @@ class Mutex {
         });
     }
 
-    release() {
+    public release(): void {
         if (this._pending.length > 0) {
-            const {_, acquire} = this._pending.shift();
-            acquire();
+            const pending = this._pending.shift();
+            pending?.acquire();
         } else {
             this._locked = false;
         }
+    }
+
+    public locked(): boolean {
+        return this._locked;
     }
 }
 

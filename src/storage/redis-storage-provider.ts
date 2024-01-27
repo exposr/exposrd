@@ -91,7 +91,7 @@ class RedisStorageProvider extends StorageProvider {
             new Promise((resolve, reject) => {
                 const lock = new LockService("redis", {
                     redisUrl,
-                    callback: (err: Error) => { err ? reject(err) : resolve(lock) },
+                    callback: (err?: Error) => { err ? reject(err) : resolve(lock) },
                 });
             })
             .catch((err) => {

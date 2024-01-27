@@ -47,6 +47,7 @@
     "@types/node": "^20.5.0",
     "@types/pg": "^8.10.9",
     "@types/port-numbers": "^5.0.0",
+    "@types/redlock": "^4.0.7",
     "@types/sinon": "^10.0.17",
     "@types/ssh2": "^1.11.14",
     "@types/sshpk": "^1.17.2",

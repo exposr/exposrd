@@ -36,7 +36,7 @@ class SqliteStorageProvider extends StorageProvider {
 
         new Promise((resolve: (lock: LockService) => void, reject) => {
             const lock = new LockService("mem", {
-                callback: (err: Error) => { err ? reject(err) : resolve(lock) },
+                callback: (err?: Error) => { err ? reject(err) : resolve(lock) },
             });
         }).catch((err) => {
             typeof opts.callback === 'function' && process.nextTick(() => { opts.callback(err) });
