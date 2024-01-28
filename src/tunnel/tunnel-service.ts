@@ -165,7 +165,7 @@ export default class TunnelService {
             await Promise.all([
                 this.altNameService.update(
                     'http',
-                    tunnel.config.id,
+                    <string>tunnel.config.id,
                     [],
                     tunnel.config.ingress.http.alt_names,
                 ),
@@ -216,7 +216,7 @@ export default class TunnelService {
 
                 const updatedAltNames = await this.altNameService.update(
                     'http',
-                    tunnelConfig.id,
+                    <string>tunnelConfig.id,
                     difference(resolvedAltNames, prevAltNames),
                     difference(prevAltNames, resolvedAltNames)
                 );
