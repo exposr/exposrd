@@ -11,11 +11,11 @@ import Version from './version.js';
 import Node from './cluster/cluster-node.js';
 import TunnelConnectionManager from './tunnel/tunnel-connection-manager.js';
 
-export default async (argv) => {
-    const config = new Config(argv);
-    const logger = Logger();
+export default async (argv?: Array<string>) => {
+    const config:any = new Config(argv);
+    const logger:any = Logger();
 
-    const exitError = (err) => {
+    const exitError = (err: Error) => {
         logger.error(`Failed to start up: ${err.message}`);
         logger.debug(err.stack);
         process.exit(-1);
@@ -41,7 +41,7 @@ export default async (argv) => {
                 poolSize: config.get('storage-pgsql-connection-pool-size'),
             }
         });
-    } catch (e) {
+    } catch (e: any) {
         exitError(e);
     }
 
@@ -67,28 +67,35 @@ export default async (argv) => {
                 }
             }
         });
-    } catch (e) {
+    } catch (e: any) {
         exitError(e);
     }
 
     // Setup tunnel data ingress (incoming tunnel data)
-    const ingressReady = IngressManager.listen({
-        http: {
-            enabled: config.get('ingress').includes('http'),
-            port: config.get('ingress-http-port'),
-            subdomainUrl: config.get('ingress-http-url'),
-            httpAgentTTL: config.get('ingress-http-agent-idle-timeout'),
-        },
-        sni: {
-            enabled: config.get('ingress').includes('sni'),
-            port: config.get('ingress-sni-port'),
-            host: config.get('ingress-sni-host'),
-            cert: config.get('ingress-sni-cert'),
-            key: config.get('ingress-sni-key'),
+    try {
+        const listening = IngressManager.listen({
+            http: {
+                enabled: config.get('ingress').includes('http'),
+                port: config.get('ingress-http-port'),
+                subdomainUrl: config.get('ingress-http-url'),
+                httpAgentTTL: config.get('ingress-http-agent-idle-timeout'),
+            },
+            sni: {
+                enabled: config.get('ingress').includes('sni'),
+                port: config.get('ingress-sni-port'),
+                host: config.get('ingress-sni-host'),
+                cert: config.get('ingress-sni-cert'),
+                key: config.get('ingress-sni-key'),
+            }
+        });
+        if (!listening) {
+            throw new Error('Failed to start ingress listener: unknown error')
         }
-    });
+    } catch (e: any) {
+        exitError(e);
+    }
 
-    const transportReady = new Promise((resolve, reject) => {
+    const transportReady = new Promise((resolve: (transport: TransportService) => void, reject) => {
         try {
             // Setup tunnel transport connection endpoints (for clients to establish tunnels)
             const transport = new TransportService({
@@ -114,50 +121,52 @@ export default async (argv) => {
         }
     });
 
-    const adminControllerReady = new Promise((resolve, reject) => {
+    try {
+        await TunnelConnectionManager.start();
+    } catch (e: any) {
+        exitError(e);
+    }
+
+    const adminControllerReady = new Promise((resolve: (adminController: AdminController) => void, reject) => {
         const adminController = new AdminController({
             enable: config.get('admin-enable'),
             port: config.get('admin-port'),
-            callback: (err) => {
+            callback: (err: Error) => {
                 err ? reject(err) : resolve(adminController);
             },
         });
     });
 
-    const adminApiControllerReady = new Promise((resolve, reject) => {
+    const adminApiControllerReady = new Promise((resolve: (adminApiController: AdminApiController) => void, reject) => {
         const adminApiController = new AdminApiController({
             enable: config.get('admin-api-enable'),
             port: config.get('admin-api-port'),
             apiKey: config.get('admin-api-key'),
             unauthAccess: config.get('admin-api-allow-access-without-key'),
-            callback: (err) => {
+            callback: (err: Error) => {
                 err ? reject(err) : resolve(adminApiController);
             },
         });
     });
 
-    const apiControllerReady = new Promise((resolve, reject) => {
+    const apiControllerReady = new Promise((resolve: (apiController: ApiController) => void, reject) => {
         const apiController = new ApiController({
             port: config.get('api-port'),
             url: config.get('api-url'),
             allowRegistration: config.get('allow-registration') || false,
-            callback: (err) => {
+            callback: (err: Error) => {
                 err ? reject(err) : resolve(apiController);
             },
         });
     });
 
     const [
-        tunnelConnectionManager,
-        ingress,
         transport,
         apiController,
         adminApiController,
         adminController,
     ] = await Promise
         .all([
-            TunnelConnectionManager.start(),
-            ingressReady,
             transportReady,
             apiControllerReady,
             adminApiControllerReady,
@@ -170,16 +179,16 @@ export default async (argv) => {
         });
 
     await ClusterManager.start();
-    adminController.setReady();
+    adminController.setReady(true);
     logger.info("exposrd ready");
 
-    const shutdown = async (signal, {gracefulTimeout, drainTimeout}) => {
+    const shutdown = async (signal: NodeJS.Signals, {gracefulTimeout, drainTimeout}: {gracefulTimeout?: number, drainTimeout?: number}) => {
         gracefulTimeout ??= 30000;
         drainTimeout ??= 5000;
         const startTime = process.hrtime.bigint();
         logger.info(`Shutdown initiated, signal=${signal}, press Ctrl-C again to force quit`);
 
-        let forceListener;
+        let forceListener: () => void = () => {};
         const force = new Promise((resolve, reject) => {
             forceListener = () => { reject(); };
             process.once('SIGTERM', forceListener);

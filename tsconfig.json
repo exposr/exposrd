@@ -14,7 +14,7 @@
         "rootDir": "./"
       },
       "include": [
-        "exposrd.js",
+        "exposrd.ts",
         "build.js",
         "package.cjs",
         "src/**/*"
