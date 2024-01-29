@@ -45,7 +45,7 @@ export default class RedisLockProvider implements LockProvider {
                     retryCount: 25,
                 });
 
-                this.redlock.on("clientError", (err) => {
+                this.redlock.on("clientError", (err: Error) => {
                     this.logger.debug({
                         operation: 'redlock',
                         message: `redis redlock error: ${err.message}`,
@@ -106,7 +106,7 @@ class LockWrapper implements ProviderLock {
 
         const extend = () => {
             this.redlock.extend(lock, leaseTime)
-                .catch((err) => {
+                .catch((err: Error) => {
                     this.lock_active = false;
                     this.logger.debug({
                         message: `failed to extend lock on ${this.resource}: ${err.message}`,
@@ -130,7 +130,7 @@ class LockWrapper implements ProviderLock {
         this.lock_active = false;
         clearTimeout(this.extendTimer)
         return this.lock.unlock()
-            .catch((err) => {
+            .catch((err: Error) => {
                 this.logger.debug({
                     message: `redlock unlock failed on resource ${this.resource}: ${err.message}`,
                     operation: 'redlock',
