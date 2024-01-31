@@ -34,6 +34,10 @@ export default async (argv?: Array<string>) => {
         process.exit(-1);
     });
 
+    process.on('warning', (err: Error) => {
+        logger.warn(`warning: ${err.name}: ${err.message}`);
+        logger.debug(err.stack);
+    });
 
     try {
         StorageManager.init(config.get('storage-url'), { 
