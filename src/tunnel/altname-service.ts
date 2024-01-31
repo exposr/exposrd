@@ -1,33 +1,47 @@
 import dns from 'dns';
 import Storage from '../storage/storage.js';
 import { Logger } from '../logger.js';
+import { Serializable } from '../storage/serializer.js';
+
+class AltName implements Serializable {
+    public tunnelId?: string;
+    public created_at?: string;
+
+    constructor(tunnelId?: string, created_at?: string) {
+        this.tunnelId = tunnelId;
+        this.created_at = created_at;
+    }
+}
 
 class AltNameService {
+    private db: Storage;
+    private logger: any;
+
     constructor() {
         this.db = new Storage("ingress-altnames");
         this.logger = Logger("alt-name-service");
     }
 
-    async destroy() {
-        return this.db.destroy();
+    public async destroy(): Promise<void> {
+        await this.db.destroy();
     }
 
-    _key(service, altName) {
+    private _key(service: string, altName: string): string {
         return `${service}-${altName}`.toLowerCase();
     }
 
-    async _set(service, altName, tunnelId) {
-        return this.db.put(this._key(service, altName), {
-            tunnelId,
-            created_at: new Date().toISOString(),
-        }, { NX: true });
+    private async _set(service: string, altName: string, tunnelId: string): Promise<boolean> {
+        const altNameData: AltName = new AltName(tunnelId, new Date().toISOString());
+        const key = this._key(service, altName);
+        return this.db.set(key, altNameData);
     }
 
-    async _get(service, altName) {
-        return this.db.get(this._key(service, altName));
+    private async _get(service: string, altName: string): Promise<AltName | undefined>  {
+        const res = await this.db.read<AltName>(this._key(service, altName), AltName);
+        return res instanceof AltName ? res : undefined;
     }
 
-    async _del(service, altName, tunnelId = undefined) {
+    private async _del(service: string, altName: string, tunnelId?: string): Promise<boolean> {
         const obj = await this._get(service, altName);
         if (tunnelId === undefined || obj?.tunnelId === tunnelId) {
             return this.db.delete(this._key(service, altName));
@@ -36,7 +50,7 @@ class AltNameService {
         }
     }
 
-    async update(service, tunnelId, add, remove) {
+    public async update(service: string, tunnelId: string, add: Array<string> | undefined, remove?: Array<string>): Promise<Array<string>> {
         add ??= []
         remove ??= []
 
@@ -47,7 +61,7 @@ class AltNameService {
         const result = (await Promise.allSettled([...add, ...remove].flatMap(async (an) => {
             const obj = await this._get(service, an);
             return obj?.tunnelId === tunnelId ? an : [];
-        }))).flatMap(({_, value}) => value);
+        }))).flatMap(res => res.status === 'fulfilled' ? res.value : []); 
 
         this.logger.isTraceEnabled() &&
             this.logger.trace({
@@ -61,29 +75,28 @@ class AltNameService {
         return result;
     }
 
-    async get(service, altName) {
+    public async get(service: string, altName: string): Promise<string | undefined> {
         const obj = await this._get(service, altName);
         return obj?.tunnelId;
     }
 
-    static async _resolve(domain, altName) {
+    static async _resolve(domain: string, altName: string): Promise<Array<string>> {
         return new Promise(async (resolve, reject) => {
             try {
                 const res = await dns.promises.resolveCname(altName);
                 resolve(res.includes(domain) ? [altName]: []);
-            } catch (e) {
+            } catch (e: any) {
                 reject();
             }
         });
     }
 
-    static async resolve(domain, altNames) {
+    static async resolve(domain: string, altNames: Array<string>): Promise<Array<string>> {
         const resolved = await Promise.allSettled(altNames.flatMap((altName) => {
             return AltNameService._resolve(domain, altName);
         }));
         return [...new Set(resolved
-            .filter(({status, _}) => status == 'fulfilled')
-            .flatMap(({_, value}) => value))];
+            .flatMap(res => res.status === 'fulfilled' ? res.value : []))];
     }
 
 }

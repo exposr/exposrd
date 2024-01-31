@@ -1,4 +1,3 @@
-process.env.NODE_ENV = process.pkg ? 'production' : (process.env.NODE_ENV ?? 'production');
 import ExposrServer from './src/index.js';
 import selfTest from './src/self-test.js';
 
@@ -10,7 +9,7 @@ import selfTest from './src/self-test.js';
     }
     const terminate = await ExposrServer();
 
-    const sigHandler = async (signal) => {
+    const sigHandler = async (signal: NodeJS.Signals) => {
         const graceful = await terminate(signal, {gracefulTimeout: undefined, drainTimeout: undefined});
         process.exit(graceful ? 0 : -1);
     };
