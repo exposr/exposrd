@@ -99,12 +99,12 @@ export default class TunnelConnectionManager {
         clearTimeout(this.stateRefreshTimer);
         this.stateRefreshTimer = undefined;
 
+        this.running = false;
         this.eventBus?.removeAllListeners();
         await this.eventBus?.destroy();
         (<any>this.eventBus) = undefined;
         this.lastConnection = {};
         this.connectedTunnels = {};
-        this.running = false;
     }
 
     private static async disconnectTunnel(tunnelId: string): Promise<void> {
@@ -200,9 +200,9 @@ export default class TunnelConnectionManager {
                 const chunk = _tunnelIds.splice(0, batchsize);
 
                 const tunnels: Array<TunnelAnnounce> = chunk.map((tunnelId) => {
-                    const state = this.connectedTunnels[tunnelId];
+                    const state = this.connectedTunnels[tunnelId] as (TunnelState | undefined);
 
-                    const localConnections: Array<TunnelConnectionAnnounce> = state.connections
+                    const localConnections: Array<TunnelConnectionAnnounce> = (state?.connections || [])
                         .filter((con) => con.local)
                         .map((con) => {
                             return {
@@ -221,6 +221,10 @@ export default class TunnelConnectionManager {
                     }
                 });
 
+                if (!this.running) {
+                    resolve();
+                    return;
+                }
                 await this.eventBus.publish("tunnel:announce", tunnels);
                 if (_tunnelIds.length > 0) {
                     setImmediate(processChunk);
