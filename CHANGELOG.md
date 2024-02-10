@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.12.0](https://github.com/exposr/exposrd/compare/v0.11.0...v0.12.0) (2024-02-10)
+
+
+### Features
+
+* add admin/cluster endpoint ([2c50175](https://github.com/exposr/exposrd/commit/2c501757ee2d44f2ce7dcb6b4b737a2c52e57308))
+
+
+### Bug Fixes
+
+* avoid undefined usage during shutdown ([03df487](https://github.com/exposr/exposrd/commit/03df4872905494cf8959b3a1f531497816c7448e))
+* buffer initial writes before the underlying socket is open ([dc10ff4](https://github.com/exposr/exposrd/commit/dc10ff40fe5be81f61950183ec570f1ab29300b6))
+* save last_ts when learning a new cluster node ([d627bef](https://github.com/exposr/exposrd/commit/d627befa0cc323091809626abcdc678b565f14eb))
+* support tls over cluster transport ([fd04093](https://github.com/exposr/exposrd/commit/fd0409376ac7a568a8c510192fdc32d58bd28bb0))
+* wrong object passed to learNode ([fd757fe](https://github.com/exposr/exposrd/commit/fd757fedc2f9d14dffedc68a559ffbc7eba8437a))
+
 ## [0.11.0](https://github.com/exposr/exposrd/compare/v0.10.0...v0.11.0) (2023-09-02)
 
 
