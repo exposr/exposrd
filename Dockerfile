@@ -1,5 +1,5 @@
 ARG NODE_VERSION
-ARG ALPINE_VERSION=3.18
+ARG ALPINE_VERSION=3.19
 FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS builder
 RUN apk add \
     build-base \

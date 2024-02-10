@@ -1,6 +1,6 @@
 registry?=exposr
-node_version=20.10.0
-alpine_version=3.18
+node_version=20.11.0
+alpine_version=3.19
 platforms?=linux/amd64,linux/arm64
 
 project:=exposrd
