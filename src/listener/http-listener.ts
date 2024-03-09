@@ -199,7 +199,7 @@ export default class HttpListener extends ListenerBase {
                     },
                     duration: res.duration,
                 };
-                customLogger.info(logEntry);
+                //customLogger.info(logEntry);
             });
         });
         return [!next, statusCode];
