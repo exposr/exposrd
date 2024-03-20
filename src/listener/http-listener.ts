@@ -144,18 +144,18 @@ export default class HttpListener extends ListenerBase {
     private async handleRequest(event: HttpRequestType.request, ctx: HttpRequestContext): Promise<[boolean, number | undefined]>;
     private async handleRequest(event: HttpRequestType, ctx: HttpCallbackContext): Promise<[boolean, number | undefined]> {
 
-        const captor = new HttpCaptor({
-            request: ctx.req,
-            response: (ctx as HttpRequestContext).res,
-            opts: {
-                limit: 4*1024,
-            }
-        });
+        //const captor = new HttpCaptor({
+        //    request: ctx.req,
+        //    response: (ctx as HttpRequestContext).res,
+        //    opts: {
+        //        limit: 4*1024,
+        //    }
+        //});
 
         let statusCode: number | undefined = undefined;
         let next = true;
         let customLogger: any;
-        const capture = captor.capture();
+        //const capture = captor.capture();
 
         ctx.baseUrl = this.getBaseUrl(ctx.req);
         if (ctx.baseUrl !== undefined) {
@@ -164,8 +164,8 @@ export default class HttpListener extends ListenerBase {
                     next = true;
                     continue;
                 }
-                captor.captureRequestBody = obj.opts?.logBody || false;
-                captor.captureResponseBody = obj.opts?.logBody || false;
+                //captor.captureRequestBody = obj.opts?.logBody || false;
+                //captor.captureResponseBody = obj.opts?.logBody || false;
                 try {
                     next = false;
                     await obj.callback(ctx, () => { next = true });
@@ -183,25 +183,25 @@ export default class HttpListener extends ListenerBase {
             statusCode = 400;
         }
 
-        customLogger ??= this.logger;
-        setImmediate(() => {
-            capture.then((res) => {
-                if (customLogger === false) {
-                    return;
-                }
-                const logEntry = {
-                    operation: 'http-request',
-                    request: res.request,
-                    response: res.response,
-                    client: {
-                        ip: res.client.ip,
-                        remote: res.client.remoteAddr,
-                    },
-                    duration: res.duration,
-                };
-                //customLogger.info(logEntry);
-            });
-        });
+        //customLogger ??= this.logger;
+        //setImmediate(() => {
+        //    capture.then((res) => {
+        //        if (customLogger === false) {
+        //            return;
+        //        }
+        //        const logEntry = {
+        //            operation: 'http-request',
+        //            request: res.request,
+        //            response: res.response,
+        //            client: {
+        //                ip: res.client.ip,
+        //                remote: res.client.remoteAddr,
+        //            },
+        //            duration: res.duration,
+        //        };
+        //        customLogger.info(logEntry);
+        //    });
+        //});
         return [!next, statusCode];
     }
 
