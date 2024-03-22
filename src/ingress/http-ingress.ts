@@ -361,8 +361,36 @@ export default class HttpIngress implements IngressBase {
             clientRes.pipe(res);
         });
 
+        res.once('error', (err: any) => {
+            this.logger.withContext("tunnel", tunnel.id).debug({
+                message: `upstream response error: ${err.message}`
+            });
+        });
+
+        res.once('close', () => {
+            this.logger.withContext("tunnel", tunnel.id).debug({
+                message: `upstream closed connection`, 
+            });
+        });
+
+        const close = () => {
+            clientReq.removeAllListeners('error');
+            clientReq.removeAllListeners('close');
+            clientReq.destroy();
+        };
+
+        clientReq.once('timeout', () => {
+            this.logger.withContext("tunnel", tunnel.id).debug({
+                message: `http request timeout`,
+            });
+            clientReq.end();
+        });
+
         clientReq.once('close', () => {
             agent.activeTunnelConnections = Math.max(agent.activeTunnelConnections - 1, 0);
+            this.logger.withContext("tunnel", tunnel.id).debug({
+                message: `http request closed: ${agent.activeTunnelConnections} active connections`,
+            });
         });
 
         clientReq.on('error', (err: any) => {
